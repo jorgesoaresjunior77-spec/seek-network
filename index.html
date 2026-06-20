@@ -1,0 +1,2307 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
+<title>SEEK — Controle de Indicações</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+<style>
+:root{
+  --bg:#F2F2F2;--bg-up:#F8F8F8;--black:#111111;--gray:#D0D0D0;--white:#FFFFFF;
+  --muted:#888888;--green:#1D7A3A;--red:#C0392B;--yellow:#C47700;
+  --nm-out:7px 7px 18px rgba(0,0,0,0.26),-7px -7px 18px rgba(255,255,255,0.95);
+  --nm-in:inset 5px 5px 12px rgba(0,0,0,0.22),inset -5px -5px 12px rgba(255,255,255,0.92);
+  --nm-press:inset 4px 4px 10px rgba(0,0,0,0.22),inset -4px -4px 10px rgba(255,255,255,0.88);
+  --r:24px;--rb:18px;--t:0.3s ease;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;background:var(--bg);color:var(--black);min-height:100vh;-webkit-font-smoothing:antialiased;}
+.nm{background:var(--bg);border-radius:var(--r);box-shadow:var(--nm-out);}
+.nm-in{background:var(--bg);border-radius:16px;box-shadow:var(--nm-in);}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:var(--rb);box-shadow:var(--nm-out);cursor:pointer;font-family:inherit;font-weight:700;font-size:.84rem;color:var(--black);padding:12px 20px;transition:all var(--t);background:var(--bg);text-shadow:0 1px 2px rgba(0,0,0,.1);}
+.btn:active{box-shadow:var(--nm-press);transform:scale(.98);}
+.btn-dark{background:var(--black);color:var(--white);box-shadow:4px 4px 14px rgba(0,0,0,.35),-2px -2px 8px rgba(255,255,255,.18);}
+.btn-dark:active{box-shadow:2px 2px 8px rgba(0,0,0,.3),-1px -1px 5px rgba(255,255,255,.15);transform:scale(.98);}
+.btn-green{background:var(--green);color:var(--white);box-shadow:4px 4px 14px rgba(29,122,58,.35),-2px -2px 8px rgba(255,255,255,.18);}
+.btn-full{width:100%;}
+.inp{width:100%;background:var(--bg);border:none;border-radius:14px;box-shadow:var(--nm-in);padding:13px 17px;font-family:inherit;font-size:.9rem;font-weight:600;color:var(--black);outline:none;transition:box-shadow var(--t);}
+.inp::placeholder{color:var(--muted);font-weight:500;}
+.inp:focus{box-shadow:inset 6px 6px 14px rgba(0,0,0,.24),inset -6px -6px 14px rgba(255,255,255,.9);}
+.inp:disabled{opacity:.45;cursor:not-allowed;}
+.inp option{background:var(--bg-up);color:var(--black);}
+.label{font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:block;}
+.section-title{font-size:.62rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.top-bar{background:var(--bg);box-shadow:0 4px 20px rgba(0,0,0,.07),0 1px 0 rgba(255,255,255,.9);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.tab-bar{background:var(--bg);box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:10px 16px 20px;display:flex;gap:8px;position:fixed;bottom:0;left:0;right:0;z-index:20;max-width:640px;margin:0 auto;}
+.tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;border-radius:16px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:.62rem;font-weight:700;letter-spacing:.04em;color:var(--muted);transition:all var(--t);}
+.tab.on{background:var(--bg);box-shadow:var(--nm-out);color:var(--black);}
+.overlay{position:fixed;inset:0;background:rgba(17,17,17,.4);backdrop-filter:blur(6px);z-index:50;display:flex;align-items:flex-end;justify-content:center;animation:fi .2s ease;}
+@keyframes fi{from{opacity:0}to{opacity:1}}
+.sheet{background:var(--bg);border-radius:32px 32px 0 0;box-shadow:0 -8px 40px rgba(0,0,0,.22);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;padding:10px 22px 40px;animation:su .3s cubic-bezier(.32,.72,0,1);}
+@keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.handle{width:38px;height:5px;background:var(--gray);border-radius:99px;margin:0 auto 18px;box-shadow:var(--nm-in);}
+.page{padding:18px 16px 100px;display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto;}
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--gray),transparent);margin:2px 0;}
+.stat-n{font-size:1.45rem;font-weight:800;letter-spacing:-.02em;text-shadow:1px 1px 2px rgba(0,0,0,.14);line-height:1;}
+.new-badge{position:absolute;top:-6px;right:-6px;background:var(--green);color:#fff;font-size:.6rem;font-weight:900;border-radius:99px;padding:2px 7px;box-shadow:2px 2px 6px rgba(0,0,0,.2);}
+.icon-btn{width:36px;height:36px;border-radius:12px;background:var(--bg);box-shadow:var(--nm-out);display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;flex-shrink:0;transition:all var(--t);}
+.icon-btn:active{box-shadow:var(--nm-press);}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:50px;padding:5px 12px;font-size:.72rem;font-weight:700;box-shadow:var(--nm-out);cursor:pointer;transition:all var(--t);border:none;background:var(--bg);}
+.pill:active{box-shadow:var(--nm-press);}
+.seek-logo{font-size:3.4rem;font-weight:900;letter-spacing:.12em;color:var(--black);text-shadow:0 1px 0 rgba(255,255,255,.7),2px 4px 8px rgba(0,0,0,.3);line-height:1;}
+.login-inp{width:100%;background:var(--bg);border:none;border-radius:50px;box-shadow:var(--nm-in);padding:15px 26px;font-family:inherit;font-size:.82rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--black);outline:none;text-align:center;transition:box-shadow var(--t);}
+.login-inp::placeholder{color:var(--muted);}
+.login-inp:focus{box-shadow:inset 6px 6px 14px rgba(0,0,0,.2),inset -6px -6px 14px rgba(255,255,255,.9);}
+.member-avatar{width:46px;height:46px;border-radius:16px;background:var(--black);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:800;color:var(--white);flex-shrink:0;box-shadow:4px 4px 12px rgba(0,0,0,.28),-2px -2px 8px rgba(255,255,255,.6);}
+.print-only{display:none;}
+@media print{body *{visibility:hidden;}.print-only,.print-only *{visibility:visible;}.print-only{display:block!important;position:absolute;top:0;left:0;width:100%;}}
+
+/* ── SEEK v2 extras ── */
+.level-badge{display:inline-flex;align-items:center;gap:5px;border-radius:99px;padding:5px 13px;font-size:.7rem;font-weight:800;letter-spacing:.04em;}
+.level-bronze {background:linear-gradient(135deg,#CD7F32,#8B4513);color:#fff;}
+.level-silver {background:linear-gradient(135deg,#C0C0C0,#808080);color:#fff;}
+.level-gold   {background:linear-gradient(135deg,#FFD700,#B8860B);color:#111;}
+.level-diamond{background:linear-gradient(135deg,#B3E5FC,#3A86FF);color:#fff;}
+.level-emerald{background:linear-gradient(135deg,#50C878,#1B5E20);color:#fff;}
+.progress-bar-wrap{background:var(--bg);border-radius:99px;box-shadow:var(--nm-in);height:11px;overflow:hidden;}
+.progress-bar-fill{height:100%;border-radius:99px;transition:width .7s ease;}
+.progress-bronze {background:linear-gradient(90deg,#8B4513,#CD7F32);}
+.progress-silver {background:linear-gradient(90deg,#808080,#C8C8C8);}
+.progress-gold   {background:linear-gradient(90deg,#B8860B,#FFD700);}
+.progress-diamond{background:linear-gradient(90deg,#3A86FF,#B3E5FC);}
+.progress-emerald{background:linear-gradient(90deg,#1B5E20,#50C878);}
+.progress-jr     {background:linear-gradient(90deg,#444,#AAAAAA);}
+.product-select-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.product-card{border:none;border-radius:18px;padding:14px 8px;text-align:center;cursor:pointer;background:var(--bg);box-shadow:var(--nm-out);transition:all .3s ease;font-family:inherit;}
+.product-card.selected{box-shadow:var(--nm-press);}
+.product-card-icon{font-size:1.3rem;margin-bottom:5px;}
+.product-card-name{font-size:.65rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--black);}
+.product-card-rate{font-size:.62rem;font-weight:700;color:var(--muted);margin-top:2px;}
+.rem-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--gray);}
+.rem-row:last-child{border-bottom:none;}
+.tag-jr{background:linear-gradient(135deg,#444,#888);color:#fff;border-radius:6px;padding:2px 8px;font-size:.58rem;font-weight:900;letter-spacing:.06em;}
+.btn-green-opp{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:18px 24px;border:none;border-radius:22px;background:linear-gradient(145deg,#2ECC71,#1a8a47);color:#fff;font-family:inherit;font-size:1rem;font-weight:900;letter-spacing:.04em;cursor:pointer;box-shadow:6px 6px 18px rgba(46,204,113,.4),-3px -3px 8px rgba(255,255,255,.15);transition:all .3s;text-transform:uppercase;}
+.btn-green-opp:hover{transform:translateY(-2px);box-shadow:8px 8px 24px rgba(46,204,113,.5),-3px -3px 8px rgba(255,255,255,.15);}
+.btn-green-opp:active{transform:scale(.97);box-shadow:inset 3px 3px 8px rgba(0,0,0,.2);}
+@keyframes pulse2{0%,100%{box-shadow:6px 6px 18px rgba(46,204,113,.4),-3px -3px 8px rgba(255,255,255,.15),0 0 0 0 rgba(46,204,113,.5)}70%{box-shadow:6px 6px 18px rgba(46,204,113,.4),-3px -3px 8px rgba(255,255,255,.15),0 0 0 12px rgba(46,204,113,0)}}
+.btn-green-opp{animation:pulse2 2.5s ease-in-out infinite;}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+window.addEventListener('error', function(e){
+  var r=document.getElementById('root');
+  if(r && !r.children.length) r.innerHTML='<div style="font-family:monospace;padding:24px;color:#c00;background:#fff;white-space:pre-wrap;font-size:13px"><b>Erro ao carregar o app:</b>\n'+e.message+'\n\nFonte: '+e.filename+'\nLinha: '+e.lineno+'</div>';
+});
+</script>
+<script type="text/babel" data-presets="env,react">
+const {useState,useEffect}=React;
+
+/* ── CONSTANTS ── */
+const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const SK={
+  members:'sk_members',referrals:'sk_referrals',nextId:'sk_nextId',
+  credentials:'sk_credentials',passReqs:'sk_passReqs',
+  seekJrs:'sk_seekjrs',jrReferrals:'sk_jr_referrals',nextJrId:'sk_nextJrId',
+  levelNotifs:'sk_lvnotifs',offers:'sk_offers',
+};
+const PRODUCT_TYPES=[
+  {id:'auto',name:'Automóveis',  rate:0.001, icon:'🚗'},
+  {id:'cons',name:'Consórcios',  rate:0.002, icon:'🤝'},
+  {id:'corp',name:'Empresariais',rate:0.0012,icon:'🏢'},
+];
+const SEEK_LEVELS=[
+  {id:'start', name:'Seek Start', min:0,   max:9,        bonus:0,    cssClass:'level-bronze',  progressClass:'progress-bronze',  color:'#CD7F32'},
+  {id:'one',   name:'Seek One',   min:10,  max:19,       bonus:0.05, cssClass:'level-silver',  progressClass:'progress-silver',  color:'#A8A8A8'},
+  {id:'plus',  name:'Seek Plus',  min:20,  max:49,       bonus:0.10, cssClass:'level-gold',    progressClass:'progress-gold',    color:'#FFD700'},
+  {id:'pro',   name:'Seek Pro',   min:50,  max:99,       bonus:0.15, cssClass:'level-diamond', progressClass:'progress-diamond', color:'#4FC3F7'},
+  {id:'elite', name:'Seek Elite', min:100, max:Infinity, bonus:0.20, cssClass:'level-emerald', progressClass:'progress-emerald', color:'#50C878'},
+];
+const JR_LEVELS=[
+  {id:'jr1',name:'JR 1',min:0,       max:500000,  bonus:0.05},
+  {id:'jr2',name:'JR 2',min:500000,  max:1000000, bonus:0.07},
+  {id:'jr3',name:'JR 3',min:1000000, max:1500000, bonus:0.10},
+  {id:'jr4',name:'JR 4',min:1500000, max:Infinity,bonus:0.12},
+];
+const JR_GRADUATION=2000000;
+const ADM_PHONE='51996509660';
+const ADM_PIN='0000';
+
+/* ── HELPERS ── */
+function sg(k){try{const r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}
+function sd(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+
+/* Compare any two ids (number or string) safely. This is the single source
+   of truth for id comparisons across the whole app — never compare ids with
+   === directly, since localStorage / form values can silently change a
+   number into a string (or vice-versa) depending on which code path wrote
+   the data. */
+function sameId(a,b){
+  if(a===undefined||a===null||b===undefined||b===null)return false;
+  return String(a)===String(b);
+}
+
+/* ── LEGACY STORAGE CLEANUP ────────────────────────────────────────────────
+   Earlier versions of this app used different localStorage key names for
+   the same data (sk_m, sk_c, sk_creds, sk_r, sk_n, sk_jr, sk_jrs, sk_reqs,
+   sk_pass_requests). The current version only ever reads/writes the
+   canonical keys in SK below.
+
+   IMPORTANT: this function only DELETES those old keys — it never merges
+   their contents back into the canonical storage. An earlier version of
+   this cleanup used to merge legacy data back in on every app load, which
+   caused a serious bug: any record a user deleted could reappear, because
+   a stray copy left under an old key name kept getting re-merged in every
+   single time the app started. Deleting (and never reading) the legacy
+   keys is the correct, permanent fix — once they're gone, this function
+   has nothing left to do on every subsequent boot.
+─────────────────────────────────────────────────────────────────────────── */
+function cleanupLegacyStorageKeys(){
+  const legacyKeys=['sk_m','sk_c','sk_creds','sk_r','sk_n','sk_jr','sk_jrs','sk_reqs','sk_pass_requests'];
+  let removed=[];
+  legacyKeys.forEach(k=>{
+    if(localStorage.getItem(k)!==null){
+      localStorage.removeItem(k);
+      removed.push(k);
+    }
+  });
+  if(removed.length){
+    console.log('[SEEK cleanup] removed obsolete legacy keys (data was NOT merged back, by design):',removed);
+  }
+}
+const fBRL=v=>Number.isFinite(v)?v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):'R$ 0,00';
+const fCD=n=>n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+function fDate(r){if(r.day)return`${String(r.day).padStart(2,'0')}/${String(r.month).padStart(2,'0')}/${r.year}`;return`${MONTHS[(r.month||1)-1].slice(0,3)}/${r.year}`;}
+function todayISO(){const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+/* Phone format: (DD)XXXXX-XXXX — DDD in parens, no space */
+function maskPhone(raw){
+  const d=(raw||'').replace(/\D/g,'').slice(0,11);
+  if(!d)return'';
+  if(d.length<=2)return`(${d}`;
+  if(d.length<=6)return`(${d.slice(0,2)})${d.slice(2)}`;
+  if(d.length<=10)return`(${d.slice(0,2)})${d.slice(2,6)}-${d.slice(6)}`;
+  return`(${d.slice(0,2)})${d.slice(2,7)}-${d.slice(7)}`;
+}
+
+function calcPoints(total){return Math.floor(total/100000);}
+function getSeekLevel(pts){return SEEK_LEVELS.find(l=>pts>=l.min&&pts<=l.max)||SEEK_LEVELS[0];}
+function getJrLevel(vol){return JR_LEVELS.find(l=>vol>=l.min&&vol<l.max)||JR_LEVELS[0];}
+function levelProgress(pts){
+  const lv=getSeekLevel(pts);
+  if(lv.id==='elite')return 100;
+  return Math.min(100,Math.round(((pts-lv.min)/(lv.max-lv.min+1))*100));
+}
+function calcCommission(val,prodId,level){
+  const pt=PRODUCT_TYPES.find(p=>p.id===prodId)||PRODUCT_TYPES[0];
+  return val*pt.rate*(1+level.bonus);
+}
+
+/* ── ICONS ── */
+const Ic=({d,s=20,c='currentColor',...p})=>(
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>{d}</svg>
+);
+const IcGrid =p=><Ic {...p} d={<><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></>}/>;
+const IcUsers=p=><Ic {...p} d={<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>}/>;
+const IcBook =p=><Ic {...p} d={<><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></>}/>;
+const IcOut  =p=><Ic {...p} d={<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></>}/>;
+const IcPlus =p=><Ic {...p} d={<><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}/>;
+const IcLeft =p=><Ic {...p} d={<polyline points="15 18 9 12 15 6"/>}/>;
+const IcX    =p=><Ic {...p} d={<><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>}/>;
+const IcTrash=p=><Ic {...p} d={<><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>}/>;
+const IcCheck=p=><Ic {...p} d={<polyline points="20 6 9 17 4 12"/>}/>;
+const IcClock=p=><Ic {...p} d={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>}/>;
+const IcEdit =p=><Ic {...p} d={<><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>}/>;
+const IcStar =p=><Ic {...p} d={<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>}/>;
+const IcEye  =p=><Ic {...p} d={<><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>}/>;
+const IcEyeOff=p=><Ic {...p} d={<><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></>}/>;
+const IcKey  =p=><Ic {...p} d={<><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L22 7l-3-3"/></>}/>;
+const IcSrch =p=><Ic {...p} d={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>}/>;
+const IcPhone=p=><Ic {...p} d={<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>}/>;
+const IcShare=p=><Ic {...p} d={<><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></>}/>;
+const IcBell =p=><Ic {...p} d={<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>}/>;
+const IcWA   =({s=20,fill='currentColor',...p})=><svg width={s} height={s} viewBox="0 0 24 24" fill={fill} {...p}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>;
+
+/* ── S-LOGO SVG (metallic chrome S shape) ── */
+function SLogoIcon({size=68}){
+  return(
+    <svg width={size} height={size} viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        {/* Main metallic gradient - matches the chrome look in photo */}
+        <linearGradient id="sMain" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="#3A3A3A"/>
+          <stop offset="15%"  stopColor="#7A7A7A"/>
+          <stop offset="30%"  stopColor="#C8C8C8"/>
+          <stop offset="45%"  stopColor="#F0F0F0"/>
+          <stop offset="50%"  stopColor="#FFFFFF"/>
+          <stop offset="60%"  stopColor="#E0E0E0"/>
+          <stop offset="75%"  stopColor="#A8A8A8"/>
+          <stop offset="88%"  stopColor="#686868"/>
+          <stop offset="100%" stopColor="#2A2A2A"/>
+        </linearGradient>
+        {/* Highlight gradient for the top face of the ribbon */}
+        <linearGradient id="sHi" x1="0%" y1="0%" x2="60%" y2="100%">
+          <stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0.9"/>
+          <stop offset="40%"  stopColor="#E8E8E8" stopOpacity="0.6"/>
+          <stop offset="100%" stopColor="#888888" stopOpacity="0"/>
+        </linearGradient>
+        {/* Shadow gradient for underside */}
+        <linearGradient id="sSh" x1="100%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%"   stopColor="#1A1A1A" stopOpacity="0.8"/>
+          <stop offset="60%"  stopColor="#444444" stopOpacity="0.4"/>
+          <stop offset="100%" stopColor="#888888" stopOpacity="0"/>
+        </linearGradient>
+        <filter id="sDrop" x="-10%" y="-10%" width="120%" height="120%">
+          <feDropShadow dx="2" dy="4" stdDeviation="4" floodColor="#000000" floodOpacity="0.45"/>
+        </filter>
+        <filter id="sInner">
+          <feGaussianBlur stdDeviation="1" result="b"/>
+          <feComposite in="SourceGraphic" in2="b" operator="over"/>
+        </filter>
+      </defs>
+
+      {/* ── TOP RIBBON (upper part of S) ── */}
+      {/* Main body - thick curved ribbon going from right to left */}
+      <path
+        d="M72 18 C72 18 85 18 85 32 C85 46 72 50 55 52 C38 54 20 56 20 70 C20 84 33 88 50 88 C62 88 72 84 78 78"
+        fill="none"
+        stroke="url(#sMain)"
+        strokeWidth="18"
+        strokeLinecap="round"
+        filter="url(#sDrop)"
+      />
+      {/* Top highlight on upper ribbon */}
+      <path
+        d="M72 18 C72 18 85 18 85 32 C85 46 72 50 55 52 C38 54 20 56 20 70 C20 84 33 88 50 88 C62 88 72 84 78 78"
+        fill="none"
+        stroke="url(#sHi)"
+        strokeWidth="9"
+        strokeLinecap="round"
+      />
+      {/* Inner shadow along curve */}
+      <path
+        d="M72 18 C72 18 85 18 85 32 C85 46 72 50 55 52 C38 54 20 56 20 70 C20 84 33 88 50 88 C62 88 72 84 78 78"
+        fill="none"
+        stroke="url(#sSh)"
+        strokeWidth="9"
+        strokeLinecap="round"
+        opacity="0.6"
+      />
+
+      {/* ── TOP CAP — the curved end at top-right ── */}
+      <path
+        d="M72 18 C60 10 40 10 30 18 C22 24 20 32 28 38"
+        fill="none"
+        stroke="url(#sMain)"
+        strokeWidth="16"
+        strokeLinecap="round"
+        filter="url(#sDrop)"
+      />
+      <path
+        d="M72 18 C60 10 40 10 30 18 C22 24 20 32 28 38"
+        fill="none"
+        stroke="url(#sHi)"
+        strokeWidth="8"
+        strokeLinecap="round"
+        opacity="0.8"
+      />
+
+      {/* ── BOTTOM CAP — the curved end at bottom-left ── */}
+      <path
+        d="M28 82 C40 92 62 92 72 84 C80 78 82 70 74 64"
+        fill="none"
+        stroke="url(#sMain)"
+        strokeWidth="16"
+        strokeLinecap="round"
+        filter="url(#sDrop)"
+      />
+      <path
+        d="M28 82 C40 92 62 92 72 84 C80 78 82 70 74 64"
+        fill="none"
+        stroke="url(#sHi)"
+        strokeWidth="8"
+        strokeLinecap="round"
+        opacity="0.8"
+      />
+    </svg>
+  );
+}
+
+
+/* S-shape medal
+/* S-shape medal for each level */
+function SMedal({levelId,size=52,lit}){
+  const cols={
+    start:{g1:'#7A5C3A',g2:'#C8924E',g3:'#F0B870',sh:'rgba(140,90,40,0.6)'},
+    one:  {g1:'#505050',g2:'#B0B0B0',g3:'#E8E8E8',sh:'rgba(80,80,80,0.6)'},
+    plus: {g1:'#8A6800',g2:'#D4A800',g3:'#FFE040',sh:'rgba(180,140,0,0.6)'},
+    pro:  {g1:'#0A3A8A',g2:'#1E78E5',g3:'#90C8F9',sh:'rgba(20,80,200,0.6)'},
+    elite:{g1:'#0A4A20',g2:'#1A8A40',g3:'#70E890',sh:'rgba(15,110,50,0.6)'},
+  };
+  const c=lit?(cols[levelId]||cols.start):{g1:'#888',g2:'#B8B8B8',g3:'#D8D8D8',sh:'rgba(0,0,0,0.2)'};
+  const uid=`sm_${levelId}_${size}`;
+  return(
+    <svg width={size} height={size} viewBox="0 0 60 72" fill="none">
+      <defs>
+        <linearGradient id={`${uid}a`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor={c.g1}/>
+          <stop offset="40%"  stopColor={c.g2}/>
+          <stop offset="70%"  stopColor={c.g3}/>
+          <stop offset="100%" stopColor={c.g1}/>
+        </linearGradient>
+        <linearGradient id={`${uid}h`} x1="0%" y1="0%" x2="50%" y2="100%">
+          <stop offset="0%"   stopColor="#FFFFFF" stopOpacity={lit?"0.7":"0.3"}/>
+          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0"/>
+        </linearGradient>
+        <filter id={`${uid}d`}><feDropShadow dx="1" dy="2" stdDeviation="2" floodColor={c.sh} floodOpacity="0.9"/></filter>
+        {lit&&<filter id={`${uid}g`}><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>}
+      </defs>
+      {/* S path scaled to medal size */}
+      <path
+        d="M42 10 C42 10 50 10 50 19 C50 28 42 31 32 32 C22 33 12 34 12 43 C12 52 20 55 30 55 C37 55 43 52 47 48"
+        fill="none" stroke={`url(#${uid}a)`} strokeWidth="11" strokeLinecap="round"
+        filter={`url(#${uid}d)`} opacity={lit?1:0.3}
+      />
+      <path
+        d="M42 10 C42 10 50 10 50 19 C50 28 42 31 32 32 C22 33 12 34 12 43 C12 52 20 55 30 55 C37 55 43 52 47 48"
+        fill="none" stroke={`url(#${uid}h)`} strokeWidth="5.5" strokeLinecap="round" opacity={lit?0.8:0.2}
+        filter={lit?`url(#${uid}g)`:undefined}
+      />
+      {/* Top cap */}
+      <path d="M42 10 C36 6 22 6 16 11 C12 15 11 20 16 24"
+        fill="none" stroke={`url(#${uid}a)`} strokeWidth="10" strokeLinecap="round"
+        filter={`url(#${uid}d)`} opacity={lit?1:0.3}/>
+      <path d="M42 10 C36 6 22 6 16 11 C12 15 11 20 16 24"
+        fill="none" stroke={`url(#${uid}h)`} strokeWidth="5" strokeLinecap="round" opacity={lit?0.8:0.2}/>
+      {/* Bottom cap */}
+      <path d="M14 51 C20 57 38 57 44 51 C48 47 49 42 44 38"
+        fill="none" stroke={`url(#${uid}a)`} strokeWidth="10" strokeLinecap="round"
+        filter={`url(#${uid}d)`} opacity={lit?1:0.3}/>
+      <path d="M14 51 C20 57 38 57 44 51 C48 47 49 42 44 38"
+        fill="none" stroke={`url(#${uid}h)`} strokeWidth="5" strokeLinecap="round" opacity={lit?0.8:0.2}/>
+    </svg>
+  );
+}
+
+
+/* ── LEVEL-UP MODAL ── */
+function LevelUpModal({level,onClose}){
+  const msgs={
+    one:   'Você alcançou o Seek One! Sua dedicação está rendendo frutos reais. Continue firme, o melhor está por vir!',
+    plus:  'Seek Plus conquistado! Você está entre os melhores indicadores. Seu esforço e consistência são inspiradores!',
+    pro:   'Seek Pro! Poucos chegam até aqui. Você é uma referência de excelência — continue voando alto!',
+    elite: 'SEEK ELITE! O topo do sistema. Você se tornou lendário. Orgulho total — você redefiniu o que é possível!',
+  };
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(10,10,10,0.7)',backdropFilter:'blur(12px)',zIndex:200,display:'flex',alignItems:'center',justifyContent:'center',padding:24,animation:'fadeIn .35s ease'}}>
+      <div style={{background:'var(--bg)',borderRadius:32,boxShadow:'0 0 80px rgba(0,0,0,0.35)',padding:'40px 28px',maxWidth:340,width:'100%',textAlign:'center',animation:'slideUp .4s cubic-bezier(.32,.72,0,1)'}}>
+        <div style={{marginBottom:16,display:'flex',justifyContent:'center'}}>
+          <SMedal levelId={level.id} size={110} lit={true}/>
+        </div>
+        <div style={{fontSize:'.7rem',fontWeight:800,letterSpacing:'.2em',textTransform:'uppercase',color:'var(--muted)',marginBottom:10}}>🎉 Novo Nível Alcançado!</div>
+        <span className={`level-badge ${level.cssClass}`} style={{fontSize:'1rem',padding:'10px 24px',display:'inline-flex',marginBottom:18}}>{level.name}</span>
+        <p style={{fontSize:'.9rem',color:'var(--black)',fontWeight:600,lineHeight:1.75,marginBottom:18,marginTop:14}}>{msgs[level.id]||'Parabéns pelo novo nível!'}</p>
+        <div style={{fontSize:'.8rem',color:'var(--muted)',fontWeight:700,marginBottom:24,padding:'10px 14px',borderRadius:14,background:'var(--bg)',boxShadow:'var(--nm-in)'}}>
+          Bônus de comissão: <span style={{color:level.color,fontWeight:900}}>+{(level.bonus*100).toFixed(0)}%</span>
+        </div>
+        <button className="btn btn-dark btn-full" style={{padding:14,fontSize:'.88rem'}} onClick={onClose}>Continuar 🚀</button>
+      </div>
+    </div>
+  );
+}
+
+/* ── ATOMS ── */
+function Spinner(){return<div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh'}}><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{animation:'spin 1s linear infinite'}}><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg><style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style></div>;}
+function Div(){return<div style={{height:1,background:'linear-gradient(90deg,transparent,var(--gray),transparent)',margin:'2px 0'}}/>;}
+function Empty({text}){return<div style={{textAlign:'center',padding:'36px 20px',color:'var(--muted)',fontSize:'.85rem',fontWeight:500}}><div style={{fontSize:'2rem',marginBottom:10,opacity:.3}}>◌</div>{text}</div>;}
+function Fld({label,children}){return<div style={{display:'flex',flexDirection:'column',gap:6}}><span className="label">{label}</span>{children}</div>;}
+
+function PhoneInput({value,onChange,autoFocus}){
+  function h(e){onChange(e.target.value.replace(/\D/g,'').slice(0,11));}
+  return(
+    <div style={{position:'relative'}}>
+      <input className="inp" type="tel" inputMode="numeric" value={maskPhone(value||'')} onChange={h} placeholder="(DD)9XXXX-XXXX" autoFocus={autoFocus} style={{paddingRight:44}}/>
+      <span style={{position:'absolute',right:13,top:'50%',transform:'translateY(-50%)',color:'#25D366',pointerEvents:'none',display:'flex',alignItems:'center'}}><IcWA s={19} fill="#25D366"/></span>
+    </div>
+  );
+}
+/* PlainPhoneInput — a true digits-only phone field with NO masking at all.
+   Used everywhere a phone number is captured for login purposes (SEEK and
+   SEEK JR registration), so the format is byte-for-byte identical to what
+   the unified login screen accepts: just numbers, no parentheses, no
+   dashes, no spaces. This removes any possibility of the registration and
+   login forms disagreeing about how a phone number is represented. */
+function PlainPhoneInput({value,onChange,autoFocus}){
+  function h(e){onChange(e.target.value.replace(/\D/g,'').slice(0,11));}
+  return(
+    <div style={{position:'relative'}}>
+      <input className="inp" type="tel" inputMode="numeric" value={value||''} onChange={h} placeholder="SOMENTE NÚMEROS" autoFocus={autoFocus} style={{paddingRight:44}}/>
+      <span style={{position:'absolute',right:13,top:'50%',transform:'translateY(-50%)',color:'#25D366',pointerEvents:'none',display:'flex',alignItems:'center'}}><IcWA s={19} fill="#25D366"/></span>
+    </div>
+  );
+}
+function PinInput({value,onChange,autoFocus}){
+  const [show,setShow]=useState(false);
+  return<div style={{position:'relative'}}>
+    <input className="inp" type={show?'text':'password'} inputMode="numeric" maxLength={4} value={value} onChange={e=>onChange(e.target.value.replace(/\D/g,'').slice(0,4))} placeholder="••••" autoFocus={autoFocus} style={{textAlign:'center',fontSize:'1.4rem',letterSpacing:'.5em',fontWeight:800}}/>
+    <button type="button" onClick={()=>setShow(!show)} style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',color:'var(--muted)'}}>{show?<IcEyeOff s={17}/>:<IcEye s={17}/>}</button>
+  </div>;
+}
+function CurrencyInput({value,onChange,disabled}){
+  const [disp,setDisp]=useState(value?fCD(value):'');
+  function h(e){const d=e.target.value.replace(/\D/g,'');if(!d){setDisp('');onChange(0);return;}const n=parseInt(d,10)/100;setDisp(fCD(n));onChange(n);}
+  return<div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)',fontSize:'.85rem',fontWeight:600,pointerEvents:'none'}}>R$</span><input className="inp" style={{paddingLeft:40}} type="text" inputMode="numeric" value={disp} onChange={h} placeholder="0,00" disabled={disabled}/></div>;
+}
+function ProductSelect({value,onChange}){
+  return<div className="product-select-grid">
+    {PRODUCT_TYPES.map(p=>(
+      <button key={p.id} type="button" className={`product-card${value===p.id?' selected':''}`} onClick={()=>onChange(p.id)}>
+        <div className="product-card-icon">{p.icon}</div>
+        <div className="product-card-name">{p.name}</div>
+        <div className="product-card-rate">{(p.rate*100).toFixed(1)}%</div>
+      </button>
+    ))}
+  </div>;
+}
+function LevelBadge({points,small}){
+  const lv=getSeekLevel(points);
+  return<span className={`level-badge ${lv.cssClass}`} style={small?{fontSize:'.6rem',padding:'3px 9px'}:{}}>{lv.name}</span>;
+}
+function ProgressBar({pct,className,label,sub}){
+  return<div>
+    {(label||sub)&&<div style={{display:'flex',justifyContent:'space-between',marginBottom:5,fontSize:'.68rem',fontWeight:700,color:'var(--muted)'}}><span>{label}</span><span style={{color:'var(--black)',fontWeight:800}}>{sub||`${Math.round(pct)}%`}</span></div>}
+    <div className="progress-bar-wrap"><div className={`progress-bar-fill ${className}`} style={{width:`${Math.min(100,pct)}%`}}/></div>
+  </div>;
+}
+
+/* Medals showcase grid */
+function MedalsShowcase({points}){
+  const curIdx=SEEK_LEVELS.findIndex(l=>l.id===getSeekLevel(points).id);
+  return(
+    <div className="nm" style={{padding:'20px 18px'}}>
+      <div className="section-title" style={{marginBottom:16,display:'flex',alignItems:'center',gap:6}}><IcStar s={14}/>Minhas Conquistas</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10}}>
+        {SEEK_LEVELS.map((lv,i)=>{
+          const lit=i<=curIdx;
+          return(
+            <div key={lv.id} style={{textAlign:'center',transition:'opacity .6s',opacity:lit?1:0.38}}>
+              <SMedal levelId={lv.id} size={50} lit={lit}/>
+              <div style={{fontSize:'.54rem',fontWeight:800,letterSpacing:'.04em',textTransform:'uppercase',marginTop:6,color:lit?'var(--black)':'var(--muted)'}}>{lv.name.replace('Seek ','')}</div>
+              <div style={{fontSize:'.5rem',color:'var(--muted)',marginTop:1}}>{lv.max===Infinity?`${lv.min}+`:`${lv.min}-${lv.max}`} pts</div>
+              {lit&&lv.bonus>0&&<div style={{fontSize:'.5rem',fontWeight:800,color:lv.color,marginTop:2}}>+{(lv.bonus*100).toFixed(0)}%</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function Sheet({title,onClose,children}){
+  return<div className="overlay" onClick={onClose}><div className="sheet" onClick={e=>e.stopPropagation()}>
+    <div className="handle"/>
+    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+      <span style={{fontWeight:800,fontSize:'.95rem'}}>{title}</span>
+      <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+    </div>
+    {children}
+  </div></div>;
+}
+function Confirm({title,msg,onCancel,onOk}){
+  return<Sheet title={title} onClose={onCancel}><p style={{fontSize:'.88rem',color:'var(--muted)',fontWeight:500,lineHeight:1.6,marginBottom:24}}>{msg}</p><div style={{display:'flex',gap:12}}><button className="btn btn-full" onClick={onCancel}>Cancelar</button><button className="btn btn-full" style={{color:'var(--red)'}} onClick={onOk}>Excluir</button></div></Sheet>;
+}
+function TopBar({title,left,right,logo}){
+  return<div className="top-bar" style={{maxWidth:640,margin:'0 auto'}}>
+    <div style={{width:44}}>{left}</div>
+    {logo?<div style={{fontWeight:900,fontSize:'1.3rem',letterSpacing:'.12em',color:'var(--black)',textShadow:'0 1px 0 rgba(255,255,255,.7),2px 4px 8px rgba(0,0,0,.3)'}}>{logo}</div>:<span style={{fontWeight:800,fontSize:'.92rem',letterSpacing:'.04em'}}>{title}</span>}
+    <div style={{width:44,display:'flex',justifyContent:'flex-end'}}>{right}</div>
+  </div>;
+}
+function StatCard({label,value,color}){
+  return<div className="nm" style={{padding:'16px'}}>
+    <div className="section-title" style={{marginBottom:7}}>{label}</div>
+    <div className="stat-n" style={{color:color||'var(--black)'}}>{value}</div>
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LOGIN SCREEN — single unified login
+══════════════════════════════════════════════════════════════════ */
+function LoginScreen({onLogin,credentials,members,seekJrs}){
+  const [phone,setPhone]=useState('');
+  const [pass,setPass]=useState('');
+  const [err,setErr]=useState('');
+  const [showPass,setShowPass]=useState(false);
+  const [solicitarSenha,setSolicitarSenha]=useState(false);
+  const [solPhone,setSolPhone]=useState('');
+  const [solErr,setSolErr]=useState('');
+  const [solOk,setSolOk]=useState(false);
+
+  function handleSubmit(e){
+    e.preventDefault();setErr('');
+    const digits=phone.replace(/\D/g,'');
+    const pin=pass.trim();
+    console.log(`[SEEK login] attempt — phoneDigits="${digits}" pinLength=${pin.length}`);
+    if(!digits||!pin){setErr('Preencha telefone e senha.');console.log('[SEEK login] aborted: empty phone or pin');return;}
+
+    // 1) ADM — hardcoded constant, independent of any stored data.
+    if(digits===ADM_PHONE&&pin===ADM_PIN){
+      console.log('[SEEK login] matched ADM');
+      onLogin({role:'adm'});return;
+    }
+
+    // Read directly from localStorage as defense-in-depth: guarantees we
+    // check the exact same data the rest of the app will read right after
+    // login, even if a state update elsewhere in the React tree hasn't
+    // flushed yet.
+    function lsGet(key){try{const v=localStorage.getItem(key);return v?JSON.parse(v):null;}catch(e){return null;}}
+    const lsCredentials=lsGet('sk_credentials')||{};
+    const lsMembers=lsGet('sk_members')||[];
+    const lsJrs=lsGet('sk_seekjrs')||[];
+    console.log(`[SEEK login] storage snapshot — credentialKeys=${Object.keys(lsCredentials).length} members=${lsMembers.length} seekJrs=${lsJrs.length}`);
+
+    // 2) SEEK — any credential entry whose key does NOT start with "jr_"
+    for(const [k,c] of Object.entries(lsCredentials)){
+      if(String(k).startsWith('jr_'))continue;
+      const stored=(c.login||'').replace(/\D/g,'');
+      if(stored===digits&&c.pin===pin){
+        console.log(`[SEEK login] matched SEEK via credentials[${k}]`);
+        onLogin({role:'member',memberId:k});return;
+      }
+    }
+    // SEEK fallback: match directly against the member's saved phone
+    for(const mb of lsMembers){
+      const wa=(mb.whatsapp||'').replace(/\D/g,'');
+      if(wa!==digits)continue;
+      const cred=lsCredentials[String(mb.id)]||{pin:'0000'};
+      if(cred.pin===pin){
+        console.log(`[SEEK login] matched SEEK via members[].whatsapp -> id=${mb.id}`);
+        onLogin({role:'member',memberId:String(mb.id)});return;
+      }
+    }
+
+    // 3) SEEK JR — credential entries whose key starts with "jr_"
+    for(const [k,c] of Object.entries(lsCredentials)){
+      if(!String(k).startsWith('jr_'))continue;
+      const stored=(c.login||'').replace(/\D/g,'');
+      if(stored===digits&&c.pin===pin){
+        const jrId=k.replace('jr_','');
+        console.log(`[SEEK login] matched JR via credentials[${k}] -> jrId=${jrId}`);
+        onLogin({role:'jr',jrId});return;
+      }
+    }
+    // JR fallback: match directly against the JR's saved phone
+    for(const jr of lsJrs){
+      const wa=(jr.whatsapp||'').replace(/\D/g,'');
+      if(wa!==digits)continue;
+      const cred=lsCredentials[`jr_${jr.id}`]||{pin:'0000'};
+      if(cred.pin===pin){
+        console.log(`[SEEK login] matched JR via seekJrs[].whatsapp -> jrId=${jr.id}`);
+        onLogin({role:'jr',jrId:jr.id});return;
+      }
+    }
+
+    console.warn('[SEEK login] FAILED — no ADM/SEEK/JR matched this phone+pin.',{
+      digits,
+      credentialEntries:Object.entries(lsCredentials).map(([k,c])=>({key:k,login:c.login,pin:c.pin})),
+    });
+    setErr('Telefone ou senha incorretos.');
+  }
+
+  return(
+    <div style={{minHeight:'100vh',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',padding:'32px 22px'}}>
+      <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',alignItems:'center',gap:26}}>
+
+        {/* SEEK Network Logo — faithful to brand image */}
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
+          <svg width="150" height="120" viewBox="0 0 150 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              {/* Main metallic gradient — left-to-right light sweep */}
+              <linearGradient id="lg1" x1="0%" y1="30%" x2="100%" y2="70%">
+                <stop offset="0%"   stopColor="#2A2A2A"/>
+                <stop offset="20%"  stopColor="#7A7A7A"/>
+                <stop offset="38%"  stopColor="#C8C8C8"/>
+                <stop offset="50%"  stopColor="#F5F5F5"/>
+                <stop offset="62%"  stopColor="#C0C0C0"/>
+                <stop offset="80%"  stopColor="#686868"/>
+                <stop offset="100%" stopColor="#222222"/>
+              </linearGradient>
+              <linearGradient id="lg2" x1="100%" y1="20%" x2="0%" y2="80%">
+                <stop offset="0%"   stopColor="#242424"/>
+                <stop offset="22%"  stopColor="#848484"/>
+                <stop offset="42%"  stopColor="#D8D8D8"/>
+                <stop offset="52%"  stopColor="#FFFFFF"/>
+                <stop offset="65%"  stopColor="#BCBCBC"/>
+                <stop offset="82%"  stopColor="#585858"/>
+                <stop offset="100%" stopColor="#1A1A1A"/>
+              </linearGradient>
+              <linearGradient id="lg3" x1="25%" y1="0%" x2="75%" y2="100%">
+                <stop offset="0%"   stopColor="#303030"/>
+                <stop offset="24%"  stopColor="#808080"/>
+                <stop offset="45%"  stopColor="#D0D0D0"/>
+                <stop offset="55%"  stopColor="#EFEFEF"/>
+                <stop offset="68%"  stopColor="#B8B8B8"/>
+                <stop offset="84%"  stopColor="#5A5A5A"/>
+                <stop offset="100%" stopColor="#262626"/>
+              </linearGradient>
+              {/* Gloss highlight overlay */}
+              <linearGradient id="gloss" x1="0" y1="0" x2="0.6" y2="1">
+                <stop offset="0%"   stopColor="#FFFFFF" stopOpacity="0.55"/>
+                <stop offset="55%"  stopColor="#FFFFFF" stopOpacity="0.12"/>
+                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0"/>
+              </linearGradient>
+              {/* Deep shadow filter */}
+              <filter id="ds1" x="-25%" y="-25%" width="150%" height="150%">
+                <feDropShadow dx="3" dy="5" stdDeviation="4" floodColor="#000000" floodOpacity="0.65"/>
+              </filter>
+              <filter id="ds2" x="-25%" y="-25%" width="150%" height="150%">
+                <feDropShadow dx="2" dy="4" stdDeviation="3.5" floodColor="#000000" floodOpacity="0.55"/>
+              </filter>
+            </defs>
+
+            {/* === 3-hex cluster: top-left large, top-right medium, bottom-right small === */}
+            {/* Exact layout from logo: 2 large on top-left area, 1 right of them, 1 bottom-right smaller */}
+
+            {/* Hex 1 — top-left, largest */}
+            <path d="M28 10 L60 10 L76 38 L60 66 L28 66 L12 38 Z"
+              fill="none" stroke="url(#lg1)" strokeWidth="9" strokeLinejoin="round"
+              filter="url(#ds1)"/>
+            <path d="M28 10 L60 10 L76 38 L60 66 L28 66 L12 38 Z"
+              fill="none" stroke="url(#gloss)" strokeWidth="4" strokeLinejoin="round" opacity="0.8"/>
+
+            {/* Hex 2 — top-right, same size, shares left edge with hex1 */}
+            <path d="M60 10 L92 10 L108 38 L92 66 L60 66 L44 38 Z"
+              fill="none" stroke="url(#lg2)" strokeWidth="9" strokeLinejoin="round"
+              filter="url(#ds1)"/>
+            <path d="M60 10 L92 10 L108 38 L92 66 L60 66 L44 38 Z"
+              fill="none" stroke="url(#gloss)" strokeWidth="4" strokeLinejoin="round" opacity="0.7"/>
+
+            {/* Hex 3 — bottom-center, slightly smaller, offset down-right */}
+            <path d="M70 60 L96 60 L109 82 L96 104 L70 104 L57 82 Z"
+              fill="none" stroke="url(#lg3)" strokeWidth="8" strokeLinejoin="round"
+              filter="url(#ds2)"/>
+            <path d="M70 60 L96 60 L109 82 L96 104 L70 104 L57 82 Z"
+              fill="none" stroke="url(#gloss)" strokeWidth="3.5" strokeLinejoin="round" opacity="0.65"/>
+          </svg>
+
+          {/* SEEK wordmark — bold, metallic, modern */}
+          <div style={{textAlign:'center',lineHeight:1}}>
+            <div style={{
+              fontFamily:"'Manrope','Inter',sans-serif",
+              fontWeight:900,
+              fontSize:'3rem',
+              letterSpacing:'.22em',
+              background:'linear-gradient(160deg,#3A3A3A 0%,#868686 18%,#E0E0E0 36%,#FFFFFF 50%,#D8D8D8 65%,#787878 82%,#2A2A2A 100%)',
+              WebkitBackgroundClip:'text',
+              WebkitTextFillColor:'transparent',
+              backgroundClip:'text',
+              filter:'drop-shadow(3px 6px 8px rgba(0,0,0,0.55)) drop-shadow(0px -1px 0 rgba(255,255,255,0.3))',
+            }}>SEEK</div>
+            <div style={{
+              fontFamily:"'Manrope','Inter',sans-serif",
+              fontWeight:600,
+              fontSize:'.62rem',
+              letterSpacing:'.55em',
+              color:'#888',
+              textTransform:'uppercase',
+              marginTop:8,
+              textShadow:'0 2px 6px rgba(0,0,0,0.3)',
+            }}>NETWORK</div>
+          </div>
+        </div>
+
+        {/* Login form — single unified entry, phone digits only, no mode tabs.
+            The system figures out automatically whether the phone+pin belongs
+            to the ADM, a SEEK, or a SEEK JR. */}
+        <form onSubmit={handleSubmit} style={{width:'100%',display:'flex',flexDirection:'column',gap:13}}>
+          <input className="login-inp" type="tel" inputMode="numeric"
+            value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,11))}
+            placeholder="TELEFONE (SOMENTE NÚMEROS)" autoFocus/>
+          <div style={{position:'relative'}}>
+            <input className="login-inp" type={showPass?'text':'password'}
+              value={pass} onChange={e=>setPass(e.target.value.replace(/\D/g,'').slice(0,4))}
+              placeholder="SENHA (4 DÍGITOS)" inputMode="numeric" maxLength={4}
+              style={{paddingRight:52}}/>
+            <button type="button" onClick={()=>setShowPass(!showPass)}
+              style={{position:'absolute',right:18,top:'50%',transform:'translateY(-50%)',
+                      background:'none',border:'none',cursor:'pointer',color:'var(--muted)'}}>
+              {showPass?<IcEyeOff s={17}/>:<IcEye s={17}/>}
+            </button>
+          </div>
+          {err&&<p style={{textAlign:'center',fontSize:'.76rem',fontWeight:700,color:'var(--red)',padding:'4px 8px',borderRadius:10,background:'rgba(192,57,43,0.07)'}}>{err}</p>}
+          <button type="submit" className="btn btn-dark btn-full"
+            style={{padding:16,fontSize:'.84rem',letterSpacing:'.1em',borderRadius:50,marginTop:4}}>
+            Entrar
+          </button>
+        </form>
+
+        <div style={{textAlign:'center',display:'flex',flexDirection:'column',gap:10}}>
+          <button onClick={()=>{setSolicitarSenha(true);setSolPhone('');setSolErr('');setSolOk(false);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:'.78rem',fontWeight:700,color:'var(--muted)',fontFamily:'inherit',textDecoration:'underline',textUnderlineOffset:3}}>
+            Esqueceu sua senha?
+          </button>
+        </div>
+      </div>
+
+      {solicitarSenha&&(
+        <div className="overlay" onClick={()=>setSolicitarSenha(false)}>
+          <div className="sheet" onClick={e=>e.stopPropagation()}>
+            <div className="handle"/>
+            <div style={{fontWeight:900,fontSize:'1rem',marginBottom:16}}>🔐 Solicitar Nova Senha</div>
+            {solOk?(
+              <div style={{textAlign:'center',padding:'24px 0'}}>
+                <div style={{fontSize:'2rem',marginBottom:12}}>✅</div>
+                <div style={{fontWeight:700,fontSize:'.9rem',marginBottom:8}}>Solicitação enviada!</div>
+                <div style={{fontSize:'.8rem',color:'var(--muted)',marginBottom:20}}>O administrador foi notificado e vai liberar seu novo acesso em breve.</div>
+                <button className="btn btn-dark btn-full" onClick={()=>setSolicitarSenha(false)}>Fechar</button>
+              </div>
+            ):(
+              <div style={{display:'flex',flexDirection:'column',gap:14}}>
+                <p style={{fontSize:'.84rem',color:'var(--muted)',lineHeight:1.6}}>Digite seu telefone cadastrado (somente números). O administrador receberá a solicitação e liberará seu novo acesso.</p>
+                <input className="inp" type="tel" inputMode="numeric"
+                  value={solPhone} onChange={e=>setSolPhone(e.target.value.replace(/\D/g,'').slice(0,11))}
+                  placeholder="TELEFONE (SOMENTE NÚMEROS)" autoFocus/>
+                {solErr&&<div style={{color:'var(--red)',fontSize:'.76rem',fontWeight:700}}>{solErr}</div>}
+                <div style={{display:'flex',gap:10}}>
+                  <button className="btn btn-full" onClick={()=>setSolicitarSenha(false)}>Cancelar</button>
+                  <button className="btn btn-dark btn-full" onClick={()=>{
+                    const d=solPhone.replace(/\D/g,'');
+                    if(!d){setSolErr('Digite seu telefone.');return;}
+                    // Save request to localStorage
+                    try{
+                      const reqs=JSON.parse(localStorage.getItem('sk_passReqs')||'[]');
+                      const newReq={id:Date.now(),phone:d,type:'forgot',resolved:false};
+                      reqs.push(newReq);
+                      localStorage.setItem('sk_passReqs',JSON.stringify(reqs));
+                      setSolOk(true);
+                    }catch(e){setSolErr('Erro ao enviar. Tente novamente.');}
+                  }}>Solicitar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   REMUNERAÇÃO PANEL
+══════════════════════════════════════════════════════════════════ */
+function RemuneracaoPanel(){
+  return(
+    <div style={{maxWidth:640,margin:'0 auto'}}>
+      <TopBar title="Remuneração & Regras"/>
+      <div className="page" style={{paddingBottom:110}}>
+        <div className="nm" style={{padding:'20px 18px'}}>
+          <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>🏷️ Produtos & Comissões</div>
+          {PRODUCT_TYPES.map((p,i)=>(
+            <div key={p.id} className="rem-row">
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontSize:'1.1rem'}}>{p.icon}</span>
+                <span style={{fontWeight:600,fontSize:'.84rem'}}>{p.name}</span>
+              </div>
+              <span style={{fontWeight:800,fontSize:'.84rem'}}>{(p.rate*100).toFixed(1)}% do valor</span>
+            </div>
+          ))}
+          <div style={{marginTop:12,fontSize:'.74rem',color:'var(--muted)',lineHeight:1.6}}>* O bônus de nível é aplicado sobre a comissão base do produto.</div>
+        </div>
+        <div className="nm" style={{padding:'20px 18px'}}>
+          <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:8,display:'flex',alignItems:'center',gap:8}}>🏆 Sistema de Níveis SEEK</div>
+          <div style={{fontSize:'.75rem',color:'var(--muted)',marginBottom:14,lineHeight:1.6}}>1 ponto a cada R$ 100.000,00 vendidos acumulados.</div>
+          {SEEK_LEVELS.map((lv,i)=>(
+            <div key={lv.id} className="rem-row">
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <SMedal levelId={lv.id} size={34} lit={true}/>
+                <div>
+                  <div style={{fontWeight:800,fontSize:'.82rem'}}>{lv.name}</div>
+                  <div style={{fontSize:'.68rem',color:'var(--muted)'}}>{lv.max===Infinity?`${lv.min}+ pts`:`${lv.min}–${lv.max} pts`}</div>
+                </div>
+              </div>
+              <span style={{fontWeight:800,fontSize:'.82rem',color:lv.color||'var(--black)'}}>{lv.bonus===0?'Sem bônus':`+${(lv.bonus*100).toFixed(0)}%`}</span>
+            </div>
+          ))}
+        </div>
+        <div className="nm" style={{padding:'20px 18px'}}>
+          <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:8,display:'flex',alignItems:'center',gap:8}}>⭐ Sistema SEEK JR</div>
+          <div style={{fontSize:'.75rem',color:'var(--muted)',marginBottom:14,lineHeight:1.6}}>
+            JR ganha a mesma comissão de indicação. O SEEK recebe bônus extra sobre as comissões do JR.<br/>
+            📅 Indicações do JR zeram todo dia 1° do mês. Barra de graduação contínua até R$ 2M.
+          </div>
+          {JR_LEVELS.map(lv=>(
+            <div key={lv.id} className="rem-row">
+              <div>
+                <div style={{fontWeight:800,fontSize:'.82rem'}}>{lv.name}</div>
+                <div style={{fontSize:'.7rem',color:'var(--muted)'}}>{lv.max===Infinity?`Acima de ${fBRL(lv.min)}`:`${fBRL(lv.min)} a ${fBRL(lv.max)}`}</div>
+              </div>
+              <div style={{textAlign:'right'}}>
+                <div style={{fontWeight:800,color:'var(--green)'}}>{(lv.bonus*100).toFixed(0)}% bônus</div>
+                <div style={{fontSize:'.68rem',color:'var(--muted)'}}>para o SEEK</div>
+              </div>
+            </div>
+          ))}
+          <div style={{marginTop:14,padding:'12px 14px',borderRadius:14,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.74rem',color:'var(--muted)',lineHeight:1.7}}>
+            🎓 <strong>Graduação:</strong> Após R$ 2.000.000,00 em vendas totais acumuladas, o SEEK JR vira SEEK.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SEEK JR PANEL
+══════════════════════════════════════════════════════════════════ */
+function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral,onChangePin,offers}){
+  const now=new Date();
+  const [sm,setSm]=useState(now.getMonth()+1);
+  const [sy,setSy]=useState(now.getFullYear());
+  const [showAdd,setShowAdd]=useState(false);
+  const [showPin,setShowPin]=useState(false);
+  const [showJrOffers,setShowJrOffers]=useState(false);
+
+  const [oldPin,setOldPin]=useState('');
+  const [newPin,setNewPin]=useState('');
+  const [cfPin,setCfPin]=useState('');
+  const [pinErr,setPinErr]=useState('');
+  const credKey=`jr_${jr.id}`;
+  const cred=credentials[credKey]||{pin:'0000'};
+  const curY=now.getFullYear();
+  const years=Array.from({length:3},(_,i)=>curY-1+i);
+
+  const myRefs=referrals.filter(r=>sameId(r.jrId,jr.id));
+  const monthRefs=myRefs.filter(r=>r.month===sm&&r.year===sy);
+  const monthVol=monthRefs.reduce((s,r)=>s+r.productValue,0);
+  const monthCom=monthRefs.reduce((s,r)=>s+r.commission,0);
+  const totalVol=myRefs.reduce((s,r)=>s+r.productValue,0);
+  const gradPct=Math.min(100,(totalVol/JR_GRADUATION)*100);
+  const graduated=totalVol>=JR_GRADUATION;
+  const jrLv=getJrLevel(totalVol);
+  const jrLvIdx=JR_LEVELS.findIndex(l=>l.id===jrLv.id);
+  const jrLvPct=jrLv.max===Infinity?100:Math.min(100,Math.round(((totalVol-jrLv.min)/(jrLv.max-jrLv.min))*100));
+  const initials=jr.name.trim().slice(0,2).toUpperCase();
+
+  function changePin(e){
+    e.preventDefault();setPinErr('');
+    if(oldPin!==cred.pin){setPinErr('Senha atual incorreta.');return;}
+    if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}
+    if(newPin!==cfPin){setPinErr('Senhas não coincidem.');return;}
+    onChangePin(credKey,newPin);setOldPin('');setNewPin('');setCfPin('');setShowPin(false);alert('Senha alterada!');
+  }
+
+  function RefForm({onClose,onSave}){
+    const [cn,setCn]=useState('');
+    const [wa,setWa]=useState('');
+    const [prodType,setProdType]=useState('auto');
+    const [val,setVal]=useState(0);
+    const today=todayISO();
+    function save(e){
+      e.preventDefault();if(!cn.trim()||val<=0)return;
+      const pt=PRODUCT_TYPES.find(p=>p.id===prodType);
+      const commission=val*pt.rate;
+      const parts=today.split('-').map(Number);
+      onSave({clientName:cn.trim(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2],isNew:true,jrId:jr.id});
+      onClose();
+    }
+    const pt=PRODUCT_TYPES.find(p=>p.id===prodType)||PRODUCT_TYPES[0];
+    return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
+      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="WhatsApp"><PhoneInput value={wa} onChange={setWa}/></Fld>
+      <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
+      <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
+      <div className="nm-in" style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <span style={{fontSize:'.8rem',color:'var(--muted)',fontWeight:600}}>Sua comissão ({pt.name})</span>
+        <span style={{fontWeight:800,fontSize:'1rem',color:'var(--green)'}}>{fBRL(val*pt.rate)}</span>
+      </div>
+      <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onClose}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Confirmar</button></div>
+    </form>;
+  }
+
+  const sorted=[...monthRefs].sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
+
+  return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
+    <TopBar logo="SEEK JR" right={<button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>}/>
+    <div className="page" style={{paddingBottom:30}}>
+
+      {/* Identity card */}
+      <div className="nm" style={{padding:'22px 20px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:16}}>
+          <div className="member-avatar" style={{width:52,height:52,borderRadius:18,fontSize:'1rem'}}>{initials}</div>
+          <div>
+            <div style={{fontWeight:800,fontSize:'1rem'}}>{jr.name}</div>
+            <div style={{fontSize:'.72rem',color:'var(--muted)',fontWeight:600,marginTop:3}}>
+              ID: <b style={{color:'var(--black)'}}>{jr.id}JR</b>
+            </div>
+            {seekMember&&<div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>
+              SEEK: <b style={{color:'var(--black)'}}>#{String(seekMember.id).padStart(3,'0')}</b> · {seekMember.name}
+            </div>}
+          </div>
+        </div>
+
+        {/* Period */}
+        <div style={{display:'flex',gap:10,marginBottom:14}}>
+          <select className="inp" style={{flex:1}} value={sm} onChange={e=>setSm(Number(e.target.value))}>{MONTHS.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select>
+          <select className="inp" style={{width:90}} value={sy} onChange={e=>setSy(Number(e.target.value))}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+        </div>
+
+        {/* Stats */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
+          {[['Indicações Mês',monthRefs.length,null],['Valor Mês',fBRL(monthVol),null],['Comissão Mês',fBRL(monthCom),'var(--green)'],['Total Acumulado',fBRL(totalVol),null]].map(([l,v,c])=>(
+            <div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c||'var(--black)'}}>{v}</div></div>
+          ))}
+        </div>
+
+        {/* Graduation bar */}
+        {graduated&&<div style={{marginBottom:10,padding:'8px 14px',borderRadius:12,background:'rgba(29,122,58,0.1)',fontSize:'.76rem',fontWeight:800,color:'var(--green)',textAlign:'center'}}>🎓 Graduado para SEEK!</div>}
+        <ProgressBar pct={gradPct} className="progress-jr" label="Progresso para SEEK" sub={`${fBRL(totalVol)} / ${fBRL(JR_GRADUATION)}`}/>
+
+        {/* JR level bars */}
+        <div style={{marginTop:14}}>
+          <div style={{fontSize:'.68rem',fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',marginBottom:8,display:'flex',justifyContent:'space-between'}}>
+            <span>Nível JR → bônus do SEEK</span>
+            <span style={{color:'var(--green)',fontWeight:900}}>{jrLv.name} — {(jrLv.bonus*100).toFixed(0)}%</span>
+          </div>
+          <div style={{display:'flex',gap:5,marginBottom:8}}>
+            {JR_LEVELS.map((lv,i)=>(
+              <div key={lv.id} style={{flex:1,textAlign:'center'}}>
+                <div style={{height:8,borderRadius:99,background:i<=jrLvIdx?'var(--green)':'var(--gray)',marginBottom:4,transition:'all .5s',boxShadow:i<=jrLvIdx?'0 0 6px rgba(29,122,58,.4)':'none'}}/>
+                <div style={{fontSize:'.54rem',fontWeight:800,color:i<=jrLvIdx?'var(--green)':'var(--muted)'}}>{lv.name}</div>
+                <div style={{fontSize:'.5rem',color:'var(--muted)'}}>{(lv.bonus*100).toFixed(0)}%</div>
+              </div>
+            ))}
+          </div>
+          <ProgressBar pct={jrLvPct} className="progress-emerald"
+            label={`Progresso ${jrLv.name}`}
+            sub={jrLv.max===Infinity?'Máximo!':fBRL(jrLv.max-totalVol)+' para próx.'}
+          />
+        </div>
+      </div>
+
+      {/* Big green opportunity button */}
+      <button className="btn-green-opp" onClick={()=>setShowAdd(true)}>
+        <IcPlus s={22} c="#fff"/>
+        Encontrei uma Oportunidade
+      </button>
+
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={15}/>Alterar Senha</button>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>Ofertas do Mês 🏷️</button>
+
+      {/* Referrals */}
+      <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
+      <div className="nm" style={{padding:'6px 16px'}}>
+        {sorted.length===0?<Empty text="Nenhuma indicação no período"/>:sorted.map((r,i,arr)=>(
+          <div key={r.id}><div style={{padding:'13px 0'}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+              <div style={{fontWeight:700,fontSize:'.87rem'}}>{r.clientName}</div>
+              <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
+            </div>
+            {r.whatsapp&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:4,display:'flex',alignItems:'center',gap:5}}><IcWA s={13} fill="#25D366"/>{maskPhone(r.whatsapp)}</div>}
+            <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name} · {fBRL(r.productValue)}</div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
+              <span style={{fontSize:'.7rem',fontWeight:700,padding:'4px 10px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:r.paid?'var(--green)':'var(--muted)'}}>{r.paid?'Pago':'Pendente'}</span>
+            </div>
+          </div>{i<arr.length-1&&<Div/>}</div>
+        ))}
+      </div>
+    </div>
+    {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><RefForm onClose={()=>setShowAdd(false)} onSave={onAddReferral}/></Sheet>}
+    {showJrOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowJrOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
+    {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
+      <form onSubmit={changePin} style={{display:'flex',flexDirection:'column',gap:18}}>
+        <Fld label="Senha Atual"><PinInput value={oldPin} onChange={setOldPin} autoFocus/></Fld>
+        <Fld label="Nova Senha"><PinInput value={newPin} onChange={setNewPin}/></Fld>
+        <Fld label="Confirmar"><PinInput value={cfPin} onChange={setCfPin}/></Fld>
+        {pinErr&&<div style={{color:'var(--red)',fontSize:'.78rem',fontWeight:700}}>{pinErr}</div>}
+        <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={()=>setShowPin(false)}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Salvar</button></div>
+      </form>
+    </Sheet>}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SEEK MEMBER PANEL
+══════════════════════════════════════════════════════════════════ */
+function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,onAddReferral,onAddJr,onChangePin,levelNotifs,onDismissNotif,offers}){
+  const now=new Date();
+  const [sm,setSm]=useState(now.getMonth()+1);
+  const [sy,setSy]=useState(now.getFullYear());
+  const [showAdd,setShowAdd]=useState(false);
+  const [showAddJr,setShowAddJr]=useState(false);
+  const [showPin,setShowPin]=useState(false);
+  const [showMemberOffers,setShowMemberOffers]=useState(false);
+  const [showJrOffers,setShowJrOffers]=useState(false);
+  const [oldPin,setOldPin]=useState('');
+  const [newPin,setNewPin]=useState('');
+  const [cfPin,setCfPin]=useState('');
+  const [pinErr,setPinErr]=useState('');
+  const cred=credentials[member.id]||credentials[String(member.id)]||{pin:'0000'};
+  const curY=now.getFullYear();
+  const years=Array.from({length:3},(_,i)=>curY-1+i);
+
+  const myRefs=referrals.filter(r=>sameId(r.memberId,member.id));
+  const monthRefs=myRefs.filter(r=>r.month===sm&&r.year===sy);
+  const totalSales=myRefs.reduce((s,r)=>s+r.productValue,0);
+  const points=calcPoints(totalSales);
+  const level=getSeekLevel(points);
+  const lvPct=levelProgress(points);
+
+  const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
+  const myJrRefs=jrReferrals.filter(r=>myJrs.some(j=>sameId(j.id,r.jrId)));
+
+  // Per-product breakdown for month
+  const prodBreakdown=PRODUCT_TYPES.map(pt=>{
+    const refs=monthRefs.filter(r=>r.productType===pt.id);
+    return{...pt,count:refs.length,volume:refs.reduce((s,r)=>s+r.productValue,0),commission:refs.reduce((s,r)=>s+r.commission,0)};
+  });
+
+  const monthCom=monthRefs.reduce((s,r)=>s+r.commission,0);
+  const monthComPaid=monthRefs.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+  const monthComDue=monthRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+  const jrBonus=myJrs.reduce((total,jr)=>{
+    const jrTotalVol=myJrRefs.filter(r=>sameId(r.jrId,jr.id)).reduce((s,r)=>s+r.productValue,0);
+    const jrLv=getJrLevel(jrTotalVol);
+    const jrComm=myJrRefs.filter(r=>sameId(r.jrId,jr.id)&&r.month===sm&&r.year===sy).reduce((s,r)=>s+r.commission,0);
+    return total+(jrComm*jrLv.bonus);
+  },0);
+
+  const initials=member.name.trim().slice(0,2).toUpperCase();
+  const myLevelNotif=(levelNotifs||[]).find(n=>sameId(n.memberId,member.id)&&!n.dismissed);
+  const nextLevel=level.id==='elite'?null:SEEK_LEVELS[SEEK_LEVELS.findIndex(l=>l.id===level.id)+1];
+
+  function changePin(e){
+    e.preventDefault();setPinErr('');
+    if(oldPin!==cred.pin){setPinErr('Senha atual incorreta.');return;}
+    if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}
+    if(newPin!==cfPin){setPinErr('Senhas não coincidem.');return;}
+    onChangePin(member.id,newPin);setOldPin('');setNewPin('');setCfPin('');setShowPin(false);alert('Senha alterada!');
+  }
+
+  function shareCard(){
+    const msg=encodeURIComponent(`SEEK — Indicações\n\nOlá! Te convido a conhecer a Motomecânica Volkswagen.\n\nID SEEK: #${String(member.id).padStart(3,'0')}\n${member.name}\n\nJunior Soares · (51)99650-9660\n\nConecte oportunidades. Multiplique resultados.`);
+    window.open(`https://wa.me/?text=${msg}`,'_blank');
+  }
+
+  function RefForm({onClose,onSave}){
+    const [cn,setCn]=useState('');
+    const [wa,setWa]=useState('');
+    const [prodType,setProdType]=useState('auto');
+    const [val,setVal]=useState(0);
+    const today=todayISO();
+    function save(e){
+      e.preventDefault();if(!cn.trim()||val<=0)return;
+      const commission=calcCommission(val,prodType,level);
+      const parts=today.split('-').map(Number);
+      onSave({clientName:cn.trim(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2],isNew:true});
+      onClose();
+    }
+    const preview=val>0?calcCommission(val,prodType,level):0;
+    const pt=PRODUCT_TYPES.find(p=>p.id===prodType)||PRODUCT_TYPES[0];
+    return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
+      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="WhatsApp"><PhoneInput value={wa} onChange={setWa}/></Fld>
+      <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
+      <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
+      <div className="nm-in" style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div>
+          <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600}}>Comissão + bônus {level.name}</div>
+          <div style={{fontSize:'.66rem',color:'var(--muted)'}}>Base {(pt.rate*100).toFixed(1)}% + {(level.bonus*100).toFixed(0)}% bônus</div>
+        </div>
+        <span style={{fontWeight:800,fontSize:'1.1rem',color:'var(--green)'}}>{fBRL(preview)}</span>
+      </div>
+      <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onClose}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Confirmar</button></div>
+    </form>;
+  }
+
+  function JrForm({onClose,onSave}){
+    const [name,setName]=useState('');
+    const [wa,setWa]=useState('');
+    const [pin,setPin]=useState('0000');
+    const [pe,setPe]=useState('');
+    function save(e){e.preventDefault();if(!name.trim()||!wa)return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim(),whatsapp:wa,pin,seekId:member.id});onClose();}
+    return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
+      <Fld label="Nome do SEEK JR"><input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="Telefone (Login — somente números)"><PlainPhoneInput value={wa} onChange={setWa}/></Fld>
+      <div className="nm-in" style={{padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{fontWeight:700,fontSize:'.72rem',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>🔑 Acesso</div>
+        <Fld label="Senha inicial (4 dígitos)">
+          <PinInput value={pin} onChange={setPin}/>
+          <span style={{fontSize:'.68rem',color:'var(--muted)',marginTop:4,display:'block'}}>Padrão: 0000. JR pode alterar.</span>
+          {pe&&<span style={{color:'var(--red)',fontSize:'.74rem',fontWeight:700}}>{pe}</span>}
+        </Fld>
+      </div>
+      <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onClose}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Cadastrar JR</button></div>
+    </form>;
+  }
+
+  const sorted=[...monthRefs].sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
+
+  return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
+    {myLevelNotif&&<LevelUpModal level={getSeekLevel(points)} onClose={()=>onDismissNotif(myLevelNotif.id)}/>}
+    <TopBar logo="SEEK" right={<button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>}/>
+    <div className="page" style={{paddingBottom:30}}>
+
+      {/* Identity + level */}
+      <div className="nm" style={{padding:'22px 20px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:16}}>
+          <div className="member-avatar" style={{width:52,height:52,borderRadius:18,fontSize:'1rem'}}>{initials}</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:'1rem'}}>{member.name}</div>
+            <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>ID #<b style={{color:'var(--black)'}}>{String(member.id).padStart(3,'0')}</b></div>
+          </div>
+          <LevelBadge points={points}/>
+        </div>
+
+        {/* Seek progress bar */}
+        <div style={{marginBottom:16}}>
+          <ProgressBar
+            pct={lvPct}
+            className={level.progressClass}
+            label={`${points} pts · ${level.name} — ${lvPct}% do nível`}
+            sub={nextLevel?`${nextLevel.min-points} pts para ${nextLevel.name}`:'Nível Máximo!'}
+          />
+        </div>
+
+        {/* Period filter */}
+        <div style={{display:'flex',gap:10,marginBottom:14}}>
+          <select className="inp" style={{flex:1}} value={sm} onChange={e=>setSm(Number(e.target.value))}>{MONTHS.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select>
+          <select className="inp" style={{width:90}} value={sy} onChange={e=>setSy(Number(e.target.value))}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+        </div>
+
+        {/* Per-product breakdown */}
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:'.6rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',marginBottom:10}}>Indicações por Produto — {MONTHS[sm-1]} {sy}</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+            {prodBreakdown.map(p=>(
+              <div key={p.id} className="nm-in" style={{padding:'10px 8px',textAlign:'center'}}>
+                <div style={{fontSize:'1.1rem',marginBottom:4}}>{p.icon}</div>
+                <div style={{fontSize:'.58rem',fontWeight:800,textTransform:'uppercase',color:'var(--muted)',marginBottom:5}}>{p.name.replace('Empresariais','Empresar.')}</div>
+                <div style={{fontWeight:900,fontSize:'1rem',color:'var(--black)'}}>{p.count}</div>
+                <div style={{fontSize:'.64rem',color:'var(--muted)',marginTop:2}}>{fBRL(p.volume)}</div>
+                <div style={{fontSize:'.66rem',color:'var(--green)',fontWeight:800,marginTop:1}}>{fBRL(p.commission)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Commission summary */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          {[['Comissão Total',fBRL(monthCom),'var(--green)'],['Bônus JR',fBRL(jrBonus),'var(--green)'],['A Receber',fBRL(monthComDue),'var(--red)'],['Recebido',fBRL(monthComPaid),'var(--green)']].map(([l,v,c])=>(
+            <div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c}}>{v}</div></div>
+          ))}
+        </div>
+      </div>
+
+      {/* Medals showcase */}
+      <MedalsShowcase points={points}/>
+
+      {/* Big green opportunity button */}
+      <button className="btn-green-opp" onClick={()=>setShowAdd(true)}>
+        <IcPlus s={22} c="#fff"/>
+        Encontrei uma Oportunidade
+      </button>
+
+      {/* Actions */}
+      <button className="btn btn-dark btn-full" style={{padding:14,marginTop:4}} onClick={()=>setShowAddJr(true)}>
+        <IcPlus s={18} c="#fff"/>Cadastrar SEEK JR
+      </button>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <button className="btn" style={{padding:12}} onClick={shareCard}><IcShare s={14}/>Cartão</button>
+        <button className="btn" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={14}/>Senha</button>
+      </div>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={14}/>Alterar Senha</button>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>Ofertas do Mês 🏷️</button>
+
+      {/* My JRs */}
+      {myJrs.length>0&&<div>
+        <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4,marginBottom:10}}>Meus SEEK JR ({myJrs.length})</div>
+        <div className="nm" style={{padding:'6px 16px'}}>
+          {myJrs.map((jr,i)=>{
+            const jrTotal=myJrRefs.filter(r=>sameId(r.jrId,jr.id)).reduce((s,r)=>s+r.productValue,0);
+            const jrMonthRefs=myJrRefs.filter(r=>sameId(r.jrId,jr.id)&&r.month===sm&&r.year===sy);
+            const jrMonthCom=jrMonthRefs.reduce((s,r)=>s+r.commission,0);
+            const jrLv=getJrLevel(jrTotal);
+            return<div key={jr.id}><div style={{padding:'12px 0'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:5}}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:'.86rem'}}>{jr.name}</div>
+                  <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>ID: {jr.id}JR · {jrLv.name}</div>
+                </div>
+                <span className="tag-jr">JR</span>
+              </div>
+              <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>Mês: {fBRL(jrMonthRefs.reduce((s,r)=>s+r.productValue,0))} · Total: {fBRL(jrTotal)}</div>
+              <div style={{fontSize:'.7rem',color:'var(--green)',fontWeight:700,marginBottom:8}}>Bônus meu: {fBRL(jrMonthCom*jrLv.bonus)} ({(jrLv.bonus*100).toFixed(0)}%)</div>
+              <ProgressBar pct={Math.min(100,(jrTotal/JR_GRADUATION)*100)} className="progress-jr"
+                label="JR → SEEK" sub={fBRL(jrTotal)+'/'+fBRL(JR_GRADUATION)}/>
+            </div>{i<myJrs.length-1&&<Div/>}</div>;
+          })}
+        </div>
+      </div>}
+
+      {/* My referrals */}
+      <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
+      <div className="nm" style={{padding:'6px 16px'}}>
+        {sorted.length===0?<Empty text="Nenhuma indicação no período"/>:sorted.map((r,i,arr)=>(
+          <div key={r.id}><div style={{padding:'13px 0'}}>
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+              <div style={{fontWeight:700,fontSize:'.87rem'}}>{r.clientName}</div>
+              <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
+            </div>
+            {r.whatsapp&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:4,display:'flex',alignItems:'center',gap:5}}><IcWA s={13} fill="#25D366"/>{maskPhone(r.whatsapp)}</div>}
+            <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name} · {fBRL(r.productValue)}</div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
+              <span style={{fontSize:'.7rem',fontWeight:700,padding:'4px 10px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:r.paid?'var(--green)':'var(--muted)'}}>{r.paid?'Pago':'Pendente'}</span>
+            </div>
+          </div>{i<arr.length-1&&<Div/>}</div>
+        ))}
+      </div>
+    </div>
+
+    {showMemberOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowMemberOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/> }
+    {showAdd&&<Sheet title="Encontrei uma Oportunidade" onClose={()=>setShowAdd(false)}><RefForm onClose={()=>setShowAdd(false)} onSave={onAddReferral}/></Sheet>}
+    {showAddJr&&<Sheet title="Cadastrar SEEK JR" onClose={()=>setShowAddJr(false)}><JrForm onClose={()=>setShowAddJr(false)} onSave={onAddJr}/></Sheet>}
+    {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
+      <form onSubmit={changePin} style={{display:'flex',flexDirection:'column',gap:18}}>
+        <Fld label="Senha Atual"><PinInput value={oldPin} onChange={setOldPin} autoFocus/></Fld>
+        <Fld label="Nova Senha"><PinInput value={newPin} onChange={setNewPin}/></Fld>
+        <Fld label="Confirmar"><PinInput value={cfPin} onChange={setCfPin}/></Fld>
+        {pinErr&&<div style={{color:'var(--red)',fontSize:'.78rem',fontWeight:700}}>{pinErr}</div>}
+        <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={()=>setShowPin(false)}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Salvar</button></div>
+      </form>
+    </Sheet>}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ADM — DASHBOARD
+══════════════════════════════════════════════════════════════════ */
+function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,credentials,onDeleteRef,onDeleteJrRef}){
+  const curY=new Date().getFullYear();
+  const years=Array.from({length:5},(_,i)=>curY-2+i);
+  const fil=referrals.filter(r=>r.month===sm&&r.year===sy);
+  const jrFil=jrReferrals.filter(r=>r.month===sm&&r.year===sy);
+  const totV=([...fil,...jrFil]).reduce((s,r)=>s+r.productValue,0);
+  const comAP=([...fil,...jrFil]).filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+  const comP=([...fil,...jrFil]).filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+  const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
+  const newSeekRefs=referrals.filter(r=>r.isNew);
+  const newJrRefs=jrReferrals.filter(r=>r.isNew);
+  const newJrs=seekJrs.filter(j=>j.isNew);
+  const allTotV=[...referrals,...jrReferrals].reduce((s,r)=>s+r.productValue,0);
+
+  const [expandedRef,setExpandedRef]=useState(null);
+
+  const rankMap={};
+  fil.forEach(r=>{rankMap[r.memberId]=(rankMap[r.memberId]||0)+r.commission;});
+  const ranking=Object.entries(rankMap).map(([mid,t])=>({member:members.find(m=>String(m.id)===mid),total:Number(t)})).filter(x=>x.member).sort((a,b)=>b.total-a.total);
+
+  function RefNotifCard({r,isJr}){
+    const seek=isJr?seekJrs.find(j=>sameId(j.id,r.jrId)):members.find(m=>sameId(m.id,r.memberId));
+    const seekParent=isJr&&seek?members.find(m=>sameId(m.id,seek.seekId)):null;
+    const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
+    const digits=(r.whatsapp||'').replace(/\D/g,'');
+    const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
+    const isExpanded=expandedRef===r.id;
+    return(
+      <div style={{cursor:'pointer'}} onClick={()=>setExpandedRef(isExpanded?null:r.id)}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,paddingTop:10}}>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:900,fontSize:'1rem',color:'var(--green)',marginBottom:3}}>{r.clientName||'Novo cliente'}</div>
+            <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,display:'flex',flexWrap:'wrap',gap:4,alignItems:'center'}}>
+              {isJr&&<span className="tag-jr">JR</span>}
+              {isJr&&seek&&<span>{seek.name}</span>}
+              {isJr&&seekParent&&<><span style={{opacity:.5}}>→</span><span>SEEK: {seekParent.name}</span></>}
+              {!isJr&&seek&&<span>SEEK: {seek.name}</span>}
+            </div>
+          </div>
+          <div style={{flexShrink:0,display:'flex',gap:6,alignItems:'center'}}>
+            {!r.paid&&<button className="btn" style={{padding:'5px 10px',fontSize:'.7rem',color:'var(--red)'}} onClick={e=>{e.stopPropagation();if(window.confirm(`Apagar indicação de "${r.clientName}"?`)){isJr?onDeleteJrRef(r.id):onDeleteRef(r.id);}}}><IcTrash s={13}/>Apagar</button>}
+            <span style={{fontSize:'.7rem',color:'var(--muted)'}}>▾</span>
+          </div>
+        </div>
+        {isExpanded&&(
+          <div style={{marginTop:10,padding:'12px 14px',borderRadius:14,background:'var(--bg)',boxShadow:'var(--nm-in)',display:'flex',flexDirection:'column',gap:8}}>
+            <div style={{fontSize:'.74rem',fontWeight:700,display:'flex',gap:6,alignItems:'center'}}>{pt.icon} {pt.name} · {fBRL(r.productValue)}</div>
+            <div style={{fontSize:'.74rem',fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>Comissão: {fBRL(r.commission)}</div>
+            {r.whatsapp&&<div style={{fontSize:'.74rem',color:'var(--muted)',display:'flex',alignItems:'center',gap:6}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</div>}
+            <div style={{fontSize:'.7rem',color:'var(--muted)'}}>{fDate(r)}</div>
+            <div style={{display:'flex',gap:8,marginTop:4,flexWrap:'wrap'}}>
+              {phone&&<a href={`https://wa.me/${phone}`} target="_blank" style={{textDecoration:'none'}}>
+                <button className="btn" style={{padding:'8px 14px',fontSize:'.76rem',gap:6,color:'#25D366'}}><IcWA s={15} fill="#25D366"/>WhatsApp</button>
+              </a>}
+              <button className="btn" style={{padding:'8px 14px',fontSize:'.76rem',color:'var(--yellow)'}} onClick={e=>{e.stopPropagation();onNav('editRef',r);}}><IcEdit s={13}/>Editar</button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return<>
+    <TopBar logo="SEEK"/>
+    <div className="page" style={{paddingBottom:110}}>
+
+      {/* Pass requests */}
+      {pendReqs.length>0&&<div className="nm" style={{padding:'18px',border:'1.5px solid rgba(192,57,43,.3)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+          <div style={{width:9,height:9,borderRadius:'50%',background:'var(--red)',animation:'pulse 1.4s ease-in-out infinite'}}/>
+          <div style={{fontWeight:800,fontSize:'.86rem',color:'var(--red)'}}>Solicitações de Senha ({pendReqs.length})</div>
+        </div>
+        {pendReqs.map((req,i,arr)=>{
+          const m=members.find(x=>sameId(x.id,req.memberId));
+          const c=credentials[req.memberId]||{};
+          return<div key={req.id}><div style={{padding:'8px 0'}}>
+            <div style={{fontWeight:700,fontSize:'.86rem',marginBottom:4}}>{m?m.name:`#${req.memberId}`}</div>
+            <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:8}}>{maskPhone(c.login)} · Senha atual: {c.pin}</div>
+          </div>{i<arr.length-1&&<Div/>}</div>;
+        })}
+      </div>}
+
+      {/* Notifications: see bell button */}
+
+      {/* Period selector */}
+      <div className="nm" style={{padding:'14px 16px'}}>
+        <div style={{display:'flex',gap:10}}>
+          <select className="inp" style={{flex:1}} value={sm} onChange={e=>setSm(Number(e.target.value))}>{MONTHS.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select>
+          <select className="inp" style={{width:90}} value={sy} onChange={e=>setSy(Number(e.target.value))}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <StatCard label="Qtde Vendas" value={fil.length+jrFil.length}/>
+        <StatCard label="Valor Total" value={fBRL(totV)}/>
+        <StatCard label="A Pagar" value={fBRL(comAP)} color="var(--red)"/>
+        <StatCard label="Pago" value={fBRL(comP)} color="var(--green)"/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        {[['A Pagar',[...referrals,...jrReferrals].filter(r=>!r.paid).length,'var(--red)','pending',IcClock],['Pagas',[...referrals,...jrReferrals].filter(r=>r.paid).length,'var(--green)','paid',IcCheck]].map(([l,v,c,dest,Ico])=>(
+          <button key={l} className="nm" style={{padding:'16px 14px',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>onNav(dest)}>
+            <div className="section-title" style={{marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Ico s={11} c={c}/>{l}</div>
+            <div className="stat-n" style={{fontSize:'1.1rem',color:c}}>{v}</div>
+          </button>
+        ))}
+      </div>
+      <div className="nm" style={{padding:'18px'}}>
+        <div className="section-title" style={{marginBottom:12,display:'flex',alignItems:'center',gap:6}}><IcStar s={13}/>Minha Comissão ADM (0,5%)</div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          <div className="nm-in" style={{padding:'12px'}}><div className="section-title" style={{marginBottom:4}}>{MONTHS[sm-1].slice(0,3)} {sy}</div><div style={{fontWeight:800,color:'var(--green)'}}>{fBRL(([...fil,...jrFil]).reduce((s,r)=>s+r.productValue,0)*0.005)}</div></div>
+          <div className="nm-in" style={{padding:'12px'}}><div className="section-title" style={{marginBottom:4}}>Total Geral</div><div style={{fontWeight:800,color:'var(--green)'}}>{fBRL(allTotV*0.005)}</div></div>
+        </div>
+      </div>
+      {ranking.length>0&&<div>
+        <div className="section-title" style={{paddingLeft:4,marginBottom:10}}>Ranking {MONTHS[sm-1]} {sy}</div>
+        <div className="nm" style={{padding:'6px 16px'}}>
+          {ranking.map((item,i)=>{
+            const pts=calcPoints(referrals.filter(r=>sameId(r.memberId,item.member.id)).reduce((s,r)=>s+r.productValue,0));
+            return<div key={item.member.id}><div style={{display:'flex',alignItems:'center',gap:14,padding:'12px 0'}}>
+              <div style={{width:34,height:34,borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-out)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:'.8rem',flexShrink:0}}>{i+1}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:'.88rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.member.name}</div>
+                <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginTop:2,display:'flex',alignItems:'center',gap:6}}>
+                  <span>#{String(item.member.id).padStart(3,'0')}</span><LevelBadge points={pts} small/>
+                </div>
+              </div>
+              <div style={{fontWeight:800,color:'var(--green)',flexShrink:0}}>{fBRL(item.total)}</div>
+            </div>{i<ranking.length-1&&<Div/>}</div>;
+          })}
+        </div>
+      </div>}
+    </div>
+  </>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ADM MEMBERS
+══════════════════════════════════════════════════════════════════ */
+function AdmMembers({members,referrals,jrReferrals,seekJrs,credentials,onSelect,onAdd,onDelete,onUpdatePin,onDeleteJr}){
+  const [search,setSearch]=useState('');
+  const [showAdd,setShowAdd]=useState(false);
+  const [credM,setCredM]=useState(null);
+  const [newPin,setNewPin]=useState('');
+  const [pinErr,setPinErr]=useState('');
+  const [confirmDel,setConfirmDel]=useState(null);
+  const sorted=[...members].filter(m=>m.name.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+
+  function MemberForm({onCancel,onSave}){
+    const [name,setName]=useState('');
+    const [wa,setWa]=useState('');
+    const [pix,setPix]=useState('');
+    const [notes,setNotes]=useState('');
+    const [pin,setPin]=useState('0000');
+    const [pe,setPe]=useState('');
+    function submit(e){e.preventDefault();if(!name.trim())return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim(),whatsapp:wa,pixKey:pix.trim(),notes:notes.trim(),login:wa,pin});}
+    return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
+      <Fld label="Nome Completo"><input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Nome" autoFocus/></Fld>
+      <Fld label="Telefone (Login — somente números)"><PlainPhoneInput value={wa} onChange={setWa}/></Fld>
+      <Fld label="Chave PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value)} placeholder="CPF, e-mail ou chave"/></Fld>
+      <Fld label="Observações"><textarea className="inp" rows={2} value={notes} onChange={e=>setNotes(e.target.value)} style={{resize:'vertical'}}/></Fld>
+      <div className="nm-in" style={{padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{fontWeight:700,fontSize:'.72rem',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>🔑 Acesso ao App</div>
+        <Fld label="Senha inicial">
+          <PinInput value={pin} onChange={setPin}/>
+          <span style={{fontSize:'.68rem',color:'var(--muted)',marginTop:4,display:'block'}}>Padrão: 0000.</span>
+          {pe&&<span style={{color:'var(--red)',fontSize:'.74rem',fontWeight:700}}>{pe}</span>}
+        </Fld>
+      </div>
+      <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onCancel}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Cadastrar</button></div>
+    </form>;
+  }
+
+  return<>
+    <TopBar title="Membros SEEK" right={<button className="btn btn-dark" style={{padding:'9px 14px',fontSize:'.74rem',borderRadius:14}} onClick={()=>setShowAdd(true)}><IcPlus s={14} c="#fff"/>Novo</button>}/>
+    <div className="page" style={{paddingBottom:110}}>
+      <div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span><input className="inp" style={{paddingLeft:42}} placeholder="Buscar membro" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+      {sorted.length===0?<Empty text="Nenhum membro"/>:sorted.map(m=>{
+        const pts=calcPoints(referrals.filter(r=>sameId(r.memberId,m.id)).reduce((s,r)=>s+r.productValue,0));
+        const lv=getSeekLevel(pts);
+        const myJrs=seekJrs.filter(j=>sameId(j.seekId,m.id));
+        const initials=m.name.trim().slice(0,2).toUpperCase();
+        const cred=credentials[m.id]||credentials[String(m.id)]||{};
+        return<React.Fragment key={m.id}>
+        <div className="nm" style={{padding:'13px 16px',display:'flex',flexDirection:'column',gap:0}}>
+          <button style={{display:'flex',alignItems:'center',gap:12,flex:1,background:'none',border:'none',cursor:'pointer',minWidth:0,textAlign:'left'}} onClick={()=>onSelect(m)}>
+            <div className="member-avatar">{initials}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+                <div style={{fontWeight:700,fontSize:'.88rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{m.name}</div>
+                <LevelBadge points={pts} small/>
+                {myJrs.length>0&&<span className="tag-jr">{myJrs.length} JR</span>}
+              </div>
+              <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>#{String(m.id).padStart(3,'0')} · {pts} pts{cred.login?` · ${maskPhone(cred.login)}`:''}</div>
+            </div>
+          </button>
+          <button className="icon-btn" onClick={()=>{setCredM(m);setNewPin('');setPinErr('');}}><IcKey s={14}/></button>
+          <button className="icon-btn" onClick={()=>setConfirmDel(m)}><IcTrash s={14} c="var(--red)"/></button>
+        </div>
+        {myJrs.length>0&&<div style={{paddingLeft:16,paddingBottom:8,borderTop:'1px solid var(--gray)',marginTop:8}}>
+          <div style={{fontSize:'.6rem',fontWeight:800,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--muted)',margin:'6px 0 6px'}}>SEEK JR ({myJrs.length})</div>
+          {myJrs.map(jr=><div key={jr.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'4px 0'}}>
+            <div>
+              <span style={{fontWeight:700,fontSize:'.82rem'}}>{jr.name}</span>
+              <span className="tag-jr" style={{marginLeft:6}}>{jr.id}JR</span>
+              <div style={{fontSize:'.66rem',color:'var(--muted)',marginTop:1}}>{maskPhone(jr.whatsapp)}</div>
+            </div>
+            <button className="icon-btn" style={{width:28,height:28,borderRadius:8}} onClick={()=>onSelect({...jr,_isJr:true,seekMember:m})}><IcEdit s={12}/></button>
+            <button className="icon-btn" style={{width:28,height:28,borderRadius:8}} onClick={()=>{if(window.confirm(`Excluir SEEK JR "${jr.name}"?`))onDeleteJr(jr.id);}}><IcTrash s={12} c="var(--red)"/></button>
+          </div>)}
+        </div>}
+        </React.Fragment>;
+      })}
+    </div>
+    {showAdd&&<Sheet title="Novo SEEK" onClose={()=>setShowAdd(false)}><MemberForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAdd(d);setShowAdd(false);}}/></Sheet>}
+    {confirmDel&&<Confirm title="Excluir membro" msg={`Excluir "${confirmDel.name}" e todas as indicações?`} onCancel={()=>setConfirmDel(null)} onOk={()=>{onDelete(confirmDel.id);setConfirmDel(null);}}/>}
+    {credM&&(()=>{
+      const cred=credentials[credM.id]||{login:credM.whatsapp||'',pin:'0000'};
+      const phone=cred.login?(cred.login.startsWith('55')&&cred.login.length>=12?cred.login:`55${cred.login}`):'';
+      function savePin(){if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}onUpdatePin(credM.id,newPin);setPinErr('');setNewPin('');setCredM(null);}
+      function sendWA(){const msg=encodeURIComponent(`Olá ${credM.name}! Credenciais SEEK:\nLogin: ${maskPhone(cred.login)}\nSenha: ${cred.pin}`);window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');}
+      return<Sheet title="Credenciais" onClose={()=>setCredM(null)}>
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:3}}>Login</div><div style={{fontWeight:700}}>{maskPhone(cred.login)||'—'}</div></div>
+          <div className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:3}}>Senha</div><div style={{fontWeight:900,fontSize:'1.8rem',letterSpacing:'.5em'}}>{cred.pin}</div></div>
+          <Fld label="Nova senha"><PinInput value={newPin} onChange={setNewPin} autoFocus/>{pinErr&&<span style={{color:'var(--red)',fontSize:'.74rem',fontWeight:700,marginTop:4}}>{pinErr}</span>}</Fld>
+          <div style={{display:'flex',gap:10}}><button className="btn btn-full" onClick={()=>setCredM(null)}>Fechar</button><button className="btn btn-dark btn-full" onClick={savePin}>Salvar</button></div>
+          {phone&&<button className="btn btn-full" onClick={sendWA} style={{gap:8}}><IcWA s={15}/>WhatsApp</button>}
+        </div>
+      </Sheet>;
+    })()}
+  </>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ADM MEMBER DETAIL
+══════════════════════════════════════════════════════════════════ */
+/* Fully controlled "Editar Membro" form. The previous version mixed
+   uncontrolled inputs (defaultValue + FormData) with a masked PhoneInput
+   that had a no-op onChange, so editing the phone silently did nothing.
+   This version controls every field explicitly and saves the phone as
+   digits-only via PlainPhoneInput, matching the login format exactly. */
+function EditMemberForm({member,onClose,onSave}){
+  const [name,setName]=useState(member.name||'');
+  const [wa,setWa]=useState((member.whatsapp||'').replace(/\D/g,''));
+  const [pix,setPix]=useState(member.pixKey||'');
+  const [notes,setNotes]=useState(member.notes||'');
+  function submit(e){
+    e.preventDefault();
+    if(!name.trim())return;
+    onSave({name:name.trim(),whatsapp:wa,pixKey:pix.trim(),notes:notes.trim()});
+  }
+  return(
+    <Sheet title="Editar Membro" onClose={onClose}>
+      <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
+        <Fld label="Nome"><input className="inp" value={name} onChange={e=>setName(e.target.value)} autoFocus/></Fld>
+        <Fld label="Telefone (Login — somente números)"><PlainPhoneInput value={wa} onChange={setWa}/></Fld>
+        <Fld label="PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value)}/></Fld>
+        <Fld label="Notas"><textarea className="inp" value={notes} onChange={e=>setNotes(e.target.value)} rows={2} style={{resize:'vertical'}}/></Fld>
+        <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onClose}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Salvar</button></div>
+      </form>
+    </Sheet>
+  );
+}
+
+
+function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBack,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onDeleteMember,onUpdateMember,onUpdatePin}){
+  const [showAdd,setShowAdd]=useState(false);
+  const [editRef,setEditRef]=useState(null);
+  const [showEdit,setShowEdit]=useState(false);
+  const [delMember,setDelMember]=useState(false);
+  const [showCreds,setShowCreds]=useState(false);
+  const [newPin,setNewPin]=useState('');
+  const [pinErr,setPinErr]=useState('');
+
+  const myRefs=[...referrals].filter(r=>sameId(r.memberId,member.id)).sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
+  const totalSales=myRefs.reduce((s,r)=>s+r.productValue,0);
+  const points=calcPoints(totalSales);
+  const level=getSeekLevel(points);
+  const totC=myRefs.reduce((s,r)=>s+r.commission,0);
+  const totP=myRefs.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+  const totAP=myRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+  const cred=credentials[member.id]||{login:member.whatsapp||'',pin:'0000'};
+  const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
+  const initials=member.name.trim().slice(0,2).toUpperCase();
+
+  function ReferralForm({initial,onCancel,onSave,label}){
+    const [cn,setCn]=useState((initial&&initial.clientName)||'');
+    const [wa,setWa]=useState((initial&&initial.whatsapp)||'');
+    const [prodType,setProdType]=useState((initial&&initial.productType)||'auto');
+    const [val,setVal]=useState((initial&&initial.productValue)||0);
+    const [date,setDate]=useState(()=>initial&&initial.year&&initial.month?`${initial.year}-${String(initial.month).padStart(2,'0')}-${String(initial.day||1).padStart(2,'0')}`:todayISO());
+    const commission=val>0?calcCommission(val,prodType,level):0;
+    function submit(e){e.preventDefault();if(!cn.trim())return;const parts=date.split('-').map(Number);onSave({clientName:cn.trim(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2],isNew:false});}
+    return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
+      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="WhatsApp"><PhoneInput value={wa} onChange={setWa}/></Fld>
+      <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
+      <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
+      <Fld label="Data"><input className="inp" type="date" value={date} onChange={e=>setDate(e.target.value)}/></Fld>
+      <div className="nm-in" style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+        <div className="section-title">Comissão ({level.name} +{(level.bonus*100).toFixed(0)}%)</div>
+        <span style={{fontWeight:800,fontSize:'1.1rem',color:'var(--green)'}}>{fBRL(commission)}</span>
+      </div>
+      <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onCancel}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">{label}</button></div>
+    </form>;
+  }
+
+  return<>
+    <TopBar title={member.name.split(' ')[0]} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>} right={<button className="icon-btn" onClick={()=>setShowEdit(true)}><IcEdit s={15}/></button>}/>
+    <div className="page" style={{paddingBottom:30}}>
+      <div className="nm" style={{padding:'20px 18px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:14,marginBottom:14}}>
+          <div className="member-avatar" style={{width:52,height:52,borderRadius:18,fontSize:'1rem'}}>{initials}</div>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:'1rem'}}>{member.name}</div>
+            <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>#{String(member.id).padStart(3,'0')} · {myRefs.length} indicações</div>
+          </div>
+          <LevelBadge points={points} small/>
+        </div>
+        <div style={{marginBottom:12}}>
+          <ProgressBar pct={levelProgress(points)} className={level.progressClass} label={`${points} pts — ${level.name}`} sub={`${levelProgress(points)}%`}/>
+        </div>
+        {(member.whatsapp||member.pixKey)&&<div className="nm-in" style={{padding:'10px 13px',marginBottom:10,display:'flex',flexDirection:'column',gap:5}}>
+          {member.whatsapp&&<div style={{fontSize:'.8rem',fontWeight:600,display:'flex',gap:8,alignItems:'center'}}><IcWA s={14} fill="#25D366"/>{maskPhone(member.whatsapp)}</div>}
+          {member.pixKey&&<div style={{fontSize:'.8rem',fontWeight:600}}><span style={{fontSize:'.6rem',fontWeight:800,color:'var(--muted)',marginRight:6}}>PIX</span>{member.pixKey}</div>}
+        </div>}
+        {myJrs.length>0&&<div className="nm-in" style={{padding:'10px 13px',marginBottom:10}}>
+          <div className="section-title" style={{marginBottom:6}}>SEEK JR ({myJrs.length})</div>
+          {myJrs.map(jr=><div key={jr.id} style={{fontSize:'.78rem',fontWeight:600,display:'flex',justifyContent:'space-between',padding:'2px 0'}}><span>{jr.name}</span><span className="tag-jr">{jr.id}JR</span></div>)}
+        </div>}
+        <div className="nm-in" style={{padding:'10px 13px',marginBottom:12,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div><div className="section-title" style={{marginBottom:2}}>Acesso</div><div style={{fontSize:'.8rem',fontWeight:700}}>{maskPhone(cred.login)} · {cred.pin}</div></div>
+          <button className="icon-btn" style={{width:30,height:30,borderRadius:9}} onClick={()=>{setShowCreds(true);setNewPin('');setPinErr('');}}><IcKey s={13}/></button>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+          {[['Total',fBRL(totC),'var(--black)'],['Pago',fBRL(totP),'var(--green)'],['A Pagar',fBRL(totAP),'var(--red)']].map(([l,v,c])=>(
+            <div key={l} className="nm-in" style={{padding:'10px 8px',textAlign:'center'}}><div style={{fontSize:'.56rem',fontWeight:800,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--muted)',marginBottom:4}}>{l}</div><div style={{fontWeight:800,fontSize:'.76rem',color:c}}>{v}</div></div>
+          ))}
+        </div>
+      </div>
+      <button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowAdd(true)}><IcPlus s={16} c="#fff"/>Nova Indicação</button>
+      <div className="section-title" style={{paddingLeft:4}}>Indicações</div>
+      <div className="nm" style={{padding:'4px 16px'}}>
+        {myRefs.length===0?<Empty text="Nenhuma indicação"/>:myRefs.map((r,i)=>{
+          const digits=(r.whatsapp||'').replace(/\D/g,'');
+          const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
+          return<div key={r.id}><div style={{padding:'12px 0',position:'relative'}}>
+            {r.isNew&&<span style={{position:'absolute',top:10,right:0,background:'var(--green)',color:'#fff',fontSize:'.58rem',fontWeight:900,borderRadius:99,padding:'2px 8px'}}>NOVA</span>}
+            <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+              <div style={{fontWeight:700,fontSize:'.86rem'}}>{r.clientName}</div>
+              <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
+            </div>
+            {r.whatsapp&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:4,display:'flex',alignItems:'center',gap:6}}>
+              {phone?<a href={`https://wa.me/${phone}`} target="_blank" style={{display:'flex',alignItems:'center',gap:5,color:'#25D366',textDecoration:'none'}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</a>:<span style={{display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</span>}
+            </div>}
+            <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:8}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name||'Automóvel'} · {fBRL(r.productValue)}</div>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
+              <div style={{display:'flex',gap:7,alignItems:'center'}}>
+                <button className="pill" style={{color:r.paid?'var(--green)':'var(--red)'}} onClick={()=>onTogglePaid(r.id)}>{r.paid?<IcCheck s={11}/>:<IcClock s={11}/>}{r.paid?'Pago':'Pendente'}</button>
+                <button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>
+                <button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>
+              </div>
+            </div>
+          </div>{i<myRefs.length-1&&<Div/>}</div>;
+        })}
+      </div>
+      <button className="btn btn-full" style={{color:'var(--red)',padding:14}} onClick={()=>setDelMember(true)}><IcTrash s={14}/>Excluir membro</button>
+    </div>
+    {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><ReferralForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral(d);setShowAdd(false);}} label="Salvar"/></Sheet>}
+    {editRef&&<Sheet title="Editar Indicação" onClose={()=>setEditRef(null)}><ReferralForm initial={editRef} onCancel={()=>setEditRef(null)} onSave={d=>{onUpdateReferral(editRef.id,d);setEditRef(null);}} label="Salvar"/></Sheet>}
+    {showEdit&&<EditMemberForm member={member} onClose={()=>setShowEdit(false)} onSave={d=>{onUpdateMember(member.id,d);setShowEdit(false);}}/>}
+    {showCreds&&(()=>{
+      const phone=cred.login?(cred.login.startsWith('55')&&cred.login.length>=12?cred.login:`55${cred.login}`):'';
+      function saveP(){if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}onUpdatePin(member.id,newPin);setPinErr('');setNewPin('');setShowCreds(false);}
+      function sendP(){const msg=encodeURIComponent(`Olá ${member.name}! Nova senha SEEK:\nLogin: ${maskPhone(cred.login)}\nSenha: ${newPin||cred.pin}`);window.open(`https://wa.me/${phone}?text=${msg}`,'_blank');}
+      return<Sheet title="Credenciais" onClose={()=>setShowCreds(false)}>
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:3}}>Login</div><div style={{fontWeight:700}}>{maskPhone(cred.login)}</div></div>
+          <div className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:3}}>Senha</div><div style={{fontWeight:900,fontSize:'1.8rem',letterSpacing:'.5em'}}>{cred.pin}</div></div>
+          <Fld label="Nova senha"><PinInput value={newPin} onChange={setNewPin} autoFocus/>{pinErr&&<span style={{color:'var(--red)',fontSize:'.74rem',fontWeight:700,marginTop:4}}>{pinErr}</span>}</Fld>
+          <div style={{display:'flex',gap:10}}><button className="btn btn-full" onClick={()=>setShowCreds(false)}>Fechar</button><button className="btn btn-dark btn-full" onClick={saveP}>Salvar</button></div>
+          {phone&&<button className="btn btn-full" onClick={sendP} style={{gap:8}}><IcWA s={15}/>WhatsApp</button>}
+        </div>
+      </Sheet>;
+    })()}
+    {delMember&&<Confirm title="Excluir" msg={`Excluir "${member.name}" e todas as indicações?`} onCancel={()=>setDelMember(false)} onOk={()=>{onDeleteMember(member.id);setDelMember(false);}}/>}
+  </>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ADM TAB BAR & LEDGER
+══════════════════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════════════════
+   BELL NOTIFICATIONS PANEL
+══════════════════════════════════════════════════════════════════ */
+function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onEditRef,onDeleteRef,onDeleteJrRef,onMarkRead,passReqs}){
+  const allRefs=[...referrals.filter(r=>r.isNew),...jrReferrals.filter(r=>r.isNew)];
+  const newJrs=seekJrs.filter(j=>j.isNew);
+  const forgotReqs=(passReqs||[]).filter(r=>r.type==='forgot'&&!r.resolved);
+  const total=allRefs.length+newJrs.length+forgotReqs.length;
+  const [expanded,setExpanded]=useState(null);
+
+  function RefCard({r,isJr,idx}){
+    const seek=isJr?seekJrs.find(j=>j.id===r.jrId):members.find(m=>sameId(m.id,r.memberId));
+    const seekParent=isJr&&seek?members.find(m=>sameId(m.id,seek.seekId)):null;
+    const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
+    const digits=(r.whatsapp||'').replace(/\D/g,'');
+    const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
+    const isExp=expanded===r.id;
+    const bg=idx%2===0?'#FFFFFF':'#F4F4F4';
+    return(
+      <div style={{background:bg,borderRadius:12,marginBottom:4,padding:'10px 12px',cursor:'pointer'}} onClick={()=>setExpanded(isExp?null:r.id)}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
+          <div style={{flex:1}}>
+            {isJr?(
+              <div style={{display:'flex',alignItems:'baseline',gap:5,marginBottom:2}}>
+                <span style={{fontWeight:900,fontSize:'.95rem'}}>{seek?seek.name:'?'}</span>
+                <span style={{fontWeight:900,fontSize:'.82rem',color:'#1565C0'}}> JR</span>
+              </div>
+            ):(
+              <div style={{fontWeight:900,fontSize:'.95rem',marginBottom:2}}>{seek?seek.name:'?'}</div>
+            )}
+            {isJr&&seekParent&&(
+              <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginBottom:2}}>
+                Padrinho: <b style={{color:'var(--black)'}}>{seekParent.name}</b>
+              </div>
+            )}
+            <div style={{fontWeight:700,fontSize:'.88rem',color:'var(--green)'}}>{r.clientName||'—'}</div>
+            <div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:2}}>{pt.icon} {pt.name} · {fDate(r)}</div>
+          </div>
+          <span style={{fontSize:'.7rem',color:'var(--muted)'}}>{isExp?'▴':'▾'}</span>
+        </div>
+        {isExp&&(
+          <div style={{marginTop:8,padding:'12px',borderRadius:12,background:'rgba(0,0,0,0.04)',display:'flex',flexDirection:'column',gap:8}}>
+            {r.productValue>0&&<div style={{fontSize:'.82rem',fontWeight:700}}>
+              {fBRL(r.productValue)} · <span style={{color:'var(--green)'}}>{fBRL(r.commission)}</span>
+            </div>}
+            {r.whatsapp&&<div style={{fontSize:'.76rem',display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</div>}
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {phone&&<a href={`https://wa.me/${phone}`} target="_blank" style={{textDecoration:'none'}}>
+                <button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',gap:5,color:'#25D366'}} onClick={e=>e.stopPropagation()}>
+                  <IcWA s={14} fill="#25D366"/>WhatsApp
+                </button>
+              </a>}
+              <button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',color:'var(--yellow)'}}
+                onClick={e=>{e.stopPropagation();onEditRef(r);onClose();}}>
+                <IcEdit s={13}/>Editar
+              </button>
+              {!r.paid&&<button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',color:'var(--red)'}}
+                onClick={e=>{e.stopPropagation();if(window.confirm(`Apagar "${r.clientName}"?`)){isJr?onDeleteJrRef(r.id):onDeleteRef(r.id);}}}>
+                <IcTrash s={13}/>Apagar
+              </button>}
+              <button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',color:'var(--muted)'}}
+                onClick={e=>{e.stopPropagation();onMarkRead(r.id,isJr);}}>
+                ✓ Lido
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'88vh'}}>
+        <div className="handle"/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <IcBell s={18} c="var(--black)"/>
+            <span style={{fontWeight:900,fontSize:'1rem'}}>Notificações</span>
+            {total>0&&<span style={{background:'var(--red)',color:'#fff',fontSize:'.62rem',fontWeight:900,borderRadius:99,padding:'2px 8px'}}>{total}</span>}
+          </div>
+          <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+        </div>
+
+        {total===0&&<Empty text="Nenhuma notificação nova"/>}
+
+        {/* Forgot password requests */}
+        {forgotReqs.length>0&&<div style={{marginBottom:14}}>
+          <div className="label" style={{marginBottom:8}}>🔐 Solicitações de Nova Senha</div>
+          {forgotReqs.map((req,i)=>{
+            const digits=req.phone;
+            const mb=members.find(m=>(m.whatsapp||'').replace(/\D/g,'')===digits);
+            const jrObj=seekJrs.find(j=>(j.whatsapp||'').replace(/\D/g,'')===digits);
+            const name=mb?mb.name:jrObj?jrObj.name:`Tel: ${maskPhone(digits)}`;
+            const bg=i%2===0?'#FFFFFF':'#F4F4F4';
+            return<div key={req.id} style={{background:bg,borderRadius:12,padding:'10px 12px',marginBottom:4}}>
+              <div style={{fontWeight:700,fontSize:'.88rem',marginBottom:4}}>{name}</div>
+              <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:8}}>{maskPhone(digits)} · Esqueceu a senha</div>
+              <button className="btn btn-dark" style={{padding:'7px 14px',fontSize:'.76rem',gap:6}}
+                onClick={()=>onMarkRead(req.id,'forgot')}>
+                <IcCheck s={13} c="#fff"/>Resolvido
+              </button>
+            </div>;
+          })}
+        </div>}
+
+        {/* New JRs */}
+        {newJrs.length>0&&<div style={{marginBottom:14}}>
+          <div className="label" style={{marginBottom:8}}>Novos SEEK JR</div>
+          {newJrs.map((jr,i)=>{
+            const seek=members.find(m=>sameId(m.id,jr.seekId));
+            const bg=i%2===0?'#FFFFFF':'#F4F4F4';
+            return<div key={jr.id} style={{background:bg,borderRadius:12,padding:'10px 12px',marginBottom:4}}>
+              <div style={{display:'flex',alignItems:'baseline',gap:5,marginBottom:2}}>
+                <span style={{fontWeight:900,fontSize:'.95rem'}}>{jr.name}</span>
+                <span style={{fontWeight:900,fontSize:'.82rem',color:'#1565C0'}}> JR</span>
+              </div>
+              {seek&&<div style={{fontSize:'.68rem',color:'var(--muted)',marginBottom:2}}>Padrinho: <b style={{color:'var(--black)'}}>{seek.name}</b></div>}
+              <div style={{fontSize:'.7rem',color:'var(--muted)',display:'flex',alignItems:'center',gap:5}}><IcWA s={13} fill="#25D366"/>{maskPhone(jr.whatsapp)}</div>
+              <button className="btn" style={{padding:'5px 10px',fontSize:'.72rem',marginTop:8,color:'var(--muted)'}}
+                onClick={()=>onMarkRead(jr.id,'jr')}>✓ Lido</button>
+            </div>;
+          })}
+        </div>}
+
+        {/* All referrals */}
+        {allRefs.length>0&&<div>
+          <div className="label" style={{marginBottom:8}}>Indicações ({allRefs.length})</div>
+          {allRefs.map((r,i)=>{
+            const isJr=!!r.jrId;
+            return<RefCard key={r.id} r={r} isJr={isJr} idx={i}/>;
+          })}
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════════
+   OFFERS PANEL (shared between ADM, SEEK, JR)
+══════════════════════════════════════════════════════════════════ */
+function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
+  const [showAdd,setShowAdd]=useState(false);
+  const [imgUrl,setImgUrl]=useState('');
+  const [caption,setCaption]=useState('');
+  const [fileErr,setFileErr]=useState('');
+  const [lightbox,setLightbox]=useState(null);
+
+  function handleFile(e){
+    const file=e.target.files[0];
+    if(!file)return;
+    if(!file.type.startsWith('image/')){setFileErr('Selecione uma imagem.');return;}
+    const reader=new FileReader();
+    reader.onload=ev=>{setImgUrl(ev.target.result);setFileErr('');};
+    reader.readAsDataURL(file);
+  }
+  function saveOffer(){
+    if(!imgUrl){setFileErr('Selecione uma imagem.');return;}
+    onAddOffer({id:Date.now(),url:imgUrl,caption:caption.trim()});
+    setImgUrl('');setCaption('');setShowAdd(false);
+  }
+  function shareOffer(offer){
+    const msg=[
+      '🔥 *Se liga nessa oferta!*',
+      '',
+      offer.caption?`_${offer.caption}_`:'',
+      '',
+      'Entre em contato com o Consultor de Vendas Volkswagen Motomecânica:',
+      '',
+      '👤 *Junior Soares*',
+      '📱 (51) 99650-9660',
+      'https://wa.me/5551996509660',
+    ].filter((l,i,a)=>!(l===''&&a[i-1]==='')&&l!==undefined).join('\n');
+    // Note: WhatsApp Web can't send images via URL, only text.
+    // User should manually attach the photo shown on screen.
+    window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+  }
+
+  return(
+    <div className="overlay" onClick={lightbox?undefined:onClose}>
+      {lightbox&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.93)',zIndex:300,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:20}}
+          onClick={()=>setLightbox(null)}>
+          <img src={lightbox.url} style={{maxWidth:'100%',maxHeight:'78vh',borderRadius:14,objectFit:'contain'}} alt={lightbox.caption||'Oferta'}/>
+          {lightbox.caption&&<div style={{color:'#fff',fontWeight:700,fontSize:'.9rem',marginTop:14,textAlign:'center'}}>{lightbox.caption}</div>}
+          <div style={{display:'flex',alignItems:'center',gap:16,marginTop:18}} onClick={e=>e.stopPropagation()}>
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              <button className="btn" style={{padding:'10px 18px',fontSize:'.8rem',gap:6,color:'#25D366'}}
+                onClick={()=>shareOffer(lightbox)}>
+                <IcWA s={16} fill="#25D366"/>Enviar no WhatsApp
+              </button>
+              <span style={{color:'rgba(255,255,255,0.55)',fontSize:'.64rem',fontWeight:700,textAlign:'center'}}>💡 Salve a imagem e anexe no WhatsApp</span>
+            </div>
+            <span style={{color:'rgba(255,255,255,0.55)',fontSize:'.7rem',fontWeight:600,flexShrink:0}}>Compartilhe com os clientes</span>
+            {isAdm&&<button className="icon-btn" style={{width:34,height:34,borderRadius:10}}
+              onClick={()=>{if(window.confirm('Remover esta oferta?')){onDeleteOffer(lightbox.id);setLightbox(null);}}}>
+              <IcTrash s={14} c="var(--red)"/>
+            </button>}
+          </div>
+          <button style={{marginTop:18,background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:'.82rem',cursor:'pointer',fontFamily:'inherit',fontWeight:700}} onClick={()=>setLightbox(null)}>Fechar ✕</button>
+        </div>
+      )}
+
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
+        <div className="handle"/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <span style={{fontSize:'1.1rem'}}>🏷️</span>
+            <span style={{fontWeight:900,fontSize:'1rem'}}>Ofertas do Mês</span>
+          </div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            {isAdm&&<button className="btn btn-dark" style={{padding:'8px 14px',fontSize:'.74rem',gap:5}} onClick={()=>setShowAdd(!showAdd)}>
+              <IcPlus s={13} c="#fff"/>Adicionar
+            </button>}
+            <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+          </div>
+        </div>
+
+        {showAdd&&isAdm&&(
+          <div className="nm-in" style={{padding:'16px',marginBottom:16,display:'flex',flexDirection:'column',gap:12}}>
+            <label style={{display:'flex',flexDirection:'column',gap:6,cursor:'pointer'}}>
+              <span className="label">Imagem da Oferta</span>
+              <div style={{borderRadius:14,background:'var(--bg)',boxShadow:'var(--nm-in)',padding:imgUrl?0:'28px 20px',textAlign:'center',border:'2px dashed var(--gray)',cursor:'pointer',overflow:'hidden'}}>
+                {imgUrl?(
+                  <img src={imgUrl} style={{width:'100%',maxHeight:240,objectFit:'cover',display:'block',borderRadius:12}} alt="preview"/>
+                ):(
+                  <div>
+                    <div style={{fontSize:'2rem',marginBottom:8}}>📷</div>
+                    <div style={{fontSize:'.78rem',color:'var(--muted)',fontWeight:600}}>Toque para selecionar imagem</div>
+                    <div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:4}}>Proporção ideal: 9:16</div>
+                  </div>
+                )}
+                <input type="file" accept="image/*" onChange={handleFile} style={{display:'none'}}/>
+              </div>
+            </label>
+            {fileErr&&<div style={{color:'var(--red)',fontSize:'.76rem',fontWeight:700}}>{fileErr}</div>}
+            <Fld label="Legenda (opcional)">
+              <input className="inp" value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Descrição da oferta..." style={{textTransform:'none'}}/>
+            </Fld>
+            <div style={{display:'flex',gap:10}}>
+              <button className="btn btn-full" onClick={()=>{setShowAdd(false);setImgUrl('');setCaption('');}}>Cancelar</button>
+              <button className="btn btn-dark btn-full" onClick={saveOffer}>Publicar</button>
+            </div>
+          </div>
+        )}
+
+        {offers.length===0?(
+          <Empty text={isAdm?"Nenhuma oferta. Toque em Adicionar!":"Nenhuma oferta disponível no momento."}/>
+        ):(
+          <div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:10}}>
+              {offers.map(offer=>(
+                <div key={offer.id}
+                  style={{cursor:'pointer',borderRadius:10,overflow:'hidden',position:'relative',aspectRatio:'9/14',boxShadow:'3px 3px 8px rgba(0,0,0,0.14),-2px -2px 6px rgba(255,255,255,0.9)'}}
+                  onClick={()=>setLightbox(offer)}>
+                  <img src={offer.url} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} alt={offer.caption||'Oferta'}/>
+                  {offer.caption&&(
+                    <div style={{position:'absolute',bottom:0,left:0,right:0,background:'linear-gradient(transparent,rgba(0,0,0,0.72))',padding:'14px 4px 4px',fontSize:'.48rem',color:'#fff',fontWeight:700,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {offer.caption}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{fontSize:'.64rem',color:'var(--muted)',textAlign:'center',fontWeight:600,letterSpacing:'.04em'}}>
+              Toque em uma imagem para ampliar e compartilhar
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════════
+   ADM TAB BAR
+══════════════════════════════════════════════════════════════════ */
+function AdmTabBar({view,setView,badge,onBell,onOffers}){
+  const tabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'members',l:'Membros',I:IcUsers},{id:'remuneracao',l:'Regras',I:IcBook}];
+  const active=view==='memberDetail'?'members':['pending','paid'].includes(view)?'dashboard':view;
+  return(
+    <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:640,zIndex:20}}>
+      <div className="tab-bar">
+        {tabs.map(({id,l,I})=>(
+          <button key={id} className={`tab${active===id?' on':''}`} onClick={()=>setView(id)}>
+            <div style={{position:'relative'}}>
+              <I s={20} c={active===id?'var(--black)':'var(--muted)'}/>
+            </div>
+            <span>{l}</span>
+          </button>
+        ))}
+        <button className="tab" onClick={onBell} style={{position:'relative'}}>
+          <div style={{position:'relative'}}>
+            {badge>0&&<span style={{position:'absolute',top:-5,right:-8,background:'var(--red)',color:'#fff',fontSize:'.52rem',fontWeight:900,borderRadius:99,padding:'1px 5px'}}>{badge}</span>}
+            <IcBell s={20} c="var(--muted)"/>
+          </div>
+          <span>Avisos</span>
+        </button>
+        <button className="tab" onClick={onOffers}>
+          <span style={{fontSize:'1.1rem',lineHeight:1}}>🏷️</span>
+          <span>Ofertas</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ADM LEDGER
+══════════════════════════════════════════════════════════════════ */
+function AdmLedger({title,referrals,members,paid,onBack,onTogglePaid}){
+  const fil=[...referrals].filter(r=>r.paid===paid).sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
+  return(
+    <>
+      <TopBar title={title} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
+      <div className="page">
+        <StatCard label={paid?'Total Pago':'Total a Pagar'} value={fBRL(fil.reduce((s,r)=>s+r.commission,0))} color={paid?'var(--green)':'var(--red)'}/>
+        <div className="nm" style={{padding:'6px 16px'}}>
+          {fil.length===0?<Empty text={paid?'Nenhuma paga.':'Tudo em dia!'}/>:fil.map((r,i)=>{
+            const m=members.find(x=>sameId(x.id,r.memberId));
+            return(
+              <div key={r.id}>
+                <div style={{padding:'12px 0'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:4}}>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:'.86rem'}}>{m?m.name:'?'}</div>
+                      <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>{r.clientName}</div>
+                    </div>
+                    <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,flexShrink:0}}>{fDate(r)}</div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontWeight:800,color:paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
+                    <button className="pill" style={{color:paid?'var(--red)':'var(--green)'}} onClick={()=>onTogglePaid(r.id)}>
+                      {paid?<IcClock s={11}/>:<IcCheck s={11}/>}{paid?'Pendente':'Pago'}
+                    </button>
+                  </div>
+                </div>
+                {i<fil.length-1&&<Div/>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   APP ROOT
+══════════════════════════════════════════════════════════════════ */
+function App(){
+  const [loading,setLoading]=useState(true);
+  const [session,setSession]=useState(null);
+  const [view,setView]=useState('dashboard');
+  const [selMember,setSelMember]=useState(null);
+  const [editRefDirect,setEditRefDirect]=useState(null);
+  const now=new Date();
+  const [sm,setSm]=useState(now.getMonth()+1);
+  const [sy,setSy]=useState(now.getFullYear());
+  const [members,setMembers]=useState([]);
+  const [referrals,setReferrals]=useState([]);
+  const [seekJrs,setSeekJrs]=useState([]);
+  const [jrReferrals,setJrReferrals]=useState([]);
+  const [nextId,setNextId]=useState(1);
+  const [nextJrId,setNextJrId]=useState(1);
+  const [credentials,setCredentials]=useState({});
+  const [passReqs,setPassReqs]=useState([]);
+  const [levelNotifs,setLevelNotifs]=useState([]);
+  const [offers,setOffers]=useState([]);
+  const [showBell,setShowBell]=useState(false);
+  const [showOffers,setShowOffers]=useState(false);
+
+  useEffect(()=>{
+    console.log('[SEEK boot] starting app initialization...');
+    cleanupLegacyStorageKeys();
+    const m=sg(SK.members)||[];
+    const r=sg(SK.referrals)||[];
+    const n=sg(SK.nextId)||1;
+    const creds=sg(SK.credentials)||{};
+    const reqs=sg(SK.passReqs)||[];
+    const jrs=sg(SK.seekJrs)||[];
+    const jrRefs=sg(SK.jrReferrals)||[];
+    const njr=sg(SK.nextJrId)||1;
+    const notifs=sg(SK.levelNotifs)||[];
+    console.log('[SEEK boot] loaded from localStorage:',{
+      members:m.length,referrals:r.length,credentialKeys:Object.keys(creds).length,
+      seekJrs:jrs.length,jrReferrals:jrRefs.length,passReqs:reqs.length,
+    });
+    // offers loaded below
+    setMembers(m);setReferrals(r);setNextId(n);
+    setCredentials(creds);setPassReqs(reqs);
+    setSeekJrs(jrs);setJrReferrals(jrRefs);setNextJrId(njr);
+    setLevelNotifs(notifs);
+    const off=sg(SK.offers)||[];
+    setOffers(off);
+    setLoading(false);
+    console.log('[SEEK boot] initialization complete, app ready.');
+  },[]);
+
+  function checkLevelUp(memberId,oldRefs,newRefs){
+    const oldPts=calcPoints(oldRefs.filter(r=>sameId(r.memberId,memberId)).reduce((s,r)=>s+r.productValue,0));
+    const newPts=calcPoints(newRefs.filter(r=>sameId(r.memberId,memberId)).reduce((s,r)=>s+r.productValue,0));
+    const oldLv=getSeekLevel(oldPts);
+    const newLv=getSeekLevel(newPts);
+    if(newLv.id!==oldLv.id&&newLv.min>oldLv.min){
+      const notif={id:Date.now(),memberId,levelId:newLv.id,dismissed:false};
+      const u=[...levelNotifs,notif];setLevelNotifs(u);sd(SK.levelNotifs,u);
+    }
+  }
+
+  function addMember(data){
+    const nm={id:nextId,name:data.name,whatsapp:data.whatsapp,pixKey:data.pixKey,notes:data.notes};
+    console.log('[SEEK register] creating SEEK member:',nm);
+    const u=[...members,nm];setMembers(u);sd(SK.members,u);
+    const ni=nextId+1;setNextId(ni);sd(SK.nextId,ni);
+    const rawL=(data.whatsapp||data.login||'').replace(/\D/g,'');
+    if(!rawL)console.warn('[SEEK register] WARNING: member registered with no usable phone digits — this account will not be able to log in until a phone is set.',data);
+    // Read fresh from localStorage (not from the `credentials` state variable)
+    // before merging in the new entry. This avoids a stale-closure write: if
+    // another registration (e.g. addSeekJr) happened in the same render
+    // cycle, the React `credentials` state here could still be the OLD
+    // snapshot, and writing it back out would silently erase that other
+    // registration. Reading localStorage fresh, right before writing,
+    // guarantees we always merge onto the most recent data on disk.
+    const freshCreds=(()=>{try{const v=localStorage.getItem('sk_credentials');return v?JSON.parse(v):{};}catch(e){return {};}})();
+    const nc={...freshCreds,[nextId]:{login:rawL,pin:data.pin||'0000'}};
+    setCredentials(nc);
+    try{localStorage.setItem('sk_credentials',JSON.stringify(nc));}catch(e){}
+    console.log(`[SEEK register] credentials saved for memberId=${nextId} -> login="${rawL}" pin="${data.pin||'0000'}"`);
+  }
+  function updateMember(mid,data){
+    const u=members.map(m=>sameId(m.id,mid)?{...m,...data}:m);
+    setMembers(u);sd(SK.members,u);
+    // If the phone changed, keep the login credential in sync — otherwise
+    // editing the displayed phone here would silently desync from the
+    // actual login, recreating the exact "formats don't match" problem.
+    if(data.whatsapp!==undefined){
+      const rawL=(data.whatsapp||'').replace(/\D/g,'');
+      const freshCreds=(()=>{try{const v=localStorage.getItem('sk_credentials');return v?JSON.parse(v):{};}catch(e){return {};}})();
+      const key=Object.keys(freshCreds).find(k=>sameId(k,mid));
+      if(key!==undefined){
+        const nc={...freshCreds,[key]:{...freshCreds[key],login:rawL}};
+        setCredentials(nc);
+        try{localStorage.setItem('sk_credentials',JSON.stringify(nc));}catch(e){}
+        console.log(`[SEEK update] member ${mid} phone changed -> credential login synced to "${rawL}"`);
+      }
+    }
+  }
+  function deleteMember(mid){
+    console.log(`[SEEK delete] deleting member id=${mid} (cascade: credentials, seekJrs, jr credentials, jr referrals, referrals)`);
+    const midStr=String(mid);
+    // 1) Find every SEEK JR that belongs to this member, so we can also
+    //    purge their credentials and their referrals.
+    const jrsToRemove=seekJrs.filter(j=>sameId(j.seekId,mid));
+    const jrIds=jrsToRemove.map(j=>String(j.id));
+    console.log(`[SEEK delete] member has ${jrIds.length} SEEK JR(s) to cascade-delete:`,jrIds);
+
+    // 2) Members list, minus this one.
+    const um=members.filter(m=>!sameId(m.id,mid));
+    // 3) SEEK JRs list, minus all belonging to this member.
+    const ujrs=seekJrs.filter(j=>!sameId(j.seekId,mid));
+    // 4) Referrals: drop the member's own SEEK referrals.
+    const ur=referrals.filter(r=>!sameId(r.memberId,mid));
+    // 5) JR referrals: drop every referral that belongs to any of the
+    //    deleted JRs.
+    const ujrRefs=jrReferrals.filter(r=>!jrIds.some(jid=>sameId(r.jrId,jid)));
+    // 6) Credentials: remove the member's own entry AND every jr_<id>
+    //    entry for each deleted JR. This is the critical fix — previously
+    //    these credential entries were never removed, so a "deleted"
+    //    login would still silently exist in storage forever.
+    const nc={...credentials};
+    delete nc[midStr];
+    delete nc[mid]; // in case it was ever stored with a numeric key too
+    jrIds.forEach(jid=>{delete nc[`jr_${jid}`];});
+
+    setMembers(um);setSeekJrs(ujrs);setReferrals(ur);setJrReferrals(ujrRefs);setCredentials(nc);
+    sd(SK.members,um);sd(SK.seekJrs,ujrs);sd(SK.referrals,ur);sd(SK.jrReferrals,ujrRefs);sd(SK.credentials,nc);
+    console.log('[SEEK delete] member cascade-delete complete. Remaining credential keys:',Object.keys(nc));
+    setSelMember(null);setView('members');
+  }
+  function deleteSeekJr(jid){
+    console.log(`[SEEK delete] deleting SEEK JR id=${jid} (cascade: credential, jr referrals)`);
+    const ujrs=seekJrs.filter(j=>!sameId(j.id,jid));
+    const ujrRefs=jrReferrals.filter(r=>!sameId(r.jrId,jid));
+    const nc={...credentials};
+    delete nc[`jr_${jid}`];
+    setSeekJrs(ujrs);setJrReferrals(ujrRefs);setCredentials(nc);
+    sd(SK.seekJrs,ujrs);sd(SK.jrReferrals,ujrRefs);sd(SK.credentials,nc);
+    console.log('[SEEK delete] SEEK JR cascade-delete complete. Remaining credential keys:',Object.keys(nc));
+  }
+  function updatePin(key,pin){const nc={...credentials,[key]:{...(credentials[key]||{}),pin}};setCredentials(nc);sd(SK.credentials,nc);}
+  function addReferral(data,memberId){
+    const old=[...referrals];
+    const nr={id:Date.now(),memberId:String(memberId||selMember?.id),...data,paid:false};
+    const u=[...referrals,nr];setReferrals(u);sd(SK.referrals,u);
+    if(memberId||selMember?.id)checkLevelUp(String(memberId||selMember?.id),old,u);
+  }
+  function updateReferral(rid,data){const u=referrals.map(r=>sameId(r.id,rid)?{...r,...data}:r);setReferrals(u);sd(SK.referrals,u);}
+  function togglePaid(rid){const u=referrals.map(r=>sameId(r.id,rid)?{...r,paid:!r.paid}:r);setReferrals(u);sd(SK.referrals,u);}
+  function deleteReferral(rid){const u=referrals.filter(r=>!sameId(r.id,rid));setReferrals(u);sd(SK.referrals,u);}
+  function addSeekJr(data){
+    // ID = seekId + "JR" (if multiple: seekId + "JR2", "JR3", ...)
+    const existing=seekJrs.filter(j=>sameId(j.seekId,data.seekId)).length;
+    const jrId=existing===0?`${data.seekId}JR`:`${data.seekId}JR${existing+1}`;
+    const jr={id:jrId,...data,isNew:true};
+    console.log('[SEEK register] creating SEEK JR:',jr);
+    const u=[...seekJrs,jr];setSeekJrs(u);sd(SK.seekJrs,u);
+    const ni=nextJrId+1;setNextJrId(ni);sd(SK.nextJrId,ni);
+    const rawJL=(data.whatsapp||'').replace(/\D/g,'');
+    if(!rawJL)console.warn('[SEEK register] WARNING: SEEK JR registered with no usable phone digits — this account will not be able to log in until a phone is set.',data);
+    // Same fresh-read-before-merge pattern as addMember, for the same reason:
+    // never let a stale React-state snapshot of `credentials` silently
+    // overwrite a credential entry written by a different registration call
+    // in the same render cycle.
+    const freshCreds=(()=>{try{const v=localStorage.getItem('sk_credentials');return v?JSON.parse(v):{};}catch(e){return {};}})();
+    const nc={...freshCreds,[`jr_${jrId}`]:{login:rawJL||jrId,pin:data.pin||'0000'}};
+    setCredentials(nc);
+    try{localStorage.setItem('sk_credentials',JSON.stringify(nc));}catch(e){}
+    console.log(`[SEEK register] credentials saved for jr_${jrId} -> login="${rawJL||jrId}" pin="${data.pin||'0000'}"`);
+  }
+  function addJrReferral(data){const nr={id:Date.now(),...data,paid:false};const u=[...jrReferrals,nr];setJrReferrals(u);sd(SK.jrReferrals,u);}
+  function toggleJrPaid(rid){const u=jrReferrals.map(r=>sameId(r.id,rid)?{...r,paid:!r.paid}:r);setJrReferrals(u);sd(SK.jrReferrals,u);}
+  function deleteJrReferral(rid){const u=jrReferrals.filter(r=>r.id!==rid);setJrReferrals(u);sd(SK.jrReferrals,u);}
+  function dismissLevelNotif(notifId){const u=levelNotifs.map(n=>sameId(n.id,notifId)?{...n,dismissed:true}:n);setLevelNotifs(u);sd(SK.levelNotifs,u);}
+  function nav(dest,payload){if(dest==='editRef'){setEditRefDirect(payload);setView('editRef');}else setView(dest);}
+
+  function addOffer(data){const u=[...offers,data];setOffers(u);sd(SK.offers,u);}
+  function deleteOffer(id){const u=offers.filter(o=>o.id!==id);setOffers(u);sd(SK.offers,u);}
+
+  if(loading)return<Spinner/>;
+
+  const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
+  const newRefs=[...referrals,...jrReferrals].filter(r=>r.isNew);
+  const newJrs=seekJrs.filter(j=>j.isNew);
+
+  if(!session){
+    return<LoginScreen onLogin={s=>{
+      console.log('[SEEK route] onLogin received session:',s);
+      setSession(s);
+    }} credentials={credentials} members={members} seekJrs={seekJrs}/>;
+  }
+
+  console.log('[SEEK route] rendering for session:',session);
+
+  if(session.role==='jr'){
+    const jr=seekJrs.find(j=>sameId(j.id,session.jrId));
+    if(!jr){
+      console.error('[SEEK route] JR routing FAILED — no seekJrs entry matches session.jrId.',
+        {sessionJrId:session.jrId,availableJrIds:seekJrs.map(j=>j.id)});
+      return<div style={{padding:40,textAlign:'center'}}>JR não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
+    }
+    const seekMember=members.find(m=>sameId(m.id,jr.seekId));
+    if(!seekMember){
+      console.warn('[SEEK route] JR found, but its parent SEEK member was not found — JR panel will render with seekMember=undefined.',
+        {jrSeekId:jr.seekId,availableMemberIds:members.map(m=>m.id)});
+    } else {
+      console.log(`[SEEK route] JR PANEL — jr="${jr.name}" (id=${jr.id}) seekMember="${seekMember.name}" (id=${seekMember.id})`);
+    }
+    return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers}/>;
+  }
+
+  if(session.role==='member'){
+    const member=members.find(m=>sameId(m.id,session.memberId));
+    if(!member){
+      console.error('[SEEK route] SEEK routing FAILED — no members entry matches session.memberId.',
+        {sessionMemberId:session.memberId,availableMemberIds:members.map(m=>m.id)});
+      return<div style={{padding:40,textAlign:'center'}}>Membro não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
+    }
+    console.log(`[SEEK route] SEEK PANEL — member="${member.name}" (id=${member.id})`);
+    return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers}/>;
+  }
+
+  console.log('[SEEK route] ADM PANEL');
+  // ADM
+  const curMember=selMember?members.find(m=>sameId(m.id,selMember.id))??selMember:null;
+  const allRefs=[...referrals,...jrReferrals];
+
+  return(
+    <div style={{background:'var(--bg)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
+      {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>addReferral(d,editRefDirect.memberId)} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onDeleteMember={deleteMember} onUpdateMember={updateMember} onUpdatePin={updatePin}/>}
+      {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={deleteReferral} onDeleteJrRef={deleteJrReferral}/>}
+      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={togglePaid}/>}
+      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={togglePaid}/>}
+      {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={addMember} onDelete={deleteMember} onUpdatePin={updatePin} onDeleteJr={deleteSeekJr}/>}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>addReferral(d,curMember.id)} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onDeleteMember={deleteMember} onUpdateMember={updateMember} onUpdatePin={updatePin}/>}
+      {view==='remuneracao'&&<RemuneracaoPanel/>}
+      {!['memberDetail','pending','paid','editRef'].includes(view)&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} badge={pendReqs.length+newRefs.length+newJrs.length} onBell={()=>setShowBell(true)} onOffers={()=>setShowOffers(true)}/>}
+      {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs}
+  onClose={()=>setShowBell(false)}
+  onEditRef={r=>{setEditRefDirect(r);setView('editRef');}}
+  onDeleteRef={deleteReferral} onDeleteJrRef={deleteJrReferral}
+  passReqs={passReqs}
+  onMarkRead={(id,type)=>{
+    if(type==='forgot'){
+      const u=passReqs.map(r=>sameId(r.id,id)?{...r,resolved:true}:r);
+      setPassReqs(u);sd(SK.passReqs,u);
+    } else if(type==='jr'){
+      const u=seekJrs.map(j=>sameId(j.id,id)?{...j,isNew:false}:j);
+      setSeekJrs(u);sd(SK.seekJrs,u);
+    } else {
+      const ur=referrals.map(r=>sameId(r.id,id)?{...r,isNew:false}:r);
+      const ujr=jrReferrals.map(r=>sameId(r.id,id)?{...r,isNew:false}:r);
+      setReferrals(ur);sd(SK.referrals,ur);
+      setJrReferrals(ujr);sd(SK.jrReferrals,ujr);
+    }
+  }}/>}
+      {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={addOffer} onDeleteOffer={deleteOffer}/>}
+      {view==='dashboard'&&<button onClick={()=>setSession(null)} style={{position:'fixed',top:18,right:20,zIndex:30,background:'none',border:'none',cursor:'pointer',color:'var(--muted)',display:'flex',alignItems:'center',gap:5,fontSize:'.7rem',fontWeight:700,fontFamily:'inherit'}}><IcOut s={15}/>Sair</button>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+
+
+
+
+</body>
+</html>
