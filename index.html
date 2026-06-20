@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
 <style>
 :root{
@@ -114,6 +115,21 @@ const SK={
   seekJrs:'sk_seekjrs',jrReferrals:'sk_jr_referrals',nextJrId:'sk_nextJrId',
   levelNotifs:'sk_lvnotifs',offers:'sk_offers',
 };
+
+/* ── SUPABASE ── */
+const db=window.supabase.createClient(
+  'https://upgefuunepjtvppybmki.supabase.co',
+  'sb_publishable_pOWmpcmw6vqEvYIJyWOjcQ_qtW7AITg'
+);
+/* DB (snake_case) → app (camelCase) row mappers */
+const mMember  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes});
+const mRef     =r=>({id:r.id,memberId:String(r.member_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type,productValue:Number(r.product_value),commission:Number(r.commission),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new});
+const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type,productValue:Number(r.product_value),commission:Number(r.commission),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new});
+const mSeekJr  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,seekId:String(r.seek_id),pin:r.pin,isNew:r.is_new});
+const mPassReq =r=>({id:r.id,phone:r.phone,type:r.type,resolved:r.resolved});
+const mNotif   =r=>({id:r.id,memberId:String(r.member_id),levelId:r.level_id,dismissed:r.dismissed});
+const mOffer   =r=>({id:r.id,url:r.url,caption:r.caption});
+function buildCreds(rows){const o={};(rows||[]).forEach(r=>{o[r.key]={login:r.login,pin:r.pin};});return o;}
 const PRODUCT_TYPES=[
   {id:'auto',name:'Automóveis',  rate:0.001, icon:'🚗'},
   {id:'cons',name:'Consórcios',  rate:0.002, icon:'🤝'},
@@ -559,61 +575,30 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
       onLogin({role:'adm'});return;
     }
 
-    // Read directly from localStorage as defense-in-depth: guarantees we
-    // check the exact same data the rest of the app will read right after
-    // login, even if a state update elsewhere in the React tree hasn't
-    // flushed yet.
-    function lsGet(key){try{const v=localStorage.getItem(key);return v?JSON.parse(v):null;}catch(e){return null;}}
-    const lsCredentials=lsGet('sk_credentials')||{};
-    const lsMembers=lsGet('sk_members')||[];
-    const lsJrs=lsGet('sk_seekjrs')||[];
-    console.log(`[SEEK login] storage snapshot — credentialKeys=${Object.keys(lsCredentials).length} members=${lsMembers.length} seekJrs=${lsJrs.length}`);
-
-    // 2) SEEK — any credential entry whose key does NOT start with "jr_"
-    for(const [k,c] of Object.entries(lsCredentials)){
+    // 2) SEEK
+    for(const [k,c] of Object.entries(credentials)){
       if(String(k).startsWith('jr_'))continue;
       const stored=(c.login||'').replace(/\D/g,'');
-      if(stored===digits&&c.pin===pin){
-        console.log(`[SEEK login] matched SEEK via credentials[${k}]`);
-        onLogin({role:'member',memberId:k});return;
-      }
+      if(stored===digits&&c.pin===pin){onLogin({role:'member',memberId:k});return;}
     }
-    // SEEK fallback: match directly against the member's saved phone
-    for(const mb of lsMembers){
+    for(const mb of members){
       const wa=(mb.whatsapp||'').replace(/\D/g,'');
       if(wa!==digits)continue;
-      const cred=lsCredentials[String(mb.id)]||{pin:'0000'};
-      if(cred.pin===pin){
-        console.log(`[SEEK login] matched SEEK via members[].whatsapp -> id=${mb.id}`);
-        onLogin({role:'member',memberId:String(mb.id)});return;
-      }
+      const cred=credentials[String(mb.id)]||{pin:'0000'};
+      if(cred.pin===pin){onLogin({role:'member',memberId:String(mb.id)});return;}
     }
-
-    // 3) SEEK JR — credential entries whose key starts with "jr_"
-    for(const [k,c] of Object.entries(lsCredentials)){
+    // 3) JR
+    for(const [k,c] of Object.entries(credentials)){
       if(!String(k).startsWith('jr_'))continue;
       const stored=(c.login||'').replace(/\D/g,'');
-      if(stored===digits&&c.pin===pin){
-        const jrId=k.replace('jr_','');
-        console.log(`[SEEK login] matched JR via credentials[${k}] -> jrId=${jrId}`);
-        onLogin({role:'jr',jrId});return;
-      }
+      if(stored===digits&&c.pin===pin){const jrId=k.replace('jr_','');onLogin({role:'jr',jrId});return;}
     }
-    // JR fallback: match directly against the JR's saved phone
-    for(const jr of lsJrs){
+    for(const jr of seekJrs){
       const wa=(jr.whatsapp||'').replace(/\D/g,'');
       if(wa!==digits)continue;
-      const cred=lsCredentials[`jr_${jr.id}`]||{pin:'0000'};
-      if(cred.pin===pin){
-        console.log(`[SEEK login] matched JR via seekJrs[].whatsapp -> jrId=${jr.id}`);
-        onLogin({role:'jr',jrId:jr.id});return;
-      }
+      const cred=credentials[`jr_${jr.id}`]||{pin:'0000'};
+      if(cred.pin===pin){onLogin({role:'jr',jrId:jr.id});return;}
     }
-
-    console.warn('[SEEK login] FAILED — no ADM/SEEK/JR matched this phone+pin.',{
-      digits,
-      credentialEntries:Object.entries(lsCredentials).map(([k,c])=>({key:k,login:c.login,pin:c.pin})),
-    });
     setErr('Telefone ou senha incorretos.');
   }
 
@@ -776,13 +761,11 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
                     const d=solPhone.replace(/\D/g,'');
                     if(!d){setSolErr('Digite seu telefone.');return;}
                     // Save request to localStorage
-                    try{
-                      const reqs=JSON.parse(localStorage.getItem('sk_passReqs')||'[]');
-                      const newReq={id:Date.now(),phone:d,type:'forgot',resolved:false};
-                      reqs.push(newReq);
-                      localStorage.setItem('sk_passReqs',JSON.stringify(reqs));
-                      setSolOk(true);
-                    }catch(e){setSolErr('Erro ao enviar. Tente novamente.');}
+                    db.from('pass_requests').insert({phone:d,type:'forgot',resolved:false})
+                      .then(({error})=>{
+                        if(error){setSolErr('Erro ao enviar. Tente novamente.');}
+                        else{setSolOk(true);}
+                      });
                   }}>Solicitar</button>
                 </div>
               </div>
@@ -2047,8 +2030,6 @@ function App(){
   const [referrals,setReferrals]=useState([]);
   const [seekJrs,setSeekJrs]=useState([]);
   const [jrReferrals,setJrReferrals]=useState([]);
-  const [nextId,setNextId]=useState(1);
-  const [nextJrId,setNextJrId]=useState(1);
   const [credentials,setCredentials]=useState({});
   const [passReqs,setPassReqs]=useState([]);
   const [levelNotifs,setLevelNotifs]=useState([]);
@@ -2057,30 +2038,33 @@ function App(){
   const [showOffers,setShowOffers]=useState(false);
 
   useEffect(()=>{
-    console.log('[SEEK boot] starting app initialization...');
-    cleanupLegacyStorageKeys();
-    const m=sg(SK.members)||[];
-    const r=sg(SK.referrals)||[];
-    const n=sg(SK.nextId)||1;
-    const creds=sg(SK.credentials)||{};
-    const reqs=sg(SK.passReqs)||[];
-    const jrs=sg(SK.seekJrs)||[];
-    const jrRefs=sg(SK.jrReferrals)||[];
-    const njr=sg(SK.nextJrId)||1;
-    const notifs=sg(SK.levelNotifs)||[];
-    console.log('[SEEK boot] loaded from localStorage:',{
-      members:m.length,referrals:r.length,credentialKeys:Object.keys(creds).length,
-      seekJrs:jrs.length,jrReferrals:jrRefs.length,passReqs:reqs.length,
-    });
-    // offers loaded below
-    setMembers(m);setReferrals(r);setNextId(n);
-    setCredentials(creds);setPassReqs(reqs);
-    setSeekJrs(jrs);setJrReferrals(jrRefs);setNextJrId(njr);
-    setLevelNotifs(notifs);
-    const off=sg(SK.offers)||[];
-    setOffers(off);
-    setLoading(false);
-    console.log('[SEEK boot] initialization complete, app ready.');
+    async function boot(){
+      cleanupLegacyStorageKeys();
+      const [
+        {data:mRows,error:e1},{data:rRows},{data:cRows},{data:reqRows},
+        {data:jrRows},{data:jrRefRows},{data:notifRows},{data:offerRows},
+      ]=await Promise.all([
+        db.from('members').select('*'),
+        db.from('referrals').select('*'),
+        db.from('credentials').select('*'),
+        db.from('pass_requests').select('*'),
+        db.from('seek_jrs').select('*'),
+        db.from('jr_referrals').select('*'),
+        db.from('level_notifs').select('*'),
+        db.from('offers').select('*'),
+      ]);
+      if(e1)console.error('[SEEK boot] Supabase error:',e1);
+      setMembers((mRows||[]).map(mMember));
+      setReferrals((rRows||[]).map(mRef));
+      setCredentials(buildCreds(cRows));
+      setPassReqs((reqRows||[]).map(mPassReq));
+      setSeekJrs((jrRows||[]).map(mSeekJr));
+      setJrReferrals((jrRefRows||[]).map(mJrRef));
+      setLevelNotifs((notifRows||[]).map(mNotif));
+      setOffers((offerRows||[]).map(mOffer));
+      setLoading(false);
+    }
+    boot();
   },[]);
 
   function checkLevelUp(memberId,oldRefs,newRefs){
@@ -2089,129 +2073,139 @@ function App(){
     const oldLv=getSeekLevel(oldPts);
     const newLv=getSeekLevel(newPts);
     if(newLv.id!==oldLv.id&&newLv.min>oldLv.min){
-      const notif={id:Date.now(),memberId,levelId:newLv.id,dismissed:false};
-      const u=[...levelNotifs,notif];setLevelNotifs(u);sd(SK.levelNotifs,u);
+      db.from('level_notifs').insert({member_id:String(memberId),level_id:newLv.id,dismissed:false}).select().single()
+        .then(({data})=>{if(data)setLevelNotifs(u=>[...u,mNotif(data)]);});
     }
   }
 
-  function addMember(data){
-    const nm={id:nextId,name:data.name,whatsapp:data.whatsapp,pixKey:data.pixKey,notes:data.notes};
-    console.log('[SEEK register] creating SEEK member:',nm);
-    const u=[...members,nm];setMembers(u);sd(SK.members,u);
-    const ni=nextId+1;setNextId(ni);sd(SK.nextId,ni);
+  async function addMember(data){
     const rawL=(data.whatsapp||data.login||'').replace(/\D/g,'');
-    if(!rawL)console.warn('[SEEK register] WARNING: member registered with no usable phone digits — this account will not be able to log in until a phone is set.',data);
-    // Read fresh from localStorage (not from the `credentials` state variable)
-    // before merging in the new entry. This avoids a stale-closure write: if
-    // another registration (e.g. addSeekJr) happened in the same render
-    // cycle, the React `credentials` state here could still be the OLD
-    // snapshot, and writing it back out would silently erase that other
-    // registration. Reading localStorage fresh, right before writing,
-    // guarantees we always merge onto the most recent data on disk.
-    const freshCreds=(()=>{try{const v=localStorage.getItem('sk_credentials');return v?JSON.parse(v):{};}catch(e){return {};}})();
-    const nc={...freshCreds,[nextId]:{login:rawL,pin:data.pin||'0000'}};
-    setCredentials(nc);
-    try{localStorage.setItem('sk_credentials',JSON.stringify(nc));}catch(e){}
-    console.log(`[SEEK register] credentials saved for memberId=${nextId} -> login="${rawL}" pin="${data.pin||'0000'}"`);
+    const {data:row,error}=await db.from('members').insert({name:data.name,whatsapp:rawL,pix_key:data.pixKey,notes:data.notes}).select().single();
+    if(error||!row){console.error('[addMember]',error);return;}
+    setMembers(u=>[...u,mMember(row)]);
+    await db.from('credentials').insert({key:String(row.id),login:rawL,pin:data.pin||'0000'});
+    setCredentials(u=>({...u,[String(row.id)]:{login:rawL,pin:data.pin||'0000'}}));
   }
-  function updateMember(mid,data){
-    const u=members.map(m=>sameId(m.id,mid)?{...m,...data}:m);
-    setMembers(u);sd(SK.members,u);
-    // If the phone changed, keep the login credential in sync — otherwise
-    // editing the displayed phone here would silently desync from the
-    // actual login, recreating the exact "formats don't match" problem.
+
+  async function updateMember(mid,data){
+    const rawL=(data.whatsapp||'').replace(/\D/g,'');
+    await db.from('members').update({name:data.name,whatsapp:rawL,pix_key:data.pixKey,notes:data.notes}).eq('id',mid);
+    setMembers(u=>u.map(m=>sameId(m.id,mid)?{...m,...data,whatsapp:rawL}:m));
     if(data.whatsapp!==undefined){
-      const rawL=(data.whatsapp||'').replace(/\D/g,'');
-      const freshCreds=(()=>{try{const v=localStorage.getItem('sk_credentials');return v?JSON.parse(v):{};}catch(e){return {};}})();
-      const key=Object.keys(freshCreds).find(k=>sameId(k,mid));
-      if(key!==undefined){
-        const nc={...freshCreds,[key]:{...freshCreds[key],login:rawL}};
-        setCredentials(nc);
-        try{localStorage.setItem('sk_credentials',JSON.stringify(nc));}catch(e){}
-        console.log(`[SEEK update] member ${mid} phone changed -> credential login synced to "${rawL}"`);
-      }
+      await db.from('credentials').update({login:rawL}).eq('key',String(mid));
+      setCredentials(u=>{const k=Object.keys(u).find(k=>sameId(k,mid));if(!k)return u;return{...u,[k]:{...u[k],login:rawL}};});
     }
   }
-  function deleteMember(mid){
-    console.log(`[SEEK delete] deleting member id=${mid} (cascade: credentials, seekJrs, jr credentials, jr referrals, referrals)`);
+
+  async function deleteMember(mid){
     const midStr=String(mid);
-    // 1) Find every SEEK JR that belongs to this member, so we can also
-    //    purge their credentials and their referrals.
-    const jrsToRemove=seekJrs.filter(j=>sameId(j.seekId,mid));
-    const jrIds=jrsToRemove.map(j=>String(j.id));
-    console.log(`[SEEK delete] member has ${jrIds.length} SEEK JR(s) to cascade-delete:`,jrIds);
-
-    // 2) Members list, minus this one.
-    const um=members.filter(m=>!sameId(m.id,mid));
-    // 3) SEEK JRs list, minus all belonging to this member.
-    const ujrs=seekJrs.filter(j=>!sameId(j.seekId,mid));
-    // 4) Referrals: drop the member's own SEEK referrals.
-    const ur=referrals.filter(r=>!sameId(r.memberId,mid));
-    // 5) JR referrals: drop every referral that belongs to any of the
-    //    deleted JRs.
-    const ujrRefs=jrReferrals.filter(r=>!jrIds.some(jid=>sameId(r.jrId,jid)));
-    // 6) Credentials: remove the member's own entry AND every jr_<id>
-    //    entry for each deleted JR. This is the critical fix — previously
-    //    these credential entries were never removed, so a "deleted"
-    //    login would still silently exist in storage forever.
-    const nc={...credentials};
-    delete nc[midStr];
-    delete nc[mid]; // in case it was ever stored with a numeric key too
-    jrIds.forEach(jid=>{delete nc[`jr_${jid}`];});
-
-    setMembers(um);setSeekJrs(ujrs);setReferrals(ur);setJrReferrals(ujrRefs);setCredentials(nc);
-    sd(SK.members,um);sd(SK.seekJrs,ujrs);sd(SK.referrals,ur);sd(SK.jrReferrals,ujrRefs);sd(SK.credentials,nc);
-    console.log('[SEEK delete] member cascade-delete complete. Remaining credential keys:',Object.keys(nc));
+    const jrIds=seekJrs.filter(j=>sameId(j.seekId,mid)).map(j=>String(j.id));
+    await Promise.all([
+      db.from('referrals').delete().eq('member_id',midStr),
+      jrIds.length?db.from('jr_referrals').delete().in('jr_id',jrIds):Promise.resolve(),
+      jrIds.length?db.from('seek_jrs').delete().in('id',jrIds):Promise.resolve(),
+      db.from('credentials').delete().eq('key',midStr),
+      ...jrIds.map(jid=>db.from('credentials').delete().eq('key',`jr_${jid}`)),
+      db.from('members').delete().eq('id',mid),
+    ]);
+    setMembers(u=>u.filter(m=>!sameId(m.id,mid)));
+    setSeekJrs(u=>u.filter(j=>!sameId(j.seekId,mid)));
+    setReferrals(u=>u.filter(r=>!sameId(r.memberId,mid)));
+    setJrReferrals(u=>u.filter(r=>!jrIds.some(jid=>sameId(r.jrId,jid))));
+    setCredentials(u=>{const nc={...u};delete nc[midStr];jrIds.forEach(jid=>delete nc[`jr_${jid}`]);return nc;});
     setSelMember(null);setView('members');
   }
-  function deleteSeekJr(jid){
-    console.log(`[SEEK delete] deleting SEEK JR id=${jid} (cascade: credential, jr referrals)`);
-    const ujrs=seekJrs.filter(j=>!sameId(j.id,jid));
-    const ujrRefs=jrReferrals.filter(r=>!sameId(r.jrId,jid));
-    const nc={...credentials};
-    delete nc[`jr_${jid}`];
-    setSeekJrs(ujrs);setJrReferrals(ujrRefs);setCredentials(nc);
-    sd(SK.seekJrs,ujrs);sd(SK.jrReferrals,ujrRefs);sd(SK.credentials,nc);
-    console.log('[SEEK delete] SEEK JR cascade-delete complete. Remaining credential keys:',Object.keys(nc));
+
+  async function deleteSeekJr(jid){
+    const jidStr=String(jid);
+    await Promise.all([
+      db.from('jr_referrals').delete().eq('jr_id',jidStr),
+      db.from('credentials').delete().eq('key',`jr_${jidStr}`),
+      db.from('seek_jrs').delete().eq('id',jidStr),
+    ]);
+    setSeekJrs(u=>u.filter(j=>!sameId(j.id,jid)));
+    setJrReferrals(u=>u.filter(r=>!sameId(r.jrId,jid)));
+    setCredentials(u=>{const nc={...u};delete nc[`jr_${jidStr}`];return nc;});
   }
-  function updatePin(key,pin){const nc={...credentials,[key]:{...(credentials[key]||{}),pin}};setCredentials(nc);sd(SK.credentials,nc);}
-  function addReferral(data,memberId){
+
+  async function updatePin(key,pin){
+    await db.from('credentials').update({pin}).eq('key',String(key));
+    setCredentials(u=>({...u,[key]:{...(u[key]||{}),pin}}));
+  }
+
+  async function addReferral(data,memberId){
     const old=[...referrals];
-    const nr={id:Date.now(),memberId:String(memberId||selMember?.id),...data,paid:false};
-    const u=[...referrals,nr];setReferrals(u);sd(SK.referrals,u);
-    if(memberId||selMember?.id)checkLevelUp(String(memberId||selMember?.id),old,u);
+    const mid=String(memberId||selMember?.id);
+    const {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false}).select().single();
+    if(error){console.error('[addReferral]',error);return;}
+    const nr=mRef(saved);
+    const u=[...referrals,nr];setReferrals(u);
+    if(mid)checkLevelUp(mid,old,u);
   }
-  function updateReferral(rid,data){const u=referrals.map(r=>sameId(r.id,rid)?{...r,...data}:r);setReferrals(u);sd(SK.referrals,u);}
-  function togglePaid(rid){const u=referrals.map(r=>sameId(r.id,rid)?{...r,paid:!r.paid}:r);setReferrals(u);sd(SK.referrals,u);}
-  function deleteReferral(rid){const u=referrals.filter(r=>!sameId(r.id,rid));setReferrals(u);sd(SK.referrals,u);}
-  function addSeekJr(data){
-    // ID = seekId + "JR" (if multiple: seekId + "JR2", "JR3", ...)
+
+  async function updateReferral(rid,data){
+    await db.from('referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day}).eq('id',rid);
+    setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data}:r));
+  }
+
+  async function togglePaid(rid){
+    const ref=referrals.find(r=>sameId(r.id,rid));
+    if(!ref)return;
+    await db.from('referrals').update({paid:!ref.paid}).eq('id',rid);
+    setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:!r.paid}:r));
+  }
+
+  async function deleteReferral(rid){
+    await db.from('referrals').delete().eq('id',rid);
+    setReferrals(u=>u.filter(r=>!sameId(r.id,rid)));
+  }
+
+  async function addSeekJr(data){
     const existing=seekJrs.filter(j=>sameId(j.seekId,data.seekId)).length;
     const jrId=existing===0?`${data.seekId}JR`:`${data.seekId}JR${existing+1}`;
-    const jr={id:jrId,...data,isNew:true};
-    console.log('[SEEK register] creating SEEK JR:',jr);
-    const u=[...seekJrs,jr];setSeekJrs(u);sd(SK.seekJrs,u);
-    const ni=nextJrId+1;setNextJrId(ni);sd(SK.nextJrId,ni);
     const rawJL=(data.whatsapp||'').replace(/\D/g,'');
-    if(!rawJL)console.warn('[SEEK register] WARNING: SEEK JR registered with no usable phone digits — this account will not be able to log in until a phone is set.',data);
-    // Same fresh-read-before-merge pattern as addMember, for the same reason:
-    // never let a stale React-state snapshot of `credentials` silently
-    // overwrite a credential entry written by a different registration call
-    // in the same render cycle.
-    const freshCreds=(()=>{try{const v=localStorage.getItem('sk_credentials');return v?JSON.parse(v):{};}catch(e){return {};}})();
-    const nc={...freshCreds,[`jr_${jrId}`]:{login:rawJL||jrId,pin:data.pin||'0000'}};
-    setCredentials(nc);
-    try{localStorage.setItem('sk_credentials',JSON.stringify(nc));}catch(e){}
-    console.log(`[SEEK register] credentials saved for jr_${jrId} -> login="${rawJL||jrId}" pin="${data.pin||'0000'}"`);
+    const {error:je}=await db.from('seek_jrs').insert({id:jrId,name:data.name,whatsapp:rawJL,seek_id:String(data.seekId),pin:data.pin||'0000',is_new:true});
+    if(je){console.error('[addSeekJr]',je);return;}
+    await db.from('credentials').insert({key:`jr_${jrId}`,login:rawJL||jrId,pin:data.pin||'0000'});
+    setSeekJrs(u=>[...u,{id:jrId,name:data.name,whatsapp:rawJL,seekId:String(data.seekId),pin:data.pin||'0000',isNew:true}]);
+    setCredentials(u=>({...u,[`jr_${jrId}`]:{login:rawJL||jrId,pin:data.pin||'0000'}}));
   }
-  function addJrReferral(data){const nr={id:Date.now(),...data,paid:false};const u=[...jrReferrals,nr];setJrReferrals(u);sd(SK.jrReferrals,u);}
-  function toggleJrPaid(rid){const u=jrReferrals.map(r=>sameId(r.id,rid)?{...r,paid:!r.paid}:r);setJrReferrals(u);sd(SK.jrReferrals,u);}
-  function deleteJrReferral(rid){const u=jrReferrals.filter(r=>r.id!==rid);setJrReferrals(u);sd(SK.jrReferrals,u);}
-  function dismissLevelNotif(notifId){const u=levelNotifs.map(n=>sameId(n.id,notifId)?{...n,dismissed:true}:n);setLevelNotifs(u);sd(SK.levelNotifs,u);}
+
+  async function addJrReferral(data){
+    const {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,is_new:true}).select().single();
+    if(error){console.error('[addJrReferral]',error);return;}
+    setJrReferrals(u=>[...u,mJrRef(saved)]);
+  }
+
+  async function toggleJrPaid(rid){
+    const ref=jrReferrals.find(r=>sameId(r.id,rid));
+    if(!ref)return;
+    await db.from('jr_referrals').update({paid:!ref.paid}).eq('id',rid);
+    setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:!r.paid}:r));
+  }
+
+  async function deleteJrReferral(rid){
+    await db.from('jr_referrals').delete().eq('id',rid);
+    setJrReferrals(u=>u.filter(r=>r.id!==rid));
+  }
+
+  async function dismissLevelNotif(notifId){
+    await db.from('level_notifs').update({dismissed:true}).eq('id',notifId);
+    setLevelNotifs(u=>u.map(n=>sameId(n.id,notifId)?{...n,dismissed:true}:n));
+  }
+
   function nav(dest,payload){if(dest==='editRef'){setEditRefDirect(payload);setView('editRef');}else setView(dest);}
 
-  function addOffer(data){const u=[...offers,data];setOffers(u);sd(SK.offers,u);}
-  function deleteOffer(id){const u=offers.filter(o=>o.id!==id);setOffers(u);sd(SK.offers,u);}
+  async function addOffer(data){
+    const {data:saved,error}=await db.from('offers').insert({url:data.url,caption:data.caption||''}).select().single();
+    if(error){console.error('[addOffer]',error);return;}
+    setOffers(u=>[...u,mOffer(saved)]);
+  }
+
+  async function deleteOffer(id){
+    await db.from('offers').delete().eq('id',id);
+    setOffers(u=>u.filter(o=>o.id!==id));
+  }
 
   if(loading)return<Spinner/>;
 
@@ -2278,16 +2272,16 @@ function App(){
   passReqs={passReqs}
   onMarkRead={(id,type)=>{
     if(type==='forgot'){
-      const u=passReqs.map(r=>sameId(r.id,id)?{...r,resolved:true}:r);
-      setPassReqs(u);sd(SK.passReqs,u);
+      db.from('pass_requests').update({resolved:true}).eq('id',id);
+      setPassReqs(u=>u.map(r=>sameId(r.id,id)?{...r,resolved:true}:r));
     } else if(type==='jr'){
-      const u=seekJrs.map(j=>sameId(j.id,id)?{...j,isNew:false}:j);
-      setSeekJrs(u);sd(SK.seekJrs,u);
+      db.from('seek_jrs').update({is_new:false}).eq('id',id);
+      setSeekJrs(u=>u.map(j=>sameId(j.id,id)?{...j,isNew:false}:j));
     } else {
-      const ur=referrals.map(r=>sameId(r.id,id)?{...r,isNew:false}:r);
-      const ujr=jrReferrals.map(r=>sameId(r.id,id)?{...r,isNew:false}:r);
-      setReferrals(ur);sd(SK.referrals,ur);
-      setJrReferrals(ujr);sd(SK.jrReferrals,ujr);
+      db.from('referrals').update({is_new:false}).eq('id',id);
+      db.from('jr_referrals').update({is_new:false}).eq('id',id);
+      setReferrals(u=>u.map(r=>sameId(r.id,id)?{...r,isNew:false}:r));
+      setJrReferrals(u=>u.map(r=>sameId(r.id,id)?{...r,isNew:false}:r));
     }
   }}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={addOffer} onDeleteOffer={deleteOffer}/>}
