@@ -122,13 +122,14 @@ const db=window.supabase.createClient(
   'sb_publishable_pOWmpcmw6vqEvYIJyWOjcQ_qtW7AITg'
 );
 /* DB (snake_case) → app (camelCase) row mappers */
-const mMember  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes});
+const mMember  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes,admId:r.adm_id?String(r.adm_id):null});
 const mRef     =r=>({id:r.id,memberId:String(r.member_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type,productValue:Number(r.product_value),commission:Number(r.commission),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new});
 const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type,productValue:Number(r.product_value),commission:Number(r.commission),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new});
 const mSeekJr  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,seekId:String(r.seek_id),pin:r.pin,isNew:r.is_new});
 const mPassReq =r=>({id:r.id,phone:r.phone,type:r.type,resolved:r.resolved});
 const mNotif   =r=>({id:r.id,memberId:String(r.member_id),levelId:r.level_id,dismissed:r.dismissed});
 const mOffer   =r=>({id:r.id,url:r.url,caption:r.caption});
+const mAdm     =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes});
 function buildCreds(rows){const o={};(rows||[]).forEach(r=>{o[r.key]={login:r.login,pin:r.pin};});return o;}
 const PRODUCT_TYPES=[
   {id:'auto',name:'Automóveis',  rate:0.001, icon:'🚗'},
@@ -569,15 +570,22 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
     console.log(`[SEEK login] attempt — phoneDigits="${digits}" pinLength=${pin.length}`);
     if(!digits||!pin){setErr('Preencha telefone e senha.');console.log('[SEEK login] aborted: empty phone or pin');return;}
 
-    // 1) ADM — hardcoded constant, independent of any stored data.
+    // 1) MASTER — hardcoded constant, independent of any stored data.
     if(digits===ADM_PHONE&&pin===ADM_PIN){
-      console.log('[SEEK login] matched ADM');
-      onLogin({role:'adm'});return;
+      console.log('[SEEK login] matched MASTER');
+      onLogin({role:'master'});return;
+    }
+
+    // 1.5) ADM vendedores
+    for(const [k,c] of Object.entries(credentials)){
+      if(!String(k).startsWith('adm_'))continue;
+      const stored=(c.login||'').replace(/\D/g,'');
+      if(stored===digits&&c.pin===pin){const admId=k.replace('adm_','');onLogin({role:'adm',admId});return;}
     }
 
     // 2) SEEK
     for(const [k,c] of Object.entries(credentials)){
-      if(String(k).startsWith('jr_'))continue;
+      if(String(k).startsWith('jr_')||String(k).startsWith('adm_'))continue;
       const stored=(c.login||'').replace(/\D/g,'');
       if(stored===digits&&c.pin===pin){onLogin({role:'member',memberId:k});return;}
     }
@@ -1442,7 +1450,7 @@ function AdmMembers({members,referrals,jrReferrals,seekJrs,credentials,onSelect,
   }
 
   return<>
-    <TopBar title="Membros SEEK" right={<button className="btn btn-dark" style={{padding:'9px 14px',fontSize:'.74rem',borderRadius:14}} onClick={()=>setShowAdd(true)}><IcPlus s={14} c="#fff"/>Novo</button>}/>
+    <TopBar title="Membros SEEK" right={onAdd?<button className="btn btn-dark" style={{padding:'9px 14px',fontSize:'.74rem',borderRadius:14}} onClick={()=>setShowAdd(true)}><IcPlus s={14} c="#fff"/>Novo</button>:null}/>
     <div className="page" style={{paddingBottom:110}}>
       <div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span><input className="inp" style={{paddingLeft:42}} placeholder="Buscar membro" value={search} onChange={e=>setSearch(e.target.value)}/></div>
       {sorted.length===0?<Empty text="Nenhum membro"/>:sorted.map(m=>{
@@ -1482,7 +1490,7 @@ function AdmMembers({members,referrals,jrReferrals,seekJrs,credentials,onSelect,
         </React.Fragment>;
       })}
     </div>
-    {showAdd&&<Sheet title="Novo SEEK" onClose={()=>setShowAdd(false)}><MemberForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAdd(d);setShowAdd(false);}}/></Sheet>}
+    {showAdd&&onAdd&&<Sheet title="Novo SEEK" onClose={()=>setShowAdd(false)}><MemberForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAdd(d);setShowAdd(false);}}/></Sheet>}
     {confirmDel&&<Confirm title="Excluir membro" msg={`Excluir "${confirmDel.name}" e todas as indicações?`} onCancel={()=>setConfirmDel(null)} onOk={()=>{onDelete(confirmDel.id);setConfirmDel(null);}}/>}
     {credM&&(()=>{
       const cred=credentials[credM.id]||{login:credM.whatsapp||'',pin:'0000'};
@@ -2015,17 +2023,299 @@ function AdmLedger({title,referrals,members,paid,onBack,onTogglePaid}){
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   MASTER — DASHBOARD
+══════════════════════════════════════════════════════════════════ */
+function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,onSelectAdm}){
+  const curY=new Date().getFullYear();
+  const years=Array.from({length:5},(_,i)=>curY-2+i);
+  const fil=referrals.filter(r=>r.month===sm&&r.year===sy);
+  const jrFil=jrReferrals.filter(r=>r.month===sm&&r.year===sy);
+  const allFil=[...fil,...jrFil];
+  const totV=allFil.reduce((s,r)=>s+r.productValue,0);
+  const comAP=allFil.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+  const comP=allFil.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+  const allTotV=[...referrals,...jrReferrals].reduce((s,r)=>s+r.productValue,0);
+  const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
+  const admStats=adms.map(adm=>{
+    const mids=members.filter(m=>sameId(m.admId,adm.id)).map(m=>String(m.id));
+    const jids=seekJrs.filter(j=>mids.some(id=>sameId(j.seekId,id))).map(j=>String(j.id));
+    const ar=fil.filter(r=>mids.some(id=>sameId(r.memberId,id)));
+    const jr=jrFil.filter(r=>jids.some(id=>sameId(r.jrId,id)));
+    const vol=[...ar,...jr].reduce((s,r)=>s+r.productValue,0);
+    const comm=[...ar,...jr].reduce((s,r)=>s+r.commission,0);
+    return{adm,vol,comm,seeks:mids.length};
+  }).sort((a,b)=>b.vol-a.vol);
+  return<div className="page" style={{paddingTop:8,paddingBottom:110}}>
+    {pendReqs.length>0&&<div className="nm" style={{padding:'12px 16px',border:'1.5px solid rgba(192,57,43,.3)'}}>
+      <div style={{fontWeight:800,fontSize:'.8rem',color:'var(--red)'}}>🔐 {pendReqs.length} solicitação(ões) de senha pendente(s)</div>
+    </div>}
+    <div className="nm" style={{padding:'14px 16px'}}>
+      <div style={{display:'flex',gap:10}}>
+        <select className="inp" style={{flex:1}} value={sm} onChange={e=>setSm(Number(e.target.value))}>{MONTHS.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select>
+        <select className="inp" style={{width:90}} value={sy} onChange={e=>setSy(Number(e.target.value))}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+      </div>
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <StatCard label="Vendas no Mês" value={fil.length+jrFil.length}/>
+      <StatCard label="Volume" value={fBRL(totV)}/>
+      <StatCard label="A Pagar" value={fBRL(comAP)} color="var(--red)"/>
+      <StatCard label="Pago" value={fBRL(comP)} color="var(--green)"/>
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      {[['A Pagar',[...referrals,...jrReferrals].filter(r=>!r.paid).length,'var(--red)','pending',IcClock],['Pagas',[...referrals,...jrReferrals].filter(r=>r.paid).length,'var(--green)','paid',IcCheck]].map(([l,v,c,dest,Ico])=>(
+        <button key={l} className="nm" style={{padding:'16px 14px',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>onNav(dest)}>
+          <div className="section-title" style={{marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Ico s={11} c={c}/>{l}</div>
+          <div className="stat-n" style={{fontSize:'1.1rem',color:c}}>{v}</div>
+        </button>
+      ))}
+    </div>
+    <div className="nm" style={{padding:'16px 18px'}}>
+      <div className="section-title" style={{marginBottom:6}}>Comissão MASTER (0,5% do volume total)</div>
+      <div style={{fontWeight:900,fontSize:'1.25rem',color:'var(--green)'}}>{fBRL(allTotV*0.005)}</div>
+    </div>
+    {admStats.length>0&&<>
+      <div className="section-title" style={{paddingLeft:4}}>Ranking Vendedores — {MONTHS[sm-1]} {sy}</div>
+      <div className="nm" style={{padding:'6px 16px'}}>
+        {admStats.map((item,i)=><div key={item.adm.id}>
+          <button style={{display:'flex',alignItems:'center',gap:12,padding:'12px 0',width:'100%',background:'none',border:'none',cursor:'pointer',textAlign:'left'}} onClick={()=>onSelectAdm(item.adm)}>
+            <div style={{width:34,height:34,borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-out)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,fontSize:'.78rem',flexShrink:0}}>{i+1}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:'.88rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{item.adm.name}</div>
+              <div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:1}}>{item.seeks} SEEK{item.seeks!==1?'s':''} · {fBRL(item.vol)}</div>
+            </div>
+            <div style={{fontWeight:800,color:'var(--green)',flexShrink:0,fontSize:'.84rem'}}>{fBRL(item.comm)}</div>
+          </button>
+          {i<admStats.length-1&&<div className="divider"/>}
+        </div>)}
+      </div>
+    </>}
+    {admStats.length===0&&<Empty text="Nenhum vendedor cadastrado ainda"/>}
+  </div>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MASTER — VENDEDORES (gestão de ADMs)
+══════════════════════════════════════════════════════════════════ */
+function MasterVendedores({adms,members,referrals,jrReferrals,seekJrs,credentials,onAdd,onDelete,onSelect,onUpdatePin}){
+  const [search,setSearch]=useState('');
+  const [showAdd,setShowAdd]=useState(false);
+  const [credAdm,setCredAdm]=useState(null);
+  const [newPin,setNewPin]=useState('');
+  const [pinErr,setPinErr]=useState('');
+  const [confirmDel,setConfirmDel]=useState(null);
+  const filtered=[...adms].filter(a=>a.name.toLowerCase().includes(search.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+
+  function AdmForm({onCancel,onSave}){
+    const [name,setName]=useState('');
+    const [wa,setWa]=useState('');
+    const [pix,setPix]=useState('');
+    const [pin,setPin]=useState('0000');
+    const [pe,setPe]=useState('');
+    function submit(e){e.preventDefault();if(!name.trim())return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim(),whatsapp:wa,pixKey:pix.trim(),pin});}
+    return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
+      <Fld label="Nome do Vendedor"><input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="Telefone (Login — somente números)"><PlainPhoneInput value={wa} onChange={setWa}/></Fld>
+      <Fld label="Chave PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value)} placeholder="CPF, e-mail ou chave"/></Fld>
+      <div className="nm-in" style={{padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{fontWeight:700,fontSize:'.72rem',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>🔑 Acesso ao App</div>
+        <Fld label="Senha inicial"><PinInput value={pin} onChange={setPin}/>{pe&&<span style={{color:'var(--red)',fontSize:'.74rem',fontWeight:700}}>{pe}</span>}</Fld>
+      </div>
+      <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onCancel}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Cadastrar</button></div>
+    </form>;
+  }
+
+  return<>
+    <TopBar title="Vendedores" right={<button className="btn btn-dark" style={{padding:'9px 14px',fontSize:'.74rem',borderRadius:14}} onClick={()=>setShowAdd(true)}><IcPlus s={14} c="#fff"/>Novo</button>}/>
+    <div className="page" style={{paddingBottom:110}}>
+      <div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span><input className="inp" style={{paddingLeft:42}} placeholder="Buscar vendedor" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+      {filtered.length===0?<Empty text="Nenhum vendedor cadastrado"/>:filtered.map(adm=>{
+        const admMembers=members.filter(m=>sameId(m.admId,adm.id));
+        const cred=credentials[`adm_${adm.id}`]||{};
+        const initials=adm.name.trim().slice(0,2).toUpperCase();
+        return<div key={adm.id} className="nm" style={{padding:'13px 16px',display:'flex',alignItems:'center',gap:10}}>
+          <button style={{display:'flex',alignItems:'center',gap:12,flex:1,background:'none',border:'none',cursor:'pointer',minWidth:0,textAlign:'left'}} onClick={()=>onSelect(adm)}>
+            <div className="member-avatar">{initials}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:'.88rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{adm.name}</div>
+              <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>{admMembers.length} SEEK{admMembers.length!==1?'s':''}{cred.login?` · ${maskPhone(cred.login)}`:''}</div>
+            </div>
+          </button>
+          <button className="icon-btn" onClick={()=>{setCredAdm(adm);setNewPin('');setPinErr('');}}><IcKey s={14}/></button>
+          <button className="icon-btn" onClick={()=>setConfirmDel(adm)}><IcTrash s={14} c="var(--red)"/></button>
+        </div>;
+      })}
+    </div>
+    {showAdd&&<Sheet title="Novo Vendedor" onClose={()=>setShowAdd(false)}><AdmForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAdd(d);setShowAdd(false);}}/></Sheet>}
+    {confirmDel&&<Confirm title="Excluir vendedor" msg={`Excluir "${confirmDel.name}" e todos os seus dados?`} onCancel={()=>setConfirmDel(null)} onOk={()=>{onDelete(confirmDel.id);setConfirmDel(null);}}/>}
+    {credAdm&&(()=>{
+      const cred=credentials[`adm_${credAdm.id}`]||{login:credAdm.whatsapp||'',pin:'0000'};
+      const rawL=(cred.login||'').replace(/\D/g,'');
+      const waPhone=rawL.startsWith('55')&&rawL.length>=12?rawL:`55${rawL}`;
+      function savePin(){if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}onUpdatePin(`adm_${credAdm.id}`,newPin);setPinErr('');setNewPin('');setCredAdm(null);}
+      function sendWA(){const msg=encodeURIComponent(`Olá ${credAdm.name}! Credenciais SEEK:\nLogin: ${maskPhone(rawL)}\nSenha: ${cred.pin}`);window.open(`https://wa.me/${waPhone}?text=${msg}`,'_blank');}
+      return<Sheet title="Credenciais Vendedor" onClose={()=>setCredAdm(null)}>
+        <div style={{display:'flex',flexDirection:'column',gap:14}}>
+          <div className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:3}}>Login</div><div style={{fontWeight:700}}>{maskPhone(rawL)||'—'}</div></div>
+          <div className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:3}}>Senha atual</div><div style={{fontWeight:900,fontSize:'1.8rem',letterSpacing:'.5em'}}>{cred.pin}</div></div>
+          <Fld label="Nova senha"><PinInput value={newPin} onChange={setNewPin} autoFocus/>{pinErr&&<span style={{color:'var(--red)',fontSize:'.74rem',fontWeight:700,marginTop:4}}>{pinErr}</span>}</Fld>
+          <div style={{display:'flex',gap:10}}><button className="btn btn-full" onClick={()=>setCredAdm(null)}>Fechar</button><button className="btn btn-dark btn-full" onClick={savePin}>Salvar</button></div>
+          {rawL&&<button className="btn btn-full" onClick={sendWA} style={{gap:8}}><IcWA s={15} fill="var(--green)"/>Enviar por WhatsApp</button>}
+        </div>
+      </Sheet>;
+    })()}
+  </>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MASTER PANEL
+══════════════════════════════════════════════════════════════════ */
+function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddAdm,onDeleteAdm,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead}){
+  const [view,setView]=useState('dashboard');
+  const [selAdm,setSelAdm]=useState(null);
+  const [selMember,setSelMember]=useState(null);
+  const [editRefDirect,setEditRefDirect]=useState(null);
+  const [showBell,setShowBell]=useState(false);
+  const [showOffers,setShowOffers]=useState(false);
+  const now=new Date();
+  const [sm,setSm]=useState(now.getMonth()+1);
+  const [sy,setSy]=useState(now.getFullYear());
+
+  const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
+  const newRefs=[...referrals,...jrReferrals].filter(r=>r.isNew);
+  const newJrs=seekJrs.filter(j=>j.isNew);
+  const badge=pendReqs.length+newRefs.length+newJrs.length;
+  const allRefs=[...referrals,...jrReferrals];
+
+  const scopeMembers=selAdm?members.filter(m=>sameId(m.admId,selAdm.id)):members;
+  const scopeJrs=selAdm?seekJrs.filter(j=>scopeMembers.some(m=>sameId(m.id,j.seekId))):seekJrs;
+  const scopeRefs=selAdm?referrals.filter(r=>scopeMembers.some(m=>sameId(m.id,r.memberId))):referrals;
+  const scopeJrRefs=selAdm?jrReferrals.filter(r=>scopeJrs.some(j=>sameId(j.id,r.jrId))):jrReferrals;
+  const curMember=selMember?scopeMembers.find(m=>sameId(m.id,selMember.id))??selMember:null;
+
+  function nav(dest,payload){if(dest==='editRef'){setEditRefDirect(payload);setView('editRef');}else setView(dest);}
+  function goAdm(adm){setSelAdm(adm);setView('vendedorDetail');}
+
+  const masterTabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'vendedores',l:'Vendedores',I:IcUsers},{id:'membros',l:'Membros',I:IcBook},{id:'remuneracao',l:'Regras',I:IcStar}];
+  const activeTab=view==='memberDetail'?'membros':view==='vendedorDetail'?'vendedores':['pending','paid'].includes(view)?'dashboard':view;
+  const inSubView=['memberDetail','pending','paid','editRef','vendedorDetail'].includes(view);
+
+  return(
+    <div style={{background:'var(--bg)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
+      <TopBar logo="SEEK" right={
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <button style={{position:'relative'}} className="icon-btn" onClick={()=>setShowBell(true)}>
+            {badge>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{badge}</span>}
+            <IcBell s={18} c="var(--muted)"/>
+          </button>
+          <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
+        </div>
+      }/>
+      <div style={{padding:'3px 16px 0',textAlign:'center'}}>
+        <span style={{fontSize:'.6rem',fontWeight:700,color:'var(--muted)',letterSpacing:'.12em',textTransform:'uppercase'}}>MASTER</span>
+      </div>
+
+      {view==='dashboard'&&<MasterDashboard adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} onSelectAdm={goAdm}/>}
+      {view==='vendedores'&&<MasterVendedores adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onAdd={onAddAdm} onDelete={onDeleteAdm} onSelect={goAdm} onUpdatePin={onUpdatePin}/>}
+      {view==='vendedorDetail'&&selAdm&&<>
+        <div style={{padding:'5px 16px 0',textAlign:'center'}}>
+          <span style={{fontSize:'.76rem',fontWeight:800}}>{selAdm.name}</span>
+        </div>
+        <AdmDashboard members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral}/>
+      </>}
+      {view==='membros'&&<AdmMembers members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={selAdm?d=>onAddMember(d,selAdm.id):null} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin}/>}
+      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid}/>}
+      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid}/>}
+      {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,editRefDirect.memberId)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin}/>}
+      {view==='remuneracao'&&<RemuneracaoPanel/>}
+
+      {!inSubView&&(
+        <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:640,zIndex:20}}>
+          <div className="tab-bar">
+            {masterTabs.map(({id,l,I})=>(
+              <button key={id} className={`tab${activeTab===id?' on':''}`} onClick={()=>{setView(id);setSelAdm(null);setSelMember(null);}}>
+                <I s={20} c={activeTab===id?'var(--black)':'var(--muted)'}/>
+                <span>{l}</span>
+              </button>
+            ))}
+            <button className="tab" onClick={()=>setShowOffers(true)}><span style={{fontSize:'1.1rem',lineHeight:1}}>🏷️</span><span>Ofertas</span></button>
+          </div>
+        </div>
+      )}
+      {view==='vendedorDetail'&&selAdm&&(
+        <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:640,zIndex:20}}>
+          <div className="tab-bar">
+            <button className="btn" style={{flex:1,padding:'10px'}} onClick={()=>{setSelAdm(null);setSelMember(null);setView('vendedores');}}><IcLeft s={16}/>Voltar</button>
+            <button className="btn" style={{flex:1,padding:'10px'}} onClick={()=>setView('membros')}><IcUsers s={15}/>Membros</button>
+          </div>
+        </div>
+      )}
+
+      {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} onClose={()=>setShowBell(false)} onEditRef={r=>{setEditRefDirect(r);setView('editRef');}} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} passReqs={passReqs} onMarkRead={onMarkRead}/>}
+      {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VENDEDOR PANEL (ADM role — dados filtrados por adm_id)
+══════════════════════════════════════════════════════════════════ */
+function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead}){
+  const [view,setView]=useState('dashboard');
+  const [selMember,setSelMember]=useState(null);
+  const [editRefDirect,setEditRefDirect]=useState(null);
+  const [showBell,setShowBell]=useState(false);
+  const [showOffers,setShowOffers]=useState(false);
+  const now=new Date();
+  const [sm,setSm]=useState(now.getMonth()+1);
+  const [sy,setSy]=useState(now.getFullYear());
+
+  const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
+  const newRefs=[...referrals,...jrReferrals].filter(r=>r.isNew);
+  const newJrs=seekJrs.filter(j=>j.isNew);
+  const badge=pendReqs.length+newRefs.length+newJrs.length;
+  const allRefs=[...referrals,...jrReferrals];
+  const curMember=selMember?members.find(m=>sameId(m.id,selMember.id))??selMember:null;
+
+  function nav(dest,payload){if(dest==='editRef'){setEditRefDirect(payload);setView('editRef');}else setView(dest);}
+
+  return(
+    <div style={{background:'var(--bg)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
+      <TopBar logo="SEEK" right={
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <button style={{position:'relative'}} className="icon-btn" onClick={()=>setShowBell(true)}>
+            {badge>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{badge}</span>}
+            <IcBell s={18} c="var(--muted)"/>
+          </button>
+          <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
+        </div>
+      }/>
+      <div style={{padding:'3px 16px 0',textAlign:'center'}}>
+        <span style={{fontSize:'.7rem',fontWeight:700,color:'var(--muted)',letterSpacing:'.08em',textTransform:'uppercase'}}>{adm.name}</span>
+      </div>
+
+      {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral}/>}
+      {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={d=>onAddMember(d,adm.id)} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin}/>}
+      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid}/>}
+      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid}/>}
+      {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,editRefDirect.memberId)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin}/>}
+      {view==='remuneracao'&&<RemuneracaoPanel/>}
+
+      {!['memberDetail','pending','paid','editRef'].includes(view)&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} badge={badge} onBell={()=>setShowBell(true)} onOffers={()=>setShowOffers(true)}/>}
+      {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} onClose={()=>setShowBell(false)} onEditRef={r=>{setEditRefDirect(r);setView('editRef');}} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} passReqs={passReqs} onMarkRead={onMarkRead}/>}
+      {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    APP ROOT
 ══════════════════════════════════════════════════════════════════ */
 function App(){
   const [loading,setLoading]=useState(true);
   const [session,setSession]=useState(null);
-  const [view,setView]=useState('dashboard');
-  const [selMember,setSelMember]=useState(null);
-  const [editRefDirect,setEditRefDirect]=useState(null);
-  const now=new Date();
-  const [sm,setSm]=useState(now.getMonth()+1);
-  const [sy,setSy]=useState(now.getFullYear());
+  const [adms,setAdms]=useState([]);
   const [members,setMembers]=useState([]);
   const [referrals,setReferrals]=useState([]);
   const [seekJrs,setSeekJrs]=useState([]);
@@ -2034,15 +2324,13 @@ function App(){
   const [passReqs,setPassReqs]=useState([]);
   const [levelNotifs,setLevelNotifs]=useState([]);
   const [offers,setOffers]=useState([]);
-  const [showBell,setShowBell]=useState(false);
-  const [showOffers,setShowOffers]=useState(false);
 
   useEffect(()=>{
     async function boot(){
       cleanupLegacyStorageKeys();
       const [
         {data:mRows,error:e1},{data:rRows},{data:cRows},{data:reqRows},
-        {data:jrRows},{data:jrRefRows},{data:notifRows},{data:offerRows},
+        {data:jrRows},{data:jrRefRows},{data:notifRows},{data:offerRows},{data:admRows},
       ]=await Promise.all([
         db.from('members').select('*'),
         db.from('referrals').select('*'),
@@ -2052,9 +2340,11 @@ function App(){
         db.from('jr_referrals').select('*'),
         db.from('level_notifs').select('*'),
         db.from('offers').select('*'),
+        db.from('adms').select('*'),
       ]);
       if(e1)console.error('[SEEK boot] Supabase error:',e1);
       setMembers((mRows||[]).map(mMember));
+      setAdms((admRows||[]).map(mAdm));
       setReferrals((rRows||[]).map(mRef));
       setCredentials(buildCreds(cRows));
       setPassReqs((reqRows||[]).map(mPassReq));
@@ -2078,9 +2368,9 @@ function App(){
     }
   }
 
-  async function addMember(data){
+  async function addMember(data,admId){
     const rawL=(data.whatsapp||data.login||'').replace(/\D/g,'');
-    const {data:row,error}=await db.from('members').insert({name:data.name,whatsapp:rawL,pix_key:data.pixKey,notes:data.notes}).select().single();
+    const {data:row,error}=await db.from('members').insert({name:data.name,whatsapp:rawL,pix_key:data.pixKey,notes:data.notes,adm_id:admId||null}).select().single();
     if(error||!row){console.error('[addMember]',error);return;}
     setMembers(u=>[...u,mMember(row)]);
     await db.from('credentials').insert({key:String(row.id),login:rawL,pin:data.pin||'0000'});
@@ -2113,7 +2403,6 @@ function App(){
     setReferrals(u=>u.filter(r=>!sameId(r.memberId,mid)));
     setJrReferrals(u=>u.filter(r=>!jrIds.some(jid=>sameId(r.jrId,jid))));
     setCredentials(u=>{const nc={...u};delete nc[midStr];jrIds.forEach(jid=>delete nc[`jr_${jid}`]);return nc;});
-    setSelMember(null);setView('members');
   }
 
   async function deleteSeekJr(jid){
@@ -2126,6 +2415,38 @@ function App(){
     setSeekJrs(u=>u.filter(j=>!sameId(j.id,jid)));
     setJrReferrals(u=>u.filter(r=>!sameId(r.jrId,jid)));
     setCredentials(u=>{const nc={...u};delete nc[`jr_${jidStr}`];return nc;});
+  }
+
+  async function addAdm(data){
+    const rawL=(data.whatsapp||'').replace(/\D/g,'');
+    const {data:row,error}=await db.from('adms').insert({name:data.name,whatsapp:rawL,pix_key:data.pixKey||null,notes:data.notes||null}).select().single();
+    if(error||!row){console.error('[addAdm]',error);return;}
+    setAdms(u=>[...u,mAdm(row)]);
+    const pin=data.pin||'0000';
+    await db.from('credentials').insert({key:`adm_${row.id}`,login:rawL,pin});
+    setCredentials(u=>({...u,[`adm_${row.id}`]:{login:rawL,pin}}));
+  }
+
+  async function deleteAdm(admId){
+    const admStr=String(admId);
+    const admMids=members.filter(m=>sameId(m.admId,admId)).map(m=>String(m.id));
+    const admJids=seekJrs.filter(j=>admMids.some(id=>sameId(j.seekId,id))).map(j=>String(j.id));
+    await Promise.all([
+      admMids.length?db.from('referrals').delete().in('member_id',admMids):Promise.resolve(),
+      admJids.length?db.from('jr_referrals').delete().in('jr_id',admJids):Promise.resolve(),
+      admJids.length?db.from('seek_jrs').delete().in('id',admJids):Promise.resolve(),
+      admMids.length?db.from('credentials').delete().in('key',admMids):Promise.resolve(),
+      ...admJids.map(jid=>db.from('credentials').delete().eq('key',`jr_${jid}`)),
+      admMids.length?db.from('members').delete().in('id',admMids.map(Number)):Promise.resolve(),
+      db.from('credentials').delete().eq('key',`adm_${admStr}`),
+      db.from('adms').delete().eq('id',admId),
+    ]);
+    setAdms(u=>u.filter(a=>!sameId(a.id,admId)));
+    setMembers(u=>u.filter(m=>!sameId(m.admId,admId)));
+    setSeekJrs(u=>u.filter(j=>!admMids.some(id=>sameId(j.seekId,id))));
+    setReferrals(u=>u.filter(r=>!admMids.some(id=>sameId(r.memberId,id))));
+    setJrReferrals(u=>u.filter(r=>!admJids.some(id=>sameId(r.jrId,id))));
+    setCredentials(u=>{const nc={...u};delete nc[`adm_${admStr}`];admMids.forEach(id=>delete nc[id]);admJids.forEach(jid=>delete nc[`jr_${jid}`]);return nc;});
   }
 
   async function updatePin(key,pin){
@@ -2194,8 +2515,6 @@ function App(){
     setLevelNotifs(u=>u.map(n=>sameId(n.id,notifId)?{...n,dismissed:true}:n));
   }
 
-  function nav(dest,payload){if(dest==='editRef'){setEditRefDirect(payload);setView('editRef');}else setView(dest);}
-
   async function addOffer(data){
     const {data:saved,error}=await db.from('offers').insert({url:data.url,caption:data.caption||''}).select().single();
     if(error){console.error('[addOffer]',error);return;}
@@ -2207,11 +2526,22 @@ function App(){
     setOffers(u=>u.filter(o=>o.id!==id));
   }
 
-  if(loading)return<Spinner/>;
+  function markRead(id,type){
+    if(type==='forgot'){
+      db.from('pass_requests').update({resolved:true}).eq('id',id);
+      setPassReqs(u=>u.map(r=>sameId(r.id,id)?{...r,resolved:true}:r));
+    } else if(type==='jr'){
+      db.from('seek_jrs').update({is_new:false}).eq('id',id);
+      setSeekJrs(u=>u.map(j=>sameId(j.id,id)?{...j,isNew:false}:j));
+    } else {
+      db.from('referrals').update({is_new:false}).eq('id',id);
+      db.from('jr_referrals').update({is_new:false}).eq('id',id);
+      setReferrals(u=>u.map(r=>sameId(r.id,id)?{...r,isNew:false}:r));
+      setJrReferrals(u=>u.map(r=>sameId(r.id,id)?{...r,isNew:false}:r));
+    }
+  }
 
-  const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
-  const newRefs=[...referrals,...jrReferrals].filter(r=>r.isNew);
-  const newJrs=seekJrs.filter(j=>j.isNew);
+  if(loading)return<Spinner/>;
 
   if(!session){
     return<LoginScreen onLogin={s=>{
@@ -2250,44 +2580,21 @@ function App(){
     return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers}/>;
   }
 
-  console.log('[SEEK route] ADM PANEL');
-  // ADM
-  const curMember=selMember?members.find(m=>sameId(m.id,selMember.id))??selMember:null;
-  const allRefs=[...referrals,...jrReferrals];
+  if(session.role==='master'){
+    return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead}/>;
+  }
 
-  return(
-    <div style={{background:'var(--bg)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
-      {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>addReferral(d,editRefDirect.memberId)} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onDeleteMember={deleteMember} onUpdateMember={updateMember} onUpdatePin={updatePin}/>}
-      {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={deleteReferral} onDeleteJrRef={deleteJrReferral}/>}
-      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={togglePaid}/>}
-      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={togglePaid}/>}
-      {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={addMember} onDelete={deleteMember} onUpdatePin={updatePin} onDeleteJr={deleteSeekJr}/>}
-      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>addReferral(d,curMember.id)} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onDeleteMember={deleteMember} onUpdateMember={updateMember} onUpdatePin={updatePin}/>}
-      {view==='remuneracao'&&<RemuneracaoPanel/>}
-      {!['memberDetail','pending','paid','editRef'].includes(view)&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} badge={pendReqs.length+newRefs.length+newJrs.length} onBell={()=>setShowBell(true)} onOffers={()=>setShowOffers(true)}/>}
-      {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs}
-  onClose={()=>setShowBell(false)}
-  onEditRef={r=>{setEditRefDirect(r);setView('editRef');}}
-  onDeleteRef={deleteReferral} onDeleteJrRef={deleteJrReferral}
-  passReqs={passReqs}
-  onMarkRead={(id,type)=>{
-    if(type==='forgot'){
-      db.from('pass_requests').update({resolved:true}).eq('id',id);
-      setPassReqs(u=>u.map(r=>sameId(r.id,id)?{...r,resolved:true}:r));
-    } else if(type==='jr'){
-      db.from('seek_jrs').update({is_new:false}).eq('id',id);
-      setSeekJrs(u=>u.map(j=>sameId(j.id,id)?{...j,isNew:false}:j));
-    } else {
-      db.from('referrals').update({is_new:false}).eq('id',id);
-      db.from('jr_referrals').update({is_new:false}).eq('id',id);
-      setReferrals(u=>u.map(r=>sameId(r.id,id)?{...r,isNew:false}:r));
-      setJrReferrals(u=>u.map(r=>sameId(r.id,id)?{...r,isNew:false}:r));
-    }
-  }}/>}
-      {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={addOffer} onDeleteOffer={deleteOffer}/>}
-      {view==='dashboard'&&<button onClick={()=>setSession(null)} style={{position:'fixed',top:18,right:20,zIndex:30,background:'none',border:'none',cursor:'pointer',color:'var(--muted)',display:'flex',alignItems:'center',gap:5,fontSize:'.7rem',fontWeight:700,fontFamily:'inherit'}}><IcOut s={15}/>Sair</button>}
-    </div>
-  );
+  if(session.role==='adm'){
+    const adm=adms.find(a=>sameId(a.id,session.admId));
+    if(!adm)return<div style={{padding:40,textAlign:'center'}}>Vendedor não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
+    const myMembers=members.filter(m=>sameId(m.admId,adm.id));
+    const mySeekJrs=seekJrs.filter(j=>myMembers.some(m=>sameId(m.id,j.seekId)));
+    const myReferrals=referrals.filter(r=>myMembers.some(m=>sameId(m.id,r.memberId)));
+    const myJrReferrals=jrReferrals.filter(r=>mySeekJrs.some(j=>sameId(j.id,r.jrId)));
+    return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead}/>;
+  }
+
+  return null;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
