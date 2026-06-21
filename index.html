@@ -2330,7 +2330,7 @@ function App(){
       cleanupLegacyStorageKeys();
       const [
         {data:mRows,error:e1},{data:rRows},{data:cRows},{data:reqRows},
-        {data:jrRows},{data:jrRefRows},{data:notifRows},{data:offerRows},{data:admRows},
+        {data:jrRows},{data:jrRefRows},{data:notifRows},{data:offerRows},{data:admRows,error:eAdm},
       ]=await Promise.all([
         db.from('members').select('*'),
         db.from('referrals').select('*'),
@@ -2342,7 +2342,8 @@ function App(){
         db.from('offers').select('*'),
         db.from('adms').select('*'),
       ]);
-      if(e1)console.error('[SEEK boot] Supabase error:',e1);
+      if(e1)console.error('[SEEK boot] members error:',e1);
+      if(eAdm)console.error('[SEEK boot] ERRO tabela adms — provavelmente migration não rodou:',JSON.stringify(eAdm));
       setMembers((mRows||[]).map(mMember));
       setAdms((admRows||[]).map(mAdm));
       setReferrals((rRows||[]).map(mRef));
@@ -2419,12 +2420,21 @@ function App(){
 
   async function addAdm(data){
     const rawL=(data.whatsapp||'').replace(/\D/g,'');
-    const {data:row,error}=await db.from('adms').insert({name:data.name,whatsapp:rawL,pix_key:data.pixKey||null,notes:data.notes||null}).select().single();
-    if(error||!row){console.error('[addAdm]',error);return;}
+    const payload={name:data.name,whatsapp:rawL,pix_key:data.pixKey||null,notes:data.notes||null};
+    console.log('[addAdm] INSERT payload=',JSON.stringify(payload));
+    const {data:row,error}=await db.from('adms').insert(payload).select().single();
+    console.log('[addAdm] resposta Supabase — row=',JSON.stringify(row),'error=',JSON.stringify(error));
+    if(error||!row){
+      console.error('[addAdm] FALHOU. Código:',error?.code,'Mensagem:',error?.message,'Detalhes:',error?.details);
+      window.alert('[SEEK] Erro ao cadastrar vendedor:\n'+(error?.message||'Sem resposta do banco')+(error?.code?'\nCódigo: '+error.code:''));
+      return;
+    }
     setAdms(u=>[...u,mAdm(row)]);
     const pin=data.pin||'0000';
-    await db.from('credentials').insert({key:`adm_${row.id}`,login:rawL,pin});
+    const {error:eC}=await db.from('credentials').insert({key:`adm_${row.id}`,login:rawL,pin});
+    if(eC)console.error('[addAdm] erro ao salvar credencial:',JSON.stringify(eC));
     setCredentials(u=>({...u,[`adm_${row.id}`]:{login:rawL,pin}}));
+    console.log('[addAdm] OK — vendedor id=',row.id);
   }
 
   async function deleteAdm(admId){
