@@ -4,8 +4,8 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
 <title>SEEK NETWORK</title>
-<link rel="icon" type="image/png" href="icone-app.png"/>
-<link rel="apple-touch-icon" sizes="180x180" href="icone-app.png"/>
+<link rel="icon" type="image/png" href="icone-app-180.png"/>
+<link rel="apple-touch-icon" sizes="180x180" href="icone-app-180.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
@@ -252,7 +252,7 @@ const IcWA   =({s=20,fill='currentColor',...p})=><svg width={s} height={s} viewB
 
 /* ── SEEK NETWORK LOGO — usa as imagens fornecidas ── */
 function SeekNetworkLogo(){
-  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{maxWidth:240,width:'75%',mixBlendMode:'multiply'}}/>;
+  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{width:'100%',mixBlendMode:'multiply'}}/>;
 }
 function SeekNetworkMark(){
   return <img src="logo-completo.png" alt="SEEK NETWORK" style={{height:40,maxWidth:160,objectFit:'contain',mixBlendMode:'multiply'}}/>;
@@ -517,10 +517,11 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
 
   return(
     <div style={{minHeight:'100vh',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',padding:'32px 22px'}}>
-      <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',alignItems:'center',gap:26}}>
+      <div style={{width:'100%',maxWidth:480,display:'flex',flexDirection:'column',alignItems:'center',gap:26}}>
 
         <SeekNetworkLogo/>
 
+        <div style={{width:'100%',maxWidth:340,display:'flex',flexDirection:'column',gap:26}}>
         {/* Login form — single unified entry, phone digits only, no mode tabs.
             The system figures out automatically whether the phone+pin belongs
             to the ADM, a SEEK, or a SEEK JR. */}
@@ -550,6 +551,7 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
           <button onClick={()=>{setSolicitarSenha(true);setSolPhone('');setSolErr('');setSolOk(false);}} style={{background:'none',border:'none',cursor:'pointer',fontSize:'.78rem',fontWeight:700,color:'var(--muted)',fontFamily:'inherit',textDecoration:'underline',textUnderlineOffset:3}}>
             Esqueceu sua senha?
           </button>
+        </div>
         </div>
       </div>
 
