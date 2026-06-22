@@ -106,6 +106,26 @@ window.addEventListener('error', function(e){
   var r=document.getElementById('root');
   if(r && !r.children.length) r.innerHTML='<div style="font-family:monospace;padding:24px;color:#c00;background:#fff;white-space:pre-wrap;font-size:13px"><b>Erro ao carregar o app:</b>\n'+e.message+'\n\nFonte: '+e.filename+'\nLinha: '+e.lineno+'</div>';
 });
+/* Brighten apple-touch-icon via canvas so the home screen icon appears
+   more vivid. Uses CSS-filter-equivalent math on raw pixel data.
+   brightness(1.3) clamps at 255; saturation boost via HSL conversion. */
+(function(){
+  var img=new Image();img.crossOrigin='anonymous';
+  img.onload=function(){
+    var c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+    var ctx=c.getContext('2d');ctx.drawImage(img,0,0);
+    var id=ctx.getImageData(0,0,c.width,c.height),d=id.data;
+    for(var i=0;i<d.length;i+=4){
+      d[i]  =Math.min(255,d[i]  *1.30);
+      d[i+1]=Math.min(255,d[i+1]*1.30);
+      d[i+2]=Math.min(255,d[i+2]*1.30);
+    }
+    ctx.putImageData(id,0,0);
+    var url=c.toDataURL('image/png');
+    document.querySelectorAll('link[rel*="icon"]').forEach(function(l){l.href=url;});
+  };
+  img.src='icone-app-180.png';
+})();
 </script>
 <script type="text/babel" data-presets="env,react">
 const {useState,useEffect}=React;
@@ -254,10 +274,10 @@ const IcWA   =({s=20,fill='currentColor',...p})=><svg width={s} height={s} viewB
 
 /* ── SEEK NETWORK LOGO — usa as imagens fornecidas ── */
 function SeekNetworkLogo(){
-  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{width:'100%',maxWidth:360,display:'block',margin:'0 auto',mixBlendMode:'multiply'}}/>;
+  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{width:'100%',maxWidth:400,display:'block',margin:'0 auto',mixBlendMode:'multiply'}}/>;
 }
 function SeekNetworkMark(){
-  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{height:56,maxWidth:220,objectFit:'contain',mixBlendMode:'multiply'}}/>;
+  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{height:76,maxWidth:300,objectFit:'contain',mixBlendMode:'multiply'}}/>;
 }
 
 
@@ -271,7 +291,7 @@ function SMedal({levelId,size=52,lit}){
     elite:{bg:'#50C878',sh:'rgba(20,140,60,0.55)'},
   };
   const col=cols[levelId]||cols.start;
-  const pad=Math.round(size*0.16);
+  const pad=Math.round(size*0.07);
   const imgSize=size-pad*2;
   if(!lit){
     return(
@@ -1863,10 +1883,6 @@ function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy
         </button>
       ))}
     </div>
-    <div className="nm" style={{padding:'16px 18px'}}>
-      <div className="section-title" style={{marginBottom:6}}>Comissão MASTER (0,5% do volume total)</div>
-      <div style={{fontWeight:900,fontSize:'1.25rem',color:'var(--green)'}}>{fBRL(allTotV*0.005)}</div>
-    </div>
     {admStats.length>0&&<>
       <div className="section-title" style={{paddingLeft:4}}>Ranking Vendedores — {MONTHS[sm-1]} {sy}</div>
       <div className="nm" style={{padding:'6px 16px'}}>
@@ -2005,8 +2021,8 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
           <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
         </div>
       }/>
-      <div style={{padding:'3px 16px 6px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <span style={{fontSize:'.6rem',fontWeight:700,color:'var(--muted)',letterSpacing:'.12em',textTransform:'uppercase'}}>MASTER</span>
+      <div style={{padding:'4px 16px 8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <span style={{fontSize:'1.1rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>MASTER</span>
         <button className="btn" style={{padding:'5px 12px',fontSize:'.68rem',gap:4}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
       </div>
 
@@ -2088,8 +2104,8 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
           <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
         </div>
       }/>
-      <div style={{padding:'3px 16px 6px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <span style={{fontSize:'.7rem',fontWeight:700,color:'var(--muted)',letterSpacing:'.08em',textTransform:'uppercase'}}>{adm.name}</span>
+      <div style={{padding:'4px 16px 8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <span style={{fontSize:'1.1rem',fontWeight:900,color:'var(--black)',letterSpacing:'.02em'}}>{adm.name}</span>
         <button className="btn" style={{padding:'5px 12px',fontSize:'.68rem',gap:4}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
       </div>
 
