@@ -17,6 +17,7 @@
 :root{
   --bg:#F2F2F2;--bg-up:#F8F8F8;--black:#111111;--gray:#D0D0D0;--white:#FFFFFF;
   --muted:#888888;--green:#1D7A3A;--red:#C0392B;--yellow:#C47700;
+  --bg-master:#E4E4E4;
   --nm-out:7px 7px 18px rgba(0,0,0,0.26),-7px -7px 18px rgba(255,255,255,0.95);
   --nm-in:inset 5px 5px 12px rgba(0,0,0,0.22),inset -5px -5px 12px rgba(255,255,255,0.92);
   --nm-press:inset 4px 4px 10px rgba(0,0,0,0.22),inset -4px -4px 10px rgba(255,255,255,0.88);
@@ -79,7 +80,7 @@ html,body{font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;backgrou
 .progress-diamond{background:linear-gradient(90deg,#3A86FF,#B3E5FC);}
 .progress-emerald{background:linear-gradient(90deg,#1B5E20,#50C878);}
 .progress-jr     {background:linear-gradient(90deg,#444,#AAAAAA);}
-.product-select-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.product-select-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
 .product-card{border:none;border-radius:18px;padding:14px 8px;text-align:center;cursor:pointer;background:var(--bg);box-shadow:var(--nm-out);transition:all .3s ease;font-family:inherit;}
 .product-card.selected{box-shadow:var(--nm-press);}
 .product-card-icon{font-size:1.3rem;margin-bottom:5px;}
@@ -134,9 +135,10 @@ const mOffer   =r=>({id:r.id,url:r.url,caption:r.caption});
 const mAdm     =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes});
 function buildCreds(rows){const o={};(rows||[]).forEach(r=>{o[r.key]={login:r.login,pin:r.pin};});return o;}
 const PRODUCT_TYPES=[
-  {id:'auto',name:'Automóveis',  rate:0.001, icon:'🚗'},
-  {id:'cons',name:'Consórcios',  rate:0.002, icon:'🤝'},
-  {id:'corp',name:'Empresariais',rate:0.0012,icon:'🏢'},
+  {id:'auto',name:'Automóveis Zero KM',  rate:0.001, icon:'🚗'},
+  {id:'semi',name:'Automóveis Semi Novos',rate:0.0012,icon:'🚘'},
+  {id:'cons',name:'Consórcios',           rate:0.002, icon:'🤝'},
+  {id:'corp',name:'Empresariais',         rate:0.0012,icon:'🏢'},
 ];
 const SEEK_LEVELS=[
   {id:'start', name:'Seek Start', min:0,   max:9,        bonus:0,    cssClass:'level-bronze',  progressClass:'progress-bronze',  color:'#CD7F32'},
@@ -252,65 +254,36 @@ const IcWA   =({s=20,fill='currentColor',...p})=><svg width={s} height={s} viewB
 
 /* ── SEEK NETWORK LOGO — usa as imagens fornecidas ── */
 function SeekNetworkLogo(){
-  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{width:'100%',mixBlendMode:'multiply'}}/>;
+  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{width:'100%',maxWidth:360,display:'block',margin:'0 auto',mixBlendMode:'multiply'}}/>;
 }
 function SeekNetworkMark(){
-  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{height:40,maxWidth:160,objectFit:'contain',mixBlendMode:'multiply'}}/>;
+  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{height:56,maxWidth:220,objectFit:'contain',mixBlendMode:'multiply'}}/>;
 }
 
 
-/* S-shape medal
-/* S-shape medal for each level */
+/* Level icon using app icon (icone-app.png) with level color background */
 function SMedal({levelId,size=52,lit}){
   const cols={
-    start:{g1:'#7A5C3A',g2:'#C8924E',g3:'#F0B870',sh:'rgba(140,90,40,0.6)'},
-    one:  {g1:'#505050',g2:'#B0B0B0',g3:'#E8E8E8',sh:'rgba(80,80,80,0.6)'},
-    plus: {g1:'#8A6800',g2:'#D4A800',g3:'#FFE040',sh:'rgba(180,140,0,0.6)'},
-    pro:  {g1:'#0A3A8A',g2:'#1E78E5',g3:'#90C8F9',sh:'rgba(20,80,200,0.6)'},
-    elite:{g1:'#0A4A20',g2:'#1A8A40',g3:'#70E890',sh:'rgba(15,110,50,0.6)'},
+    start:{bg:'#CD7F32',sh:'rgba(160,90,30,0.55)'},
+    one:  {bg:'#A8A8A8',sh:'rgba(100,100,100,0.45)'},
+    plus: {bg:'#E8C000',sh:'rgba(190,150,0,0.55)'},
+    pro:  {bg:'#4FC3F7',sh:'rgba(30,100,200,0.45)'},
+    elite:{bg:'#50C878',sh:'rgba(20,140,60,0.55)'},
   };
-  const c=lit?(cols[levelId]||cols.start):{g1:'#888',g2:'#B8B8B8',g3:'#D8D8D8',sh:'rgba(0,0,0,0.2)'};
-  const uid=`sm_${levelId}_${size}`;
+  const col=cols[levelId]||cols.start;
+  const pad=Math.round(size*0.16);
+  const imgSize=size-pad*2;
+  if(!lit){
+    return(
+      <div style={{width:size,height:size,borderRadius:'50%',background:'#2A2A2A',boxShadow:'1px 2px 6px rgba(0,0,0,0.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+        <img src="icone-app.png" style={{width:imgSize,height:imgSize,objectFit:'contain',filter:'brightness(0) invert(1)',opacity:0.25}} alt=""/>
+      </div>
+    );
+  }
   return(
-    <svg width={size} height={size} viewBox="0 0 60 72" fill="none">
-      <defs>
-        <linearGradient id={`${uid}a`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%"   stopColor={c.g1}/>
-          <stop offset="40%"  stopColor={c.g2}/>
-          <stop offset="70%"  stopColor={c.g3}/>
-          <stop offset="100%" stopColor={c.g1}/>
-        </linearGradient>
-        <linearGradient id={`${uid}h`} x1="0%" y1="0%" x2="50%" y2="100%">
-          <stop offset="0%"   stopColor="#FFFFFF" stopOpacity={lit?"0.7":"0.3"}/>
-          <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0"/>
-        </linearGradient>
-        <filter id={`${uid}d`}><feDropShadow dx="1" dy="2" stdDeviation="2" floodColor={c.sh} floodOpacity="0.9"/></filter>
-        {lit&&<filter id={`${uid}g`}><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>}
-      </defs>
-      {/* S path scaled to medal size */}
-      <path
-        d="M42 10 C42 10 50 10 50 19 C50 28 42 31 32 32 C22 33 12 34 12 43 C12 52 20 55 30 55 C37 55 43 52 47 48"
-        fill="none" stroke={`url(#${uid}a)`} strokeWidth="11" strokeLinecap="round"
-        filter={`url(#${uid}d)`} opacity={lit?1:0.3}
-      />
-      <path
-        d="M42 10 C42 10 50 10 50 19 C50 28 42 31 32 32 C22 33 12 34 12 43 C12 52 20 55 30 55 C37 55 43 52 47 48"
-        fill="none" stroke={`url(#${uid}h)`} strokeWidth="5.5" strokeLinecap="round" opacity={lit?0.8:0.2}
-        filter={lit?`url(#${uid}g)`:undefined}
-      />
-      {/* Top cap */}
-      <path d="M42 10 C36 6 22 6 16 11 C12 15 11 20 16 24"
-        fill="none" stroke={`url(#${uid}a)`} strokeWidth="10" strokeLinecap="round"
-        filter={`url(#${uid}d)`} opacity={lit?1:0.3}/>
-      <path d="M42 10 C36 6 22 6 16 11 C12 15 11 20 16 24"
-        fill="none" stroke={`url(#${uid}h)`} strokeWidth="5" strokeLinecap="round" opacity={lit?0.8:0.2}/>
-      {/* Bottom cap */}
-      <path d="M14 51 C20 57 38 57 44 51 C48 47 49 42 44 38"
-        fill="none" stroke={`url(#${uid}a)`} strokeWidth="10" strokeLinecap="round"
-        filter={`url(#${uid}d)`} opacity={lit?1:0.3}/>
-      <path d="M14 51 C20 57 38 57 44 51 C48 47 49 42 44 38"
-        fill="none" stroke={`url(#${uid}h)`} strokeWidth="5" strokeLinecap="round" opacity={lit?0.8:0.2}/>
-    </svg>
+    <div style={{width:size,height:size,borderRadius:'50%',background:`linear-gradient(135deg,${col.bg}DD,${col.bg})`,boxShadow:`2px 3px 12px ${col.sh},-1px -1px 5px rgba(255,255,255,0.35)`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <img src="icone-app.png" style={{width:imgSize,height:imgSize,objectFit:'contain'}} alt=""/>
+    </div>
   );
 }
 
@@ -415,7 +388,7 @@ function MedalsShowcase({points}){
         {SEEK_LEVELS.map((lv,i)=>{
           const lit=i<=curIdx;
           return(
-            <div key={lv.id} style={{textAlign:'center',transition:'opacity .6s',opacity:lit?1:0.38}}>
+            <div key={lv.id} style={{textAlign:'center',transition:'opacity .6s'}}>
               <SMedal levelId={lv.id} size={50} lit={lit}/>
               <div style={{fontSize:'.54rem',fontWeight:800,letterSpacing:'.04em',textTransform:'uppercase',marginTop:6,color:lit?'var(--black)':'var(--muted)'}}>{lv.name.replace('Seek ','')}</div>
               <div style={{fontSize:'.5rem',color:'var(--muted)',marginTop:1}}>{lv.max===Infinity?`${lv.min}+`:`${lv.min}-${lv.max}`} pts</div>
@@ -983,7 +956,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         {/* Per-product breakdown */}
         <div style={{marginBottom:14}}>
           <div style={{fontSize:'.6rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',marginBottom:10}}>Indicações por Produto — {MONTHS[sm-1]} {sy}</div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8}}>
             {prodBreakdown.map(p=>(
               <div key={p.id} className="nm-in" style={{padding:'10px 8px',textAlign:'center'}}>
                 <div style={{fontSize:'1.1rem',marginBottom:4}}>{p.icon}</div>
@@ -2011,7 +1984,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
   const inSubView=['memberDetail','pending','paid','editRef','vendedorDetail'].includes(view);
 
   return(
-    <div style={{background:'var(--bg)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
+    <div style={{'--bg':'var(--bg-master)',background:'var(--bg-master)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
       <TopBar logo="SEEK NETWORK" right={
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
           <button style={{position:'relative'}} className="icon-btn" onClick={()=>setShowBell(true)}>
