@@ -277,32 +277,34 @@ function SeekNetworkLogo(){
   return <img src="logo-completo.png" alt="SEEK NETWORK" style={{width:'100%',maxWidth:400,display:'block',margin:'0 auto',mixBlendMode:'multiply'}}/>;
 }
 function SeekNetworkMark(){
-  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{display:'block',height:56,width:'auto',mixBlendMode:'multiply'}}/>;
+  return(
+    <span style={{fontWeight:900,fontSize:'0.85rem',color:'#111111',textShadow:'0 0 4px rgba(255,255,255,0.9),1px 1px 3px rgba(255,255,255,0.8),-1px -1px 3px rgba(255,255,255,0.8)',letterSpacing:'0.03em',textAlign:'center',whiteSpace:'nowrap'}}>
+      SEEK - Eco Sistema Motomecânica VW
+    </span>
+  );
 }
 
 
 /* Level icon using app icon (icone-app.png) with level color background */
 function SMedal({levelId,size=52,lit}){
   const cols={
-    start:{bg:'#CD7F32',sh:'rgba(160,90,30,0.55)'},
-    one:  {bg:'#A8A8A8',sh:'rgba(100,100,100,0.45)'},
-    plus: {bg:'#E8C000',sh:'rgba(190,150,0,0.55)'},
-    pro:  {bg:'#4FC3F7',sh:'rgba(30,100,200,0.45)'},
-    elite:{bg:'#50C878',sh:'rgba(20,140,60,0.55)'},
+    start:{bg:'linear-gradient(135deg,#E08030,#CD7F32,#B8692A)',border:'#A0522D',glow:'rgba(160,100,20,0.6)',inset:'rgba(255,200,80,0.3)'},
+    one:  {bg:'linear-gradient(135deg,#D8D8D8,#C0C0C0,#A8A8A8)',border:'#A8A8A8',glow:'rgba(120,120,120,0.4)',inset:'rgba(255,255,255,0.65)'},
+    plus: {bg:'linear-gradient(135deg,#FFE44D,#FFD700,#DAA520)',border:'#DAA520',glow:'rgba(200,160,0,0.55)',inset:'rgba(255,255,150,0.45)'},
+    pro:  {bg:'linear-gradient(135deg,#B9F2FF,#E0F7FF,#B9F2FF)',border:'#89CFF0',glow:'rgba(100,180,220,0.4)',inset:'rgba(200,240,255,0.6)'},
+    elite:{bg:'linear-gradient(135deg,#6FD89A,#50C878,#3DAD63)',border:'#2E8B57',glow:'rgba(30,120,60,0.5)',inset:'rgba(150,255,180,0.4)'},
   };
   const col=cols[levelId]||cols.start;
-  const pad=Math.round(size*0.07);
-  const imgSize=size-pad*2;
   if(!lit){
     return(
       <div style={{width:size,height:size,borderRadius:'50%',background:'#2A2A2A',boxShadow:'1px 2px 6px rgba(0,0,0,0.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <img src="icone-app.png" style={{width:imgSize,height:imgSize,objectFit:'contain',filter:'brightness(0) invert(1)',opacity:0.25}} alt=""/>
+        <img src="icone-app.png" style={{width:'98%',height:'98%',objectFit:'contain',filter:'brightness(0) invert(1)',opacity:0.25}} alt=""/>
       </div>
     );
   }
   return(
-    <div style={{width:size,height:size,borderRadius:'50%',background:`linear-gradient(135deg,${col.bg}DD,${col.bg})`,boxShadow:`2px 3px 12px ${col.sh},-1px -1px 5px rgba(255,255,255,0.35)`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-      <img src="icone-app.png" style={{width:imgSize,height:imgSize,objectFit:'contain',filter:'drop-shadow(0 1px 5px rgba(0,0,0,0.35))'}} alt=""/>
+    <div style={{width:size,height:size,borderRadius:'50%',background:col.bg,boxShadow:`2px 3px 12px ${col.glow},0 0 0 2px ${col.border},inset 0 0 ${Math.round(size*0.4)}px ${col.inset}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+      <img src="icone-app.png" style={{width:'98%',height:'98%',objectFit:'contain',filter:'drop-shadow(0 1px 4px rgba(0,0,0,0.4))'}} alt=""/>
     </div>
   );
 }
