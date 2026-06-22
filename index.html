@@ -282,7 +282,7 @@ function SMedal({levelId,size=52,lit}){
   }
   return(
     <div style={{width:size,height:size,borderRadius:'50%',background:`linear-gradient(135deg,${col.bg}DD,${col.bg})`,boxShadow:`2px 3px 12px ${col.sh},-1px -1px 5px rgba(255,255,255,0.35)`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-      <img src="icone-app.png" style={{width:imgSize,height:imgSize,objectFit:'contain'}} alt=""/>
+      <img src="icone-app.png" style={{width:imgSize,height:imgSize,objectFit:'contain',filter:'drop-shadow(0 1px 5px rgba(0,0,0,0.35))'}} alt=""/>
     </div>
   );
 }
@@ -644,6 +644,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const [showAdd,setShowAdd]=useState(false);
   const [showPin,setShowPin]=useState(false);
   const [showJrOffers,setShowJrOffers]=useState(false);
+  const [showExtrato,setShowExtrato]=useState(false);
 
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
@@ -769,7 +770,10 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
       </button>
 
       <button className="btn btn-full" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={15}/>Alterar Senha</button>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>Ofertas do Mês 🏷️</button>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
+        <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
+      </div>
 
       {/* Referrals */}
       <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
@@ -792,6 +796,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     </div>
     {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><RefForm onClose={()=>setShowAdd(false)} onSave={onAddReferral}/></Sheet>}
     {showJrOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowJrOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
+    {showExtrato&&<ExtratoModal role="jr" data={{jr,referrals:referrals.filter(r=>sameId(r.jrId,jr.id)),seekMember}} onClose={()=>setShowExtrato(false)}/>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
       <form onSubmit={changePin} style={{display:'flex',flexDirection:'column',gap:18}}>
         <Fld label="Senha Atual"><PinInput value={oldPin} onChange={setOldPin} autoFocus/></Fld>
@@ -816,6 +821,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const [showPin,setShowPin]=useState(false);
   const [showMemberOffers,setShowMemberOffers]=useState(false);
   const [showJrOffers,setShowJrOffers]=useState(false);
+  const [showExtrato,setShowExtrato]=useState(false);
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
   const [cfPin,setCfPin]=useState('');
@@ -995,7 +1001,10 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         <button className="btn" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={14}/>Senha</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={14}/>Alterar Senha</button>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>Ofertas do Mês 🏷️</button>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
+        <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
+      </div>
 
       {/* My JRs */}
       {myJrs.length>0&&<div>
@@ -1043,7 +1052,8 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
       </div>
     </div>
 
-    {showMemberOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowMemberOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/> }
+    {showMemberOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowMemberOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
+    {showExtrato&&<ExtratoModal role="member" data={{member,referrals:referrals.filter(r=>sameId(r.memberId,member.id)),jrReferrals,seekJrs}} onClose={()=>setShowExtrato(false)}/>}
     {showAdd&&<Sheet title="Encontrei uma Oportunidade" onClose={()=>setShowAdd(false)}><RefForm onClose={()=>setShowAdd(false)} onSave={onAddReferral}/></Sheet>}
     {showAddJr&&<Sheet title="Cadastrar SEEK JR" onClose={()=>setShowAddJr(false)}><JrForm onClose={()=>setShowAddJr(false)} onSave={onAddJr}/></Sheet>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
@@ -1960,6 +1970,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
   const [editRefDirect,setEditRefDirect]=useState(null);
   const [showBell,setShowBell]=useState(false);
   const [showOffers,setShowOffers]=useState(false);
+  const [showExtrato,setShowExtrato]=useState(false);
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -1994,8 +2005,9 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
           <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
         </div>
       }/>
-      <div style={{padding:'3px 16px 0',textAlign:'center'}}>
+      <div style={{padding:'3px 16px 6px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <span style={{fontSize:'.6rem',fontWeight:700,color:'var(--muted)',letterSpacing:'.12em',textTransform:'uppercase'}}>MASTER</span>
+        <button className="btn" style={{padding:'5px 12px',fontSize:'.68rem',gap:4}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
       </div>
 
       {view==='dashboard'&&<MasterDashboard adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} onSelectAdm={goAdm}/>}
@@ -2037,6 +2049,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
 
       {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} onClose={()=>setShowBell(false)} onEditRef={r=>{setEditRefDirect(r);setView('editRef');}} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} passReqs={passReqs} onMarkRead={onMarkRead}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
+      {showExtrato&&<ExtratoModal role="master" data={{adms,members,referrals,jrReferrals,seekJrs}} onClose={()=>setShowExtrato(false)}/>}
     </div>
   );
 }
@@ -2050,6 +2063,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
   const [editRefDirect,setEditRefDirect]=useState(null);
   const [showBell,setShowBell]=useState(false);
   const [showOffers,setShowOffers]=useState(false);
+  const [showExtrato,setShowExtrato]=useState(false);
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -2074,8 +2088,9 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
           <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
         </div>
       }/>
-      <div style={{padding:'3px 16px 0',textAlign:'center'}}>
+      <div style={{padding:'3px 16px 6px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <span style={{fontSize:'.7rem',fontWeight:700,color:'var(--muted)',letterSpacing:'.08em',textTransform:'uppercase'}}>{adm.name}</span>
+        <button className="btn" style={{padding:'5px 12px',fontSize:'.68rem',gap:4}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
       </div>
 
       {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral}/>}
@@ -2089,6 +2104,162 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {!['memberDetail','pending','paid','editRef'].includes(view)&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} badge={badge} onBell={()=>setShowBell(true)} onOffers={()=>setShowOffers(true)}/>}
       {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} onClose={()=>setShowBell(false)} onEditRef={r=>{setEditRefDirect(r);setView('editRef');}} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} passReqs={passReqs} onMarkRead={onMarkRead}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
+      {showExtrato&&<ExtratoModal role="adm" data={{adm,members,referrals,jrReferrals,seekJrs}} onClose={()=>setShowExtrato(false)}/>}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   EXTRATO MODAL — relatório completo para WhatsApp / Impressão
+══════════════════════════════════════════════════════════════════ */
+function ExtratoModal({role,data,onClose}){
+  const now=new Date();
+  const dateStr=`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+
+  function buildText(){
+    if(role==='master'){
+      const {adms,members,referrals,jrReferrals,seekJrs}=data;
+      const allRefs=[...referrals,...jrReferrals];
+      const totVol=allRefs.reduce((s,r)=>s+r.productValue,0);
+      const totCom=allRefs.reduce((s,r)=>s+r.commission,0);
+      const pago=allRefs.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+      const apagar=allRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+      const admRank=adms.map(adm=>{
+        const mids=members.filter(m=>sameId(m.admId,adm.id)).map(m=>String(m.id));
+        const jids=seekJrs.filter(j=>mids.some(id=>sameId(j.seekId,id))).map(j=>String(j.id));
+        const vol=[...referrals.filter(r=>mids.some(id=>sameId(r.memberId,id))),...jrReferrals.filter(r=>jids.some(id=>sameId(r.jrId,id)))].reduce((s,r)=>s+r.productValue,0);
+        return{name:adm.name,vol,seeks:mids.length};
+      }).sort((a,b)=>b.vol-a.vol);
+      return [
+        `*SEEK NETWORK — EXTRATO MASTER*`,`Data: ${dateStr}`,``,
+        `📊 CONSOLIDADO GERAL`,
+        `Vendedores: ${adms.length}  |  SEEKs: ${members.length}  |  JRs: ${seekJrs.length}`,
+        `Total Indicações: ${allRefs.length}`,``,
+        `💰 COMISSÕES`,
+        `Volume Total: ${fBRL(totVol)}`,
+        `Comissão Total: ${fBRL(totCom)}`,
+        `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
+        `Comissão Master (0,5%): ${fBRL(totVol*0.005)}`,``,
+        `🏆 RANKING VENDEDORES`,
+        ...admRank.map((a,i)=>`${i+1}. ${a.name} — ${fBRL(a.vol)} (${a.seeks} SEEK${a.seeks!==1?'s':''})`),
+      ].join('\n');
+    }
+    if(role==='adm'){
+      const {adm,members,referrals,jrReferrals,seekJrs}=data;
+      const allRefs=[...referrals,...jrReferrals];
+      const totVol=allRefs.reduce((s,r)=>s+r.productValue,0);
+      const totCom=allRefs.reduce((s,r)=>s+r.commission,0);
+      const pago=allRefs.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+      const apagar=allRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+      const mRank=members.map(m=>{
+        const jids=seekJrs.filter(j=>sameId(j.seekId,m.id)).map(j=>String(j.id));
+        const vol=[...referrals.filter(r=>sameId(r.memberId,m.id)),...jrReferrals.filter(r=>jids.some(id=>sameId(r.jrId,id)))].reduce((s,r)=>s+r.productValue,0);
+        const pts=calcPoints(referrals.filter(r=>sameId(r.memberId,m.id)).reduce((s,r)=>s+r.productValue,0));
+        return{name:m.name,vol,lv:getSeekLevel(pts)};
+      }).sort((a,b)=>b.vol-a.vol);
+      return [
+        `*SEEK NETWORK — EXTRATO VENDEDOR*`,
+        `${adm.name}  |  Data: ${dateStr}`,``,
+        `📊 RESUMO`,
+        `SEEKs: ${members.length}  |  JRs: ${seekJrs.length}  |  Indicações: ${allRefs.length}`,``,
+        `💰 COMISSÕES`,
+        `Volume Total: ${fBRL(totVol)}`,
+        `Comissão Total: ${fBRL(totCom)}`,
+        `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,``,
+        `🏆 RANKING SEEKs`,
+        ...mRank.map((m,i)=>`${i+1}. ${m.name} (${m.lv.name}) — ${fBRL(m.vol)}`),
+      ].join('\n');
+    }
+    if(role==='member'){
+      const {member,referrals,jrReferrals,seekJrs}=data;
+      const totVol=referrals.reduce((s,r)=>s+r.productValue,0);
+      const pts=calcPoints(totVol);
+      const lv=getSeekLevel(pts);
+      const totCom=referrals.reduce((s,r)=>s+r.commission,0);
+      const pago=referrals.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+      const nextLv=lv.id==='elite'?null:SEEK_LEVELS[SEEK_LEVELS.findIndex(l=>l.id===lv.id)+1];
+      const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
+      return [
+        `*SEEK NETWORK — EXTRATO SEEK*`,
+        `${member.name}  |  #${String(member.id).padStart(3,'0')}`,
+        `Data: ${dateStr}`,``,
+        `🎖️ NÍVEL: ${lv.name.toUpperCase()}`,
+        `Pontos: ${pts} pts  |  Bônus: +${(lv.bonus*100).toFixed(0)}%`,
+        nextLv?`Próximo nível: ${nextLv.name} (faltam ${nextLv.min-pts} pts)`:`✅ Nível Máximo!`,``,
+        `💰 COMISSÕES`,
+        `Total Indicações: ${referrals.length}  |  Volume Total: ${fBRL(totVol)}`,
+        `Comissão Total: ${fBRL(totCom)}`,
+        `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
+        myJrs.length>0?`\n👥 SEEK JRs (${myJrs.length})`:null,
+        ...myJrs.map(jr=>{
+          const jrVol=jrReferrals.filter(r=>sameId(r.jrId,jr.id)).reduce((s,r)=>s+r.productValue,0);
+          return`• ${jr.name} — ${fBRL(jrVol)}`;
+        }),
+      ].filter(l=>l!=null).join('\n');
+    }
+    if(role==='jr'){
+      const {jr,referrals,seekMember}=data;
+      const totVol=referrals.reduce((s,r)=>s+r.productValue,0);
+      const totCom=referrals.reduce((s,r)=>s+r.commission,0);
+      const pago=referrals.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+      const jrLv=getJrLevel(totVol);
+      const gradPct=Math.min(100,(totVol/JR_GRADUATION)*100).toFixed(1);
+      return [
+        `*SEEK NETWORK — EXTRATO SEEK JR*`,
+        `${jr.name}  |  ID: ${jr.id}JR`,
+        `Data: ${dateStr}`,``,
+        seekMember?`👤 Padrinho SEEK: ${seekMember.name}`:null,
+        ``,
+        `📊 DESEMPENHO`,
+        `Total Indicações: ${referrals.length}`,
+        `Volume Total: ${fBRL(totVol)}`,
+        `Nível JR: ${jrLv.name}  |  Bônus para SEEK: ${(jrLv.bonus*100).toFixed(0)}%`,
+        `Progresso para SEEK: ${gradPct}% de ${fBRL(JR_GRADUATION)}`,``,
+        `💰 COMISSÕES`,
+        `Total: ${fBRL(totCom)}`,
+        `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
+      ].filter(l=>l!=null).join('\n');
+    }
+    return '';
+  }
+
+  const text=buildText();
+
+  function sendWhatsApp(){
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
+  }
+  function handlePrint(){
+    const div=document.createElement('div');
+    div.className='print-only';
+    div.style.cssText='font-family:monospace;white-space:pre-wrap;font-size:13px;padding:28px;color:#111;line-height:1.8;';
+    div.textContent=text;
+    document.body.appendChild(div);
+    window.print();
+    document.body.removeChild(div);
+  }
+
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'92vh'}}>
+        <div className="handle"/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+          <span style={{fontWeight:900,fontSize:'1rem'}}>📋 Extrato</span>
+          <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+        </div>
+        <div className="nm-in" style={{padding:'16px',marginBottom:16,fontFamily:'monospace',fontSize:'.74rem',whiteSpace:'pre-wrap',lineHeight:1.75,maxHeight:'58vh',overflowY:'auto',borderRadius:16,color:'var(--black)'}}>
+          {text}
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button className="btn btn-full" style={{gap:6,color:'#25D366'}} onClick={sendWhatsApp}>
+            <IcWA s={15} fill="#25D366"/>WhatsApp
+          </button>
+          <button className="btn btn-full" style={{gap:6}} onClick={handlePrint}>
+            🖨️ Imprimir
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
