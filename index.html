@@ -40,7 +40,7 @@ html,body{font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;backgrou
 .inp option{background:var(--bg-up);color:var(--black);}
 .label{font-size:.65rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;display:block;}
 .section-title{font-size:.62rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
-.top-bar{background:var(--bg);box-shadow:0 4px 20px rgba(0,0,0,.07),0 1px 0 rgba(255,255,255,.9);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+.top-bar{background:var(--bg);box-shadow:0 4px 20px rgba(0,0,0,.07),0 1px 0 rgba(255,255,255,.9);padding:6px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
 .tab-bar{background:var(--bg);box-shadow:0 -4px 20px rgba(0,0,0,.08);padding:10px 16px 20px;display:flex;gap:8px;position:fixed;bottom:0;left:0;right:0;z-index:20;max-width:640px;margin:0 auto;}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;border-radius:16px;border:none;background:transparent;cursor:pointer;font-family:inherit;font-size:.62rem;font-weight:700;letter-spacing:.04em;color:var(--muted);transition:all var(--t);}
 .tab.on{background:var(--bg);box-shadow:var(--nm-out);color:var(--black);}
@@ -277,7 +277,7 @@ function SeekNetworkLogo(){
   return <img src="logo-completo.png" alt="SEEK NETWORK" style={{width:'100%',maxWidth:400,display:'block',margin:'0 auto',mixBlendMode:'multiply'}}/>;
 }
 function SeekNetworkMark(){
-  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{height:76,maxWidth:300,objectFit:'contain',mixBlendMode:'multiply'}}/>;
+  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{height:228,maxWidth:'100%',objectFit:'contain',mixBlendMode:'multiply'}}/>;
 }
 
 
@@ -727,6 +727,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
 
   return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
     <TopBar logo="SEEK NETWORK" right={<button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>}/>
+    <div style={{padding:'4px 16px 8px',textAlign:'center'}}><span style={{fontSize:'1.1rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>SEEK JR</span></div>
     <div className="page" style={{paddingBottom:30}}>
 
       {/* Identity card */}
@@ -790,10 +791,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
       </button>
 
       <button className="btn btn-full" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={15}/>Alterar Senha</button>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-        <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
-        <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
-      </div>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
 
       {/* Referrals */}
       <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
@@ -813,6 +811,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
           </div>{i<arr.length-1&&<Div/>}</div>
         ))}
       </div>
+      <button className="btn btn-dark btn-full" style={{padding:14,marginTop:12}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
     </div>
     {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><RefForm onClose={()=>setShowAdd(false)} onSave={onAddReferral}/></Sheet>}
     {showJrOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowJrOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
@@ -950,6 +949,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
     {myLevelNotif&&<LevelUpModal level={getSeekLevel(points)} onClose={()=>onDismissNotif(myLevelNotif.id)}/>}
     <TopBar logo="SEEK NETWORK" right={<button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>}/>
+    <div style={{padding:'4px 16px 8px',textAlign:'center'}}><span style={{fontSize:'1.1rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>SEEK</span></div>
     <div className="page" style={{paddingBottom:30}}>
 
       {/* Identity + level */}
@@ -1021,10 +1021,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         <button className="btn" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={14}/>Senha</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={14}/>Alterar Senha</button>
-      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-        <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
-        <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
-      </div>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
 
       {/* My JRs */}
       {myJrs.length>0&&<div>
@@ -1070,6 +1067,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
           </div>{i<arr.length-1&&<Div/>}</div>
         ))}
       </div>
+      <button className="btn btn-dark btn-full" style={{padding:14,marginTop:12}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
     </div>
 
     {showMemberOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowMemberOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
@@ -2021,9 +2019,8 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
           <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
         </div>
       }/>
-      <div style={{padding:'4px 16px 8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{padding:'4px 16px 8px',textAlign:'center'}}>
         <span style={{fontSize:'1.1rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>MASTER</span>
-        <button className="btn" style={{padding:'5px 12px',fontSize:'.68rem',gap:4}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
       </div>
 
       {view==='dashboard'&&<MasterDashboard adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} onSelectAdm={goAdm}/>}
@@ -2041,6 +2038,11 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
       {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,editRefDirect.memberId)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin}/>}
       {view==='remuneracao'&&<RemuneracaoPanel/>}
 
+      {!inSubView&&(
+        <div style={{position:'fixed',bottom:74,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 32px)',maxWidth:576,zIndex:19,padding:0}}>
+          <button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
+        </div>
+      )}
       {!inSubView&&(
         <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:640,zIndex:20}}>
           <div className="tab-bar">
@@ -2104,9 +2106,8 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
           <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
         </div>
       }/>
-      <div style={{padding:'4px 16px 8px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+      <div style={{padding:'4px 16px 8px',textAlign:'center'}}>
         <span style={{fontSize:'1.1rem',fontWeight:900,color:'var(--black)',letterSpacing:'.02em'}}>{adm.name}</span>
-        <button className="btn" style={{padding:'5px 12px',fontSize:'.68rem',gap:4}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
       </div>
 
       {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral}/>}
@@ -2117,6 +2118,11 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,editRefDirect.memberId)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin}/>}
       {view==='remuneracao'&&<RemuneracaoPanel/>}
 
+      {!['memberDetail','pending','paid','editRef'].includes(view)&&(
+        <div style={{position:'fixed',bottom:74,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 32px)',maxWidth:576,zIndex:19,padding:0}}>
+          <button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
+        </div>
+      )}
       {!['memberDetail','pending','paid','editRef'].includes(view)&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} badge={badge} onBell={()=>setShowBell(true)} onOffers={()=>setShowOffers(true)}/>}
       {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} onClose={()=>setShowBell(false)} onEditRef={r=>{setEditRefDirect(r);setView('editRef');}} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} passReqs={passReqs} onMarkRead={onMarkRead}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
