@@ -2922,6 +2922,7 @@ function App(){
   const [offers,setOffers]=useState([]);
   const [spinRewards,setSpinRewards]=useState([]);
   const [pendingSpins,setPendingSpins]=useState([]);
+  const [dbError,setDbError]=useState(null);
 
   useEffect(()=>{
     async function boot(){
@@ -3072,8 +3073,14 @@ function App(){
     const mid=String(memberId);
     const hasProduct=(data.productValue||0)>0;
     const refStatus=hasProduct?'a_pagar':'aguardando';
-    const {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null}).select().single();
-    if(error){console.error('[addReferral]',error);return;}
+    // Tentativa 1: insert completo (requer migration: colunas status + observacoes)
+    let {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null}).select().single();
+    // Tentativa 2: fallback sem colunas opcionais (migration ainda não rodou)
+    if(error&&error.code==='42703'){
+      console.warn('[addReferral] colunas opcionais ausentes — migration pendente. Tentando sem status/observacoes. Erro original:',error.message);
+      ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false}).select().single());
+    }
+    if(error){console.error('[addReferral] ERRO:',error);setDbError('Erro ao salvar indicação: '+error.message);return;}
     const nr=mRef(saved);
     const u=[...referrals,nr];setReferrals(u);
     if(mid)checkLevelUp(mid,old,u);
@@ -3091,7 +3098,9 @@ function App(){
     const newPaid=!ref.paid;
     const newStatus=newPaid?'pago':'a_pagar';
     const paidAt=newPaid?new Date().toISOString():null;
-    await db.from('referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
+    let {error}=await db.from('referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
+    if(error&&error.code==='42703')({error}=await db.from('referrals').update({paid:newPaid}).eq('id',rid));
+    if(error)console.error('[togglePaid]',error);
     setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
   }
 
@@ -3114,8 +3123,12 @@ function App(){
   async function addJrReferral(data){
     const hasProduct=(data.productValue||0)>0;
     const refStatus=hasProduct?'a_pagar':'aguardando';
-    const {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null}).select().single();
-    if(error){console.error('[addJrReferral]',error);return;}
+    let {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null}).select().single();
+    if(error&&error.code==='42703'){
+      console.warn('[addJrReferral] colunas opcionais ausentes — migration pendente. Tentando sem status/observacoes.');
+      ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true}).select().single());
+    }
+    if(error){console.error('[addJrReferral] ERRO:',error);setDbError('Erro ao salvar indicação JR: '+error.message);return;}
     setJrReferrals(u=>[...u,mJrRef(saved)]);
     if(hasProduct)await addSpinPending(null,String(data.jrId),saved.id);
   }
@@ -3124,14 +3137,18 @@ function App(){
     if(isJr){
       const ref=jrReferrals.find(r=>sameId(r.id,rid));
       if(!ref)return;
-      await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
+      let {error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
+      if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
+      if(error)console.error('[markReferralSold jr]',error);
       setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r));
       await addSpinPending(null,String(ref.jrId),String(rid));
     }else{
       const ref=referrals.find(r=>sameId(r.id,rid));
       if(!ref)return;
       const oldRefs=[...referrals];
-      await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
+      let {error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
+      if(error&&error.code==='42703')({error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
+      if(error)console.error('[markReferralSold]',error);
       const newRefs=referrals.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r);
       setReferrals(newRefs);
       checkLevelUp(ref.memberId,oldRefs,newRefs);
@@ -3167,7 +3184,9 @@ function App(){
     const newPaid=!ref.paid;
     const newStatus=newPaid?'pago':'a_pagar';
     const paidAt=newPaid?new Date().toISOString():null;
-    await db.from('jr_referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
+    let {error}=await db.from('jr_referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
+    if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({paid:newPaid}).eq('id',rid));
+    if(error)console.error('[toggleJrPaid]',error);
     setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
   }
 
@@ -3207,70 +3226,58 @@ function App(){
     }
   }
 
-  if(loading)return<Spinner/>;
-
-  if(!session){
-    return<LoginScreen onLogin={s=>{
-      console.log('[SEEK route] onLogin received session:',s);
-      setSession(s);
-    }} credentials={credentials} members={members} seekJrs={seekJrs}/>;
+  function getPanel(){
+    if(loading)return<Spinner/>;
+    if(!session){
+      return<LoginScreen onLogin={s=>{console.log('[SEEK route] onLogin received session:',s);setSession(s);}} credentials={credentials} members={members} seekJrs={seekJrs}/>;
+    }
+    console.log('[SEEK route] rendering for session:',session);
+    if(session.role==='jr'){
+      const jr=seekJrs.find(j=>sameId(j.id,session.jrId));
+      if(!jr){
+        console.error('[SEEK route] JR routing FAILED — no seekJrs entry matches session.jrId.',{sessionJrId:session.jrId,availableJrIds:seekJrs.map(j=>j.id)});
+        return<div style={{padding:40,textAlign:'center'}}>JR não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
+      }
+      const seekMember=members.find(m=>sameId(m.id,jr.seekId));
+      if(!seekMember){console.warn('[SEEK route] JR found, but its parent SEEK member was not found — JR panel will render with seekMember=undefined.',{jrSeekId:jr.seekId,availableMemberIds:members.map(m=>m.id)});}
+      else{console.log(`[SEEK route] JR PANEL — jr="${jr.name}" (id=${jr.id}) seekMember="${seekMember.name}" (id=${seekMember.id})`);}
+      const jrPending=pendingSpins.filter(s=>sameId(s.jrId,jr.id));
+      if(jrPending.length>0){const first=jrPending[0];return<SpinModal seekerName={jr.name} pendingCount={jrPending.length} onResult={v=>addSpinReward(null,String(jr.id),first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;}
+      return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards}/>;
+    }
+    if(session.role==='member'){
+      const member=members.find(m=>sameId(m.id,session.memberId));
+      if(!member){
+        console.error('[SEEK route] SEEK routing FAILED — no members entry matches session.memberId.',{sessionMemberId:session.memberId,availableMemberIds:members.map(m=>m.id)});
+        return<div style={{padding:40,textAlign:'center'}}>Membro não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
+      }
+      console.log(`[SEEK route] SEEK PANEL — member="${member.name}" (id=${member.id})`);
+      const memberPending=pendingSpins.filter(s=>sameId(s.seekId,member.id));
+      if(memberPending.length>0){const first=memberPending[0];return<SpinModal seekerName={member.name} pendingCount={memberPending.length} onResult={v=>addSpinReward(String(member.id),null,first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;}
+      return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards}/>;
+    }
+    if(session.role==='master'){
+      return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral}/>;
+    }
+    if(session.role==='adm'){
+      const adm=adms.find(a=>sameId(a.id,session.admId));
+      if(!adm)return<div style={{padding:40,textAlign:'center'}}>Vendedor não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
+      const myMembers=members.filter(m=>sameId(m.admId,adm.id));
+      const mySeekJrs=seekJrs.filter(j=>myMembers.some(m=>sameId(m.id,j.seekId)));
+      const myReferrals=referrals.filter(r=>myMembers.some(m=>sameId(m.id,r.memberId)));
+      const myJrReferrals=jrReferrals.filter(r=>mySeekJrs.some(j=>sameId(j.id,r.jrId)));
+      return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral}/>;
+    }
+    return null;
   }
 
-  console.log('[SEEK route] rendering for session:',session);
-
-  if(session.role==='jr'){
-    const jr=seekJrs.find(j=>sameId(j.id,session.jrId));
-    if(!jr){
-      console.error('[SEEK route] JR routing FAILED — no seekJrs entry matches session.jrId.',
-        {sessionJrId:session.jrId,availableJrIds:seekJrs.map(j=>j.id)});
-      return<div style={{padding:40,textAlign:'center'}}>JR não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
-    }
-    const seekMember=members.find(m=>sameId(m.id,jr.seekId));
-    if(!seekMember){
-      console.warn('[SEEK route] JR found, but its parent SEEK member was not found — JR panel will render with seekMember=undefined.',
-        {jrSeekId:jr.seekId,availableMemberIds:members.map(m=>m.id)});
-    } else {
-      console.log(`[SEEK route] JR PANEL — jr="${jr.name}" (id=${jr.id}) seekMember="${seekMember.name}" (id=${seekMember.id})`);
-    }
-    const jrPending=pendingSpins.filter(s=>sameId(s.jrId,jr.id));
-    if(jrPending.length>0){
-      const first=jrPending[0];
-      return<SpinModal seekerName={jr.name} pendingCount={jrPending.length} onResult={v=>addSpinReward(null,String(jr.id),first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;
-    }
-    return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards}/>;
-  }
-
-  if(session.role==='member'){
-    const member=members.find(m=>sameId(m.id,session.memberId));
-    if(!member){
-      console.error('[SEEK route] SEEK routing FAILED — no members entry matches session.memberId.',
-        {sessionMemberId:session.memberId,availableMemberIds:members.map(m=>m.id)});
-      return<div style={{padding:40,textAlign:'center'}}>Membro não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
-    }
-    console.log(`[SEEK route] SEEK PANEL — member="${member.name}" (id=${member.id})`);
-    const memberPending=pendingSpins.filter(s=>sameId(s.seekId,member.id));
-    if(memberPending.length>0){
-      const first=memberPending[0];
-      return<SpinModal seekerName={member.name} pendingCount={memberPending.length} onResult={v=>addSpinReward(String(member.id),null,first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;
-    }
-    return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards}/>;
-  }
-
-  if(session.role==='master'){
-    return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral}/>;
-  }
-
-  if(session.role==='adm'){
-    const adm=adms.find(a=>sameId(a.id,session.admId));
-    if(!adm)return<div style={{padding:40,textAlign:'center'}}>Vendedor não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
-    const myMembers=members.filter(m=>sameId(m.admId,adm.id));
-    const mySeekJrs=seekJrs.filter(j=>myMembers.some(m=>sameId(m.id,j.seekId)));
-    const myReferrals=referrals.filter(r=>myMembers.some(m=>sameId(m.id,r.memberId)));
-    const myJrReferrals=jrReferrals.filter(r=>mySeekJrs.some(j=>sameId(j.id,r.jrId)));
-    return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral}/>;
-  }
-
-  return null;
+  return<React.Fragment>
+    {getPanel()}
+    {dbError&&<div style={{position:'fixed',top:16,left:'50%',transform:'translateX(-50%)',background:'#C0392B',color:'#fff',padding:'12px 20px',borderRadius:12,zIndex:9999,fontSize:'.82rem',fontWeight:700,maxWidth:'92vw',textAlign:'center',boxShadow:'0 4px 20px rgba(0,0,0,.4)',display:'flex',alignItems:'center',gap:12}}>
+      <span>⚠️ {dbError}</span>
+      <button onClick={()=>setDbError(null)} style={{background:'none',border:'1px solid rgba(255,255,255,.5)',color:'#fff',padding:'3px 10px',borderRadius:6,cursor:'pointer',fontFamily:'inherit',fontWeight:700,flexShrink:0}}>✕</button>
+    </div>}
+  </React.Fragment>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
