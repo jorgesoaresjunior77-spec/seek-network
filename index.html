@@ -1815,7 +1815,7 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
 /* ══════════════════════════════════════════════════════════════════
    ADM TAB BAR
 ══════════════════════════════════════════════════════════════════ */
-function AdmTabBar({view,setView,badge,onBell,onOffers}){
+function AdmTabBar({view,setView,onOffers}){
   const tabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'members',l:'SEEK',I:IcUsers},{id:'remuneracao',l:'Regras',I:IcBook}];
   const active=view==='memberDetail'?'members':['pending','paid'].includes(view)?'dashboard':view;
   return(
@@ -1829,13 +1829,6 @@ function AdmTabBar({view,setView,badge,onBell,onOffers}){
             <span>{l}</span>
           </button>
         ))}
-        <button className="tab" onClick={onBell} style={{position:'relative'}}>
-          <div style={{position:'relative'}}>
-            {badge>0&&<span style={{position:'absolute',top:-5,right:-8,background:'var(--red)',color:'#fff',fontSize:'.52rem',fontWeight:900,borderRadius:99,padding:'1px 5px'}}>{badge}</span>}
-            <IcBell s={20} c="var(--muted)"/>
-          </div>
-          <span>Avisos</span>
-        </button>
         <button className="tab" onClick={onOffers}>
           <span style={{fontSize:'1.1rem',lineHeight:1}}>🏷️</span>
           <span>Ofertas</span>
@@ -2127,8 +2120,8 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
 /* ══════════════════════════════════════════════════════════════════
    VENDEDOR — TELA DE NOTIFICAÇÕES (sino completo)
 ══════════════════════════════════════════════════════════════════ */
-function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onBack,onMarkSold,onUpdateRef,onMarkRead,spinRewards,onTogglePaid,onToggleJrPaid}){
-  const [tab,setTab]=useState('aguardando');
+function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onBack,onMarkSold,onUpdateRef,onMarkRead,spinRewards,onTogglePaid,onToggleJrPaid,initialTab}){
+  const [tab,setTab]=useState(initialTab||'aguardando');
   const [selling,setSelling]=useState(null);
   const [editing,setEditing]=useState(null);
   const [showRelatorio,setShowRelatorio]=useState(false);
@@ -2355,6 +2348,103 @@ function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onB
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   VENDEDOR — PAINEL FLUTUANTE DO SINO
+══════════════════════════════════════════════════════════════════ */
+function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClose,onMarkRead,onOpenRef}){
+  const allCombined=[
+    ...referrals.map(r=>({...r,_isJr:false})),
+    ...jrReferrals.map(r=>({...r,_isJr:true})),
+  ].sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
+  const forgotReqs=(passReqs||[]).filter(r=>r.type==='forgot'&&!r.resolved);
+  const newJrs=seekJrs.filter(j=>j.isNew);
+  function getStatus(r){if(r.status)return r.status;if(r.paid)return'pago';if((r.productValue||0)>0)return'a_pagar';return'aguardando';}
+  const stColors={aguardando:'var(--yellow)',a_pagar:'var(--red)',pago:'var(--green)'};
+  const stLabels={aguardando:'Aguardando',a_pagar:'A Pagar',pago:'Pago'};
+  const unread=[...referrals,...jrReferrals].filter(r=>r.isNew).length+newJrs.length+forgotReqs.length;
+  const total=allCombined.length+forgotReqs.length+newJrs.length;
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'88vh'}}>
+        <div className="handle"/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <IcBell s={18} c="var(--black)"/>
+            <span style={{fontWeight:900,fontSize:'1rem'}}>Notificações</span>
+            {unread>0&&<span style={{background:'var(--red)',color:'#fff',fontSize:'.62rem',fontWeight:900,borderRadius:99,padding:'2px 8px'}}>{unread}</span>}
+          </div>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <button className="btn" style={{padding:'7px 12px',fontSize:'.72rem'}} onClick={()=>onOpenRef('aguardando')}>Ver Tudo</button>
+            <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+          </div>
+        </div>
+        {total===0&&<Empty text="Nenhuma notificação"/>}
+        {forgotReqs.length>0&&<div style={{marginBottom:14}}>
+          <div className="label" style={{marginBottom:8}}>🔐 Senhas esquecidas</div>
+          {forgotReqs.map(req=>{
+            const mb=members.find(m=>(m.whatsapp||'').replace(/\D/g,'')===req.phone);
+            const jrObj=seekJrs.find(j=>(j.whatsapp||'').replace(/\D/g,'')===req.phone);
+            const name=mb?mb.name:jrObj?jrObj.name:maskPhone(req.phone);
+            return<div key={req.id} className="nm" style={{padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:'.86rem'}}>{name}</div>
+                <div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:2}}>Esqueceu a senha</div>
+              </div>
+              <button className="btn btn-dark" style={{padding:'6px 12px',fontSize:'.72rem',gap:4}} onClick={()=>onMarkRead(req.id,'forgot')}>
+                <IcCheck s={11} c="#fff"/>Resolvido
+              </button>
+            </div>;
+          })}
+        </div>}
+        {newJrs.length>0&&<div style={{marginBottom:14}}>
+          <div className="label" style={{marginBottom:8}}>Novos SEEK JR</div>
+          {newJrs.map(jr=>{
+            const seek=members.find(m=>sameId(m.id,jr.seekId));
+            return<div key={jr.id} className="nm" style={{padding:'10px 14px',marginBottom:6,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div>
+                <div style={{display:'flex',alignItems:'center',gap:5,marginBottom:2}}>
+                  <span style={{fontWeight:900,fontSize:'.88rem'}}>{jr.name}</span>
+                  <span className="tag-jr">JR</span>
+                </div>
+                {seek&&<div style={{fontSize:'.68rem',color:'var(--muted)'}}>Padrinho: {seek.name}</div>}
+              </div>
+              <button className="btn" style={{padding:'6px 10px',fontSize:'.7rem',color:'var(--muted)'}} onClick={()=>onMarkRead(jr.id,'jr')}>✓ Lido</button>
+            </div>;
+          })}
+        </div>}
+        {allCombined.length>0&&<div>
+          <div className="label" style={{marginBottom:8}}>Indicações ({allCombined.length})</div>
+          {allCombined.map(r=>{
+            const isJr=r._isJr;
+            const seek=isJr?seekJrs.find(j=>sameId(j.id,r.jrId)):members.find(m=>sameId(m.id,r.memberId));
+            const st=getStatus(r);
+            return<div key={r.id} style={{borderRadius:14,padding:'10px 12px',marginBottom:6,background:r.isNew?'var(--bg-up)':'transparent',border:r.isNew?'1.5px solid rgba(29,122,58,.15)':'1.5px solid transparent'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
+                <div style={{flex:1}}>
+                  {r.isNew&&<span style={{display:'inline-block',width:7,height:7,borderRadius:'50%',background:'var(--red)',marginRight:6,verticalAlign:'middle'}}/>}
+                  <span style={{fontWeight:800,fontSize:'.9rem'}}>{r.clientName}</span>
+                </div>
+                <span style={{fontSize:'.64rem',fontWeight:800,padding:'2px 7px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:stColors[st],flexShrink:0,marginLeft:6}}>{stLabels[st]}</span>
+              </div>
+              <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:r.observacoes?4:6}}>
+                {isJr&&<span className="tag-jr" style={{marginRight:4}}>JR</span>}
+                {seek&&<span>{seek.name}</span>}
+                <span style={{margin:'0 5px',opacity:.4}}>·</span>
+                <span>{fDate(r)}</span>
+              </div>
+              {r.observacoes&&<div style={{fontSize:'.68rem',color:'var(--muted)',fontStyle:'italic',marginBottom:6}}>💬 {r.observacoes}</div>}
+              <div style={{display:'flex',gap:6}}>
+                <button className="btn" style={{flex:1,padding:'6px 10px',fontSize:'.72rem'}} onClick={()=>onOpenRef(st)}>Abrir</button>
+                {r.isNew&&<button className="btn" style={{padding:'6px 10px',fontSize:'.7rem',color:'var(--muted)'}} onClick={()=>onMarkRead(r.id)}>✓ Lido</button>}
+              </div>
+            </div>;
+          })}
+        </div>}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    VENDEDOR PANEL (ADM role — dados filtrados por adm_id)
 ══════════════════════════════════════════════════════════════════ */
 function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,onMarkSold,onUpdateJrReferral}){
@@ -2363,27 +2453,30 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
   const [editRefDirect,setEditRefDirect]=useState(null);
   const [showOffers,setShowOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
+  const [showBell,setShowBell]=useState(false);
+  const [notifInitialTab,setNotifInitialTab]=useState('aguardando');
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
 
   const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
-  const aguardando=[...referrals,...jrReferrals].filter(r=>r.status==='aguardando'||(r.status==null&&(r.productValue||0)===0&&!r.paid));
+  const newRefs=[...referrals,...jrReferrals].filter(r=>r.isNew);
   const newJrs=seekJrs.filter(j=>j.isNew);
-  const badge=pendReqs.length+aguardando.length+newJrs.length;
+  const badge=pendReqs.length+newRefs.length+newJrs.length;
   const allRefs=[...referrals,...jrReferrals];
   const curMember=selMember?members.find(m=>sameId(m.id,selMember.id))??selMember:null;
   const inSubView=['memberDetail','pending','paid','editRef','notificacoes'].includes(view);
 
   function nav(dest,payload){if(dest==='editRef'){setEditRefDirect(payload);setView('editRef');}else setView(dest);}
   function updateRef(rid,data,isJr){return isJr?onUpdateJrReferral(rid,data):onUpdateReferral(rid,data);}
+  function openNotif(tab){setShowBell(false);setNotifInitialTab(tab||'aguardando');setView('notificacoes');}
 
   return(
     <div style={{background:'var(--bg)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
       {view!=='notificacoes'&&<>
         <TopBar logo="SEEK NETWORK" right={
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
-            <button style={{position:'relative'}} className="icon-btn" onClick={()=>setView('notificacoes')}>
+            <button style={{position:'relative'}} className="icon-btn" onClick={()=>setShowBell(true)}>
               {badge>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{badge}</span>}
               <IcBell s={18} c="var(--muted)"/>
             </button>
@@ -2395,7 +2488,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
         </div>
       </>}
 
-      {view==='notificacoes'&&<VendedorNotifScreen members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onBack={()=>setView('dashboard')} onMarkSold={onMarkSold} onUpdateRef={updateRef} onMarkRead={onMarkRead} spinRewards={spinRewards} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
+      {view==='notificacoes'&&<VendedorNotifScreen members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onBack={()=>setView('dashboard')} onMarkSold={onMarkSold} onUpdateRef={updateRef} onMarkRead={onMarkRead} spinRewards={spinRewards} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} initialTab={notifInitialTab}/>}
       {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} showPaymentReminder={true}/>}
       {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={d=>onAddMember(d,adm.id)} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
@@ -2409,7 +2502,8 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
           <button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
         </div>
       )}
-      {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} badge={badge} onBell={()=>setView('notificacoes')} onOffers={()=>setShowOffers(true)}/>}
+      {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)}/>}
+      {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onOpenRef={openNotif}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
       {showExtrato&&<ExtratoModal role="adm" data={{adm,members,referrals,jrReferrals,seekJrs,spinRewards}} onClose={()=>setShowExtrato(false)}/>}
     </div>
