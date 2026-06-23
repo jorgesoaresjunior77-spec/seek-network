@@ -836,10 +836,15 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
               <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
             </div>
             {r.whatsapp&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:4,display:'flex',alignItems:'center',gap:5}}><IcWA s={13} fill="#25D366"/>{maskPhone(r.whatsapp)}</div>}
-            <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name} · {fBRL(r.productValue)}</div>
+            {r.status==='aguardando'
+              ?<div style={{fontSize:'.72rem',color:'var(--yellow)',marginBottom:6,fontWeight:700}}>⏳ Aguardando confirmação do vendedor</div>
+              :<div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name} · {fBRL(r.productValue)}</div>
+            }
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
-              <span style={{fontSize:'.7rem',fontWeight:700,padding:'4px 10px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:r.paid?'var(--green)':'var(--muted)'}}>{r.paid?'Pago':'Pendente'}</span>
+              {r.status!=='aguardando'&&<div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>}
+              <span style={{fontSize:'.7rem',fontWeight:700,padding:'4px 10px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:r.status==='aguardando'?'var(--yellow)':r.paid?'var(--green)':'var(--muted)',marginLeft:'auto'}}>
+                {r.status==='aguardando'?'Aguardando':r.paid?'Pago':'Pendente'}
+              </span>
             </div>
           </div>{i<arr.length-1&&<Div/>}</div>
         ))}
@@ -1086,10 +1091,15 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
               <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
             </div>
             {r.whatsapp&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:4,display:'flex',alignItems:'center',gap:5}}><IcWA s={13} fill="#25D366"/>{maskPhone(r.whatsapp)}</div>}
-            <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name} · {fBRL(r.productValue)}</div>
+            {r.status==='aguardando'
+              ?<div style={{fontSize:'.72rem',color:'var(--yellow)',marginBottom:6,fontWeight:700}}>⏳ Aguardando confirmação do vendedor</div>
+              :<div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name} · {fBRL(r.productValue)}</div>
+            }
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
-              <span style={{fontSize:'.7rem',fontWeight:700,padding:'4px 10px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:r.paid?'var(--green)':'var(--muted)'}}>{r.paid?'Pago':'Pendente'}</span>
+              {r.status!=='aguardando'&&<div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>}
+              <span style={{fontSize:'.7rem',fontWeight:700,padding:'4px 10px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:r.status==='aguardando'?'var(--yellow)':r.paid?'var(--green)':'var(--muted)',marginLeft:'auto'}}>
+                {r.status==='aguardando'?'Aguardando':r.paid?'Pago':'Pendente'}
+              </span>
             </div>
           </div>{i<arr.length-1&&<Div/>}</div>
         ))}
