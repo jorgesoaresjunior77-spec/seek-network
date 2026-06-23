@@ -740,13 +740,13 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     function save(e){
       e.preventDefault();if(!cn.trim())return;
       const parts=today.split('-').map(Number);
-      onSave({clientName:cn.trim(),whatsapp:wa,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,jrId:jr.id,observacoes:obs.trim()||null});
+      onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,jrId:jr.id,observacoes:obs.trim()?obs.trim().toUpperCase():null});
       onClose();
     }
     return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="WhatsApp do Cliente"><PhoneInput value={wa} onChange={setWa}/></Fld>
-      <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value)} placeholder="Informações adicionais para o vendedor..." style={{resize:'vertical'}}/></Fld>
+      <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value.toUpperCase())} placeholder="Informações adicionais para o vendedor..." autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
       <div className="nm-in" style={{padding:'12px 14px',fontSize:'.76rem',color:'var(--muted)',lineHeight:1.6,fontWeight:600}}>
         O vendedor preencherá produto e valor ao confirmar a venda. Você receberá sua chance na roleta! 🎰
       </div>
@@ -941,13 +941,13 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     function save(e){
       e.preventDefault();if(!cn.trim())return;
       const parts=today.split('-').map(Number);
-      onSave({clientName:cn.trim(),whatsapp:wa,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,observacoes:obs.trim()||null});
+      onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,observacoes:obs.trim()?obs.trim().toUpperCase():null});
       onClose();
     }
     return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="WhatsApp do Cliente"><PhoneInput value={wa} onChange={setWa}/></Fld>
-      <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value)} placeholder="Informações adicionais para o vendedor..." style={{resize:'vertical'}}/></Fld>
+      <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value.toUpperCase())} placeholder="Informações adicionais para o vendedor..." autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
       <div className="nm-in" style={{padding:'12px 14px',fontSize:'.76rem',color:'var(--muted)',lineHeight:1.6,fontWeight:600}}>
         O vendedor preencherá produto e valor ao confirmar a venda. Você receberá sua chance na roleta! 🎰
       </div>
@@ -960,9 +960,9 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     const [wa,setWa]=useState('');
     const [pin,setPin]=useState('0000');
     const [pe,setPe]=useState('');
-    function save(e){e.preventDefault();if(!name.trim()||!wa)return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim(),whatsapp:wa,pin,seekId:member.id});onClose();}
+    function save(e){e.preventDefault();if(!name.trim()||!wa)return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim().toUpperCase(),whatsapp:wa,pin,seekId:member.id});onClose();}
     return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do SEEK JR"><input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="Nome do SEEK JR"><input className="inp" value={name} onChange={e=>setName(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="Telefone (Login — somente números)"><PlainPhoneInput value={wa} onChange={setWa}/></Fld>
       <div className="nm-in" style={{padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
         <div style={{fontWeight:700,fontSize:'.72rem',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>🔑 Acesso</div>
@@ -1289,12 +1289,12 @@ function AdmMembers({members,referrals,jrReferrals,seekJrs,credentials,onSelect,
     const [notes,setNotes]=useState('');
     const [pin,setPin]=useState('0000');
     const [pe,setPe]=useState('');
-    function submit(e){e.preventDefault();if(!name.trim())return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim(),whatsapp:wa,pixKey:pix.trim(),notes:notes.trim(),login:wa,pin});}
+    function submit(e){e.preventDefault();if(!name.trim())return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim().toUpperCase(),whatsapp:wa,pixKey:pix.trim().toUpperCase(),notes:notes.trim().toUpperCase(),login:wa,pin});}
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome Completo"><input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Nome" autoFocus/></Fld>
+      <Fld label="Nome Completo"><input className="inp" value={name} onChange={e=>setName(e.target.value.toUpperCase())} placeholder="Nome" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="Telefone (Login — somente números)"><PlainPhoneInput value={wa} onChange={setWa}/></Fld>
-      <Fld label="Chave PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value)} placeholder="CPF, e-mail ou chave"/></Fld>
-      <Fld label="Observações"><textarea className="inp" rows={2} value={notes} onChange={e=>setNotes(e.target.value)} style={{resize:'vertical'}}/></Fld>
+      <Fld label="Chave PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value.toUpperCase())} placeholder="CPF, E-MAIL OU CHAVE" autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
+      <Fld label="Observações"><textarea className="inp" rows={2} value={notes} onChange={e=>setNotes(e.target.value.toUpperCase())} autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
       <div className="nm-in" style={{padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
         <div style={{fontWeight:700,fontSize:'.72rem',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>🔑 Acesso ao App</div>
         <Fld label="Senha inicial">
@@ -1310,7 +1310,7 @@ function AdmMembers({members,referrals,jrReferrals,seekJrs,credentials,onSelect,
   return<>
     <TopBar title="SEEK" right={onAdd?<button className="btn btn-dark" style={{padding:'9px 14px',fontSize:'.74rem',borderRadius:14}} onClick={()=>setShowAdd(true)}><IcPlus s={14} c="#fff"/>Novo</button>:null}/>
     <div className="page" style={{paddingBottom:110}}>
-      <div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span><input className="inp" style={{paddingLeft:42}} placeholder="Buscar membro" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+      <div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span><input className="inp" style={{paddingLeft:42,textTransform:'uppercase'}} placeholder="Buscar membro" value={search} onChange={e=>setSearch(e.target.value.toUpperCase())} autoCapitalize="characters"/></div>
       {sorted.length===0?<Empty text="Nenhum membro"/>:sorted.map(m=>{
         const pts=calcPoints(referrals.filter(r=>sameId(r.memberId,m.id)).reduce((s,r)=>s+r.productValue,0));
         const lv=getSeekLevel(pts);
@@ -1384,15 +1384,15 @@ function EditMemberForm({member,onClose,onSave}){
   function submit(e){
     e.preventDefault();
     if(!name.trim())return;
-    onSave({name:name.trim(),whatsapp:wa,pixKey:pix.trim(),notes:notes.trim()});
+    onSave({name:name.trim().toUpperCase(),whatsapp:wa,pixKey:pix.trim().toUpperCase(),notes:notes.trim().toUpperCase()});
   }
   return(
     <Sheet title="Editar Membro" onClose={onClose}>
       <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
-        <Fld label="Nome"><input className="inp" value={name} onChange={e=>setName(e.target.value)} autoFocus/></Fld>
+        <Fld label="Nome"><input className="inp" value={name} onChange={e=>setName(e.target.value.toUpperCase())} autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
         <Fld label="Telefone (Login — somente números)"><PlainPhoneInput value={wa} onChange={setWa}/></Fld>
-        <Fld label="PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value)}/></Fld>
-        <Fld label="Notas"><textarea className="inp" value={notes} onChange={e=>setNotes(e.target.value)} rows={2} style={{resize:'vertical'}}/></Fld>
+        <Fld label="PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value.toUpperCase())} autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
+        <Fld label="Notas"><textarea className="inp" value={notes} onChange={e=>setNotes(e.target.value.toUpperCase())} rows={2} autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
         <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onClose}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Salvar</button></div>
       </form>
     </Sheet>
@@ -1428,9 +1428,9 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
     const [val,setVal]=useState((initial&&initial.productValue)||0);
     const [date,setDate]=useState(()=>initial&&initial.year&&initial.month?`${initial.year}-${String(initial.month).padStart(2,'0')}-${String(initial.day||1).padStart(2,'0')}`:todayISO());
     const commission=val>0?calcCommission(val,prodType,level):0;
-    function submit(e){e.preventDefault();if(!cn.trim())return;const parts=date.split('-').map(Number);onSave({clientName:cn.trim(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2],isNew:false});}
+    function submit(e){e.preventDefault();if(!cn.trim())return;const parts=date.split('-').map(Number);onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2],isNew:false});}
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="WhatsApp"><PhoneInput value={wa} onChange={setWa}/></Fld>
       <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
       <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
@@ -1964,11 +1964,11 @@ function MasterVendedores({adms,members,referrals,jrReferrals,seekJrs,credential
     const [pix,setPix]=useState('');
     const [pin,setPin]=useState('0000');
     const [pe,setPe]=useState('');
-    function submit(e){e.preventDefault();if(!name.trim())return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim(),whatsapp:wa,pixKey:pix.trim(),pin});}
+    function submit(e){e.preventDefault();if(!name.trim())return;if(!/^\d{4}$/.test(pin)){setPe('Deve ter 4 dígitos.');return;}onSave({name:name.trim().toUpperCase(),whatsapp:wa,pixKey:pix.trim().toUpperCase(),pin});}
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do Vendedor"><input className="inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Nome completo" autoFocus/></Fld>
+      <Fld label="Nome do Vendedor"><input className="inp" value={name} onChange={e=>setName(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="Telefone (Login — somente números)"><PlainPhoneInput value={wa} onChange={setWa}/></Fld>
-      <Fld label="Chave PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value)} placeholder="CPF, e-mail ou chave"/></Fld>
+      <Fld label="Chave PIX"><input className="inp" value={pix} onChange={e=>setPix(e.target.value.toUpperCase())} placeholder="CPF, E-MAIL OU CHAVE" autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <div className="nm-in" style={{padding:'14px',display:'flex',flexDirection:'column',gap:12}}>
         <div style={{fontWeight:700,fontSize:'.72rem',letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)'}}>🔑 Acesso ao App</div>
         <Fld label="Senha inicial"><PinInput value={pin} onChange={setPin}/>{pe&&<span style={{color:'var(--red)',fontSize:'.74rem',fontWeight:700}}>{pe}</span>}</Fld>
@@ -1980,7 +1980,7 @@ function MasterVendedores({adms,members,referrals,jrReferrals,seekJrs,credential
   return<>
     <TopBar title="Vendedores" right={<button className="btn btn-dark" style={{padding:'9px 14px',fontSize:'.74rem',borderRadius:14}} onClick={()=>setShowAdd(true)}><IcPlus s={14} c="#fff"/>Novo</button>}/>
     <div className="page" style={{paddingBottom:110}}>
-      <div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span><input className="inp" style={{paddingLeft:42}} placeholder="Buscar vendedor" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+      <div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span><input className="inp" style={{paddingLeft:42,textTransform:'uppercase'}} placeholder="Buscar vendedor" value={search} onChange={e=>setSearch(e.target.value.toUpperCase())} autoCapitalize="characters"/></div>
       {filtered.length===0?<Empty text="Nenhum vendedor cadastrado"/>:filtered.map(adm=>{
         const admMembers=members.filter(m=>sameId(m.admId,adm.id));
         const cred=credentials[`adm_${adm.id}`]||{};
@@ -2206,10 +2206,10 @@ function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onB
       const pt=PRODUCT_TYPES.find(p=>p.id===prodType)||PRODUCT_TYPES[0];
       const commission=val>0?val*pt.rate:0;
       const parts=date.split('-').map(Number);
-      onSave({clientName:cn.trim(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2]});
+      onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2]});
     }
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value)} autoFocus/></Fld>
+      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="WhatsApp"><PhoneInput value={wa} onChange={setWa}/></Fld>
       <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
       <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
@@ -2407,10 +2407,10 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
       e.preventDefault();if(!cn.trim())return;
       const pt=PRODUCT_TYPES.find(p=>p.id===prodType)||PRODUCT_TYPES[0];
       const parts=date.split('-').map(Number);
-      onSave({clientName:cn.trim(),whatsapp:wa,productType:prodType,productValue:val,commission:val>0?val*pt.rate:0,year:parts[0],month:parts[1],day:parts[2]});
+      onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:prodType,productValue:val,commission:val>0?val*pt.rate:0,year:parts[0],month:parts[1],day:parts[2]});
     }
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value)} autoFocus/></Fld>
+      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="WhatsApp"><PhoneInput value={wa} onChange={setWa}/></Fld>
       <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
       <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
