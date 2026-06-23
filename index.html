@@ -1153,8 +1153,7 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
     );
   }
 
-  return<>
-    <TopBar logo="SEEK NETWORK"/>
+  return(
     <div className="page" style={{paddingBottom:110}}>
 
       {/* Pass requests */}
@@ -1223,7 +1222,7 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
         </div>
       </div>}
     </div>
-  </>;
+  );
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1264,7 +1263,7 @@ function AdmMembers({members,referrals,jrReferrals,seekJrs,credentials,onSelect,
   }
 
   return<>
-    <TopBar title="Membros SEEK" right={onAdd?<button className="btn btn-dark" style={{padding:'9px 14px',fontSize:'.74rem',borderRadius:14}} onClick={()=>setShowAdd(true)}><IcPlus s={14} c="#fff"/>Novo</button>:null}/>
+    <TopBar title="SEEK" right={onAdd?<button className="btn btn-dark" style={{padding:'9px 14px',fontSize:'.74rem',borderRadius:14}} onClick={()=>setShowAdd(true)}><IcPlus s={14} c="#fff"/>Novo</button>:null}/>
     <div className="page" style={{paddingBottom:110}}>
       <div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span><input className="inp" style={{paddingLeft:42}} placeholder="Buscar membro" value={search} onChange={e=>setSearch(e.target.value)}/></div>
       {sorted.length===0?<Empty text="Nenhum membro"/>:sorted.map(m=>{
@@ -1767,7 +1766,7 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
    ADM TAB BAR
 ══════════════════════════════════════════════════════════════════ */
 function AdmTabBar({view,setView,badge,onBell,onOffers}){
-  const tabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'members',l:'Membros',I:IcUsers},{id:'remuneracao',l:'Regras',I:IcBook}];
+  const tabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'members',l:'SEEK',I:IcUsers},{id:'remuneracao',l:'Regras',I:IcBook}];
   const active=view==='memberDetail'?'members':['pending','paid'].includes(view)?'dashboard':view;
   return(
     <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:640,zIndex:20}}>
@@ -2006,7 +2005,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
   function nav(dest,payload){if(dest==='editRef'){setEditRefDirect(payload);setView('editRef');}else setView(dest);}
   function goAdm(adm){setSelAdm(adm);setView('vendedorDetail');}
 
-  const masterTabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'vendedores',l:'Vendedores',I:IcUsers},{id:'membros',l:'Membros',I:IcBook},{id:'remuneracao',l:'Regras',I:IcStar}];
+  const masterTabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'vendedores',l:'Vendedores',I:IcUsers},{id:'membros',l:'SEEK',I:IcBook},{id:'remuneracao',l:'Regras',I:IcStar}];
   const activeTab=view==='memberDetail'?'membros':view==='vendedorDetail'?'vendedores':['pending','paid'].includes(view)?'dashboard':view;
   const inSubView=['memberDetail','pending','paid','editRef','vendedorDetail'].includes(view);
 
@@ -2062,7 +2061,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
         <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:640,zIndex:20}}>
           <div className="tab-bar">
             <button className="btn" style={{flex:1,padding:'10px'}} onClick={()=>{setSelAdm(null);setSelMember(null);setView('vendedores');}}><IcLeft s={16}/>Voltar</button>
-            <button className="btn" style={{flex:1,padding:'10px'}} onClick={()=>setView('membros')}><IcUsers s={15}/>Membros</button>
+            <button className="btn" style={{flex:1,padding:'10px'}} onClick={()=>setView('membros')}><IcUsers s={15}/>SEEK</button>
           </div>
         </div>
       )}
