@@ -156,14 +156,15 @@ const mPassReq =r=>({id:r.id,phone:r.phone,type:r.type,resolved:r.resolved});
 const mNotif   =r=>({id:r.id,memberId:String(r.member_id),levelId:r.level_id,dismissed:r.dismissed});
 const mOffer   =r=>({id:r.id,url:r.url,caption:r.caption});
 const mAdm     =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes});
-const mSpin    =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,referralId:r.referral_id?String(r.referral_id):null,value:Number(r.value),createdAt:r.created_at});
+const mSpin       =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,referralId:r.referral_id?String(r.referral_id):null,value:Number(r.value),createdAt:r.created_at});
+const mSpinPending=r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,referralId:r.referral_id?String(r.referral_id):null,createdAt:r.created_at});
 const SPIN_PRIZES=[
-  {label:'R$5',  value:5,  color:'#E63333',prob:.40,span:144},
-  {label:'R$10', value:10, color:'#FF7700',prob:.25,span:90},
-  {label:'R$15', value:15, color:'#DDAA00',prob:.15,span:54},
-  {label:'R$20', value:20, color:'#22AA44',prob:.10,span:36},
-  {label:'R$50', value:50, color:'#2277EE',prob:.07,span:25.2},
-  {label:'R$100',value:100,color:'#8833BB',prob:.03,span:10.8},
+  {label:'R$ 5',  value:5,  color:'#E63333',prob:.40,span:60},
+  {label:'R$ 10', value:10, color:'#FF7700',prob:.25,span:60},
+  {label:'R$ 15', value:15, color:'#DDAA00',prob:.15,span:60},
+  {label:'R$ 20', value:20, color:'#22AA44',prob:.10,span:60},
+  {label:'R$ 50', value:50, color:'#2277EE',prob:.07,span:60},
+  {label:'R$100', value:100,color:'#8833BB',prob:.03,span:60},
 ];
 (()=>{let c=0;SPIN_PRIZES.forEach(p=>{p.start=c;c+=p.span;});})();
 function buildCreds(rows){const o={};(rows||[]).forEach(r=>{o[r.key]={login:r.login,pin:r.pin};});return o;}
@@ -662,6 +663,26 @@ function RemuneracaoPanel(){
           ))}
           <div style={{marginTop:14,padding:'12px 14px',borderRadius:14,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.74rem',color:'var(--muted)',lineHeight:1.7}}>
             🎓 <strong>Graduação:</strong> Após R$ 2.000.000,00 em vendas totais acumuladas, o SEEK JR vira SEEK.
+          </div>
+        </div>
+        <div className="nm" style={{padding:'20px 18px'}}>
+          <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:8,display:'flex',alignItems:'center',gap:8}}>🎰 Roleta da Sorte</div>
+          <div style={{fontSize:'.75rem',color:'var(--muted)',marginBottom:14,lineHeight:1.7}}>
+            A cada indicação cadastrada (status A Pagar), o SEEK ou SEEK JR que fez a indicação ganha automaticamente <strong>1 chance de girar a Roleta da Sorte</strong>.<br/>
+            A roleta aparece no próximo login do SEEK/SEEK JR, antes do painel principal. Se houver mais de uma chance acumulada, elas são apresentadas uma por vez.
+          </div>
+          <div style={{fontWeight:700,fontSize:'.78rem',marginBottom:8,color:'var(--black)'}}>Premiação (resultado ponderado por software):</div>
+          {SPIN_PRIZES.map(p=>(
+            <div key={p.value} className="rem-row" style={{padding:'8px 0'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:16,height:16,borderRadius:'50%',background:p.color,flexShrink:0}}/>
+                <span style={{fontWeight:700,fontSize:'.84rem'}}>{p.label}</span>
+              </div>
+              <span style={{fontWeight:800,fontSize:'.84rem',color:p.color}}>{(p.prob*100).toFixed(0)}% de chance</span>
+            </div>
+          ))}
+          <div style={{marginTop:12,padding:'10px 12px',borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.73rem',color:'var(--muted)',lineHeight:1.7}}>
+            💡 A roleta possui 6 fatias iguais visualmente, mas a probabilidade de cada prêmio é controlada por software. O valor ganho é somado ao total a receber do SEEK/JR e aparece no extrato.
           </div>
         </div>
       </div>
@@ -2351,7 +2372,7 @@ function Confetti(){
   );
 }
 
-function SpinModal({seekerName,onClose,onResult}){
+function SpinModal({seekerName,pendingCount,onClose,onResult}){
   const [rotation,setRotation]=useState(0);
   const [spinning,setSpinning]=useState(false);
   const [won,setWon]=useState(null);
@@ -2393,7 +2414,8 @@ function SpinModal({seekerName,onClose,onResult}){
           <>
             <div style={{textAlign:'center'}}>
               <div style={{fontSize:'1.35rem',fontWeight:900,letterSpacing:'.03em',color:'#111',marginBottom:3}}>🎰 ROLETA DA SORTE</div>
-              <div style={{fontSize:'.76rem',color:'#888',fontWeight:700}}>{seekerName} indicou uma venda!</div>
+              <div style={{fontSize:'.76rem',color:'#888',fontWeight:700}}>Parabéns, {seekerName}! Você tem uma indicação premiada!</div>
+              {pendingCount>1&&<div style={{fontSize:'.68rem',color:'#FF7700',fontWeight:800,marginTop:4}}>{pendingCount} chances pendentes — gire uma por vez</div>}
             </div>
 
             {/* Wheel container */}
@@ -2431,8 +2453,7 @@ function SpinModal({seekerName,onClose,onResult}){
                     <div key={p.value} style={{
                       position:'absolute',left:x,top:y,
                       transform:`translate(-50%,-50%) rotate(${mid}deg)`,
-                      color:'#fff',fontWeight:900,
-                      fontSize:p.value>=50?'.52rem':p.value>=20?'.62rem':'.72rem',
+                      color:'#fff',fontWeight:900,fontSize:'.70rem',
                       textShadow:'0 1px 3px rgba(0,0,0,.9)',
                       whiteSpace:'nowrap',pointerEvents:'none',lineHeight:1,
                     }}>
@@ -2468,7 +2489,7 @@ function SpinModal({seekerName,onClose,onResult}){
           <>
             <div style={{fontSize:'3.2rem',textAlign:'center',animation:'prize-pop .5s ease'}}>🎉</div>
             <div style={{textAlign:'center'}}>
-              <div style={{fontSize:'.85rem',fontWeight:700,color:'#888',marginBottom:8}}>{seekerName} ganhou</div>
+              <div style={{fontSize:'.85rem',fontWeight:700,color:'#888',marginBottom:8}}>Você ganhou</div>
               <div style={{
                 fontSize:'3rem',fontWeight:900,lineHeight:1.1,
                 background:'linear-gradient(135deg,#FF6B00,#8833BB)',
@@ -2506,7 +2527,7 @@ function App(){
   const [levelNotifs,setLevelNotifs]=useState([]);
   const [offers,setOffers]=useState([]);
   const [spinRewards,setSpinRewards]=useState([]);
-  const [pendingSpin,setPendingSpin]=useState(null);
+  const [pendingSpins,setPendingSpins]=useState([]);
 
   useEffect(()=>{
     async function boot(){
@@ -2514,7 +2535,7 @@ function App(){
       const [
         {data:mRows,error:e1},{data:rRows},{data:cRows},{data:reqRows},
         {data:jrRows},{data:jrRefRows},{data:notifRows},{data:offerRows},{data:admRows,error:eAdm},
-        {data:spinRows},
+        {data:spinRows},{data:spinPendingRows},
       ]=await Promise.all([
         db.from('members').select('*'),
         db.from('referrals').select('*'),
@@ -2526,6 +2547,7 @@ function App(){
         db.from('offers').select('*'),
         db.from('adms').select('*'),
         db.from('spin_rewards').select('*'),
+        db.from('spin_pending').select('*'),
       ]);
       if(e1)console.error('[SEEK boot] members error:',e1);
       if(eAdm)console.error('[SEEK boot] ERRO tabela adms — provavelmente migration não rodou:',JSON.stringify(eAdm));
@@ -2539,6 +2561,7 @@ function App(){
       setLevelNotifs((notifRows||[]).map(mNotif));
       setOffers((offerRows||[]).map(mOffer));
       setSpinRewards((spinRows||[]).map(mSpin));
+      setPendingSpins((spinPendingRows||[]).map(mSpinPending));
       setLoading(false);
     }
     boot();
@@ -2658,8 +2681,7 @@ function App(){
     const nr=mRef(saved);
     const u=[...referrals,nr];setReferrals(u);
     if(mid)checkLevelUp(mid,old,u);
-    const seekM=members.find(m=>sameId(m.id,mid));
-    setPendingSpin({type:'seek',seekId:mid,referralId:saved.id,name:seekM?.name||'SEEK'});
+    if(mid)await addSpinPending(String(mid),null,saved.id);
   }
 
   async function updateReferral(rid,data){
@@ -2694,12 +2716,22 @@ function App(){
     const {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,is_new:true}).select().single();
     if(error){console.error('[addJrReferral]',error);return;}
     setJrReferrals(u=>[...u,mJrRef(saved)]);
-    const jrObj=seekJrs.find(j=>sameId(j.id,data.jrId));
-    setPendingSpin({type:'jr',jrId:String(data.jrId),referralId:saved.id,name:jrObj?.name||'SEEK JR'});
+    await addSpinPending(null,String(data.jrId),saved.id);
+  }
+
+  async function addSpinPending(seekId,jrId,referralId){
+    const{data:saved,error}=await db.from('spin_pending').insert({seek_id:seekId||null,jr_id:jrId||null,referral_id:referralId?String(referralId):null}).select().single();
+    if(error){console.error('[addSpinPending]',error);return;}
+    setPendingSpins(u=>[...u,mSpinPending(saved)]);
+  }
+
+  async function consumeSpinPending(pendingId){
+    await db.from('spin_pending').delete().eq('id',pendingId);
+    setPendingSpins(u=>u.filter(s=>s.id!==pendingId));
   }
 
   async function addSpinReward(seekId,jrId,referralId,value){
-    const{data:saved,error}=await db.from('spin_rewards').insert({seek_id:seekId||null,jr_id:jrId||null,referral_id:referralId?String(referralId):null,value}).select().single();
+    const{data:saved,error}=await db.from('spin_rewards').insert({seek_id:seekId||null,jr_id:jrId||null,referral_id:referralId?String(referralId):null,value,used:true}).select().single();
     if(error){console.error('[addSpinReward]',error);return;}
     setSpinRewards(u=>[...u,mSpin(saved)]);
   }
@@ -2758,18 +2790,6 @@ function App(){
 
   console.log('[SEEK route] rendering for session:',session);
 
-  const spinModal=pendingSpin?(
-    <SpinModal
-      seekerName={pendingSpin.name}
-      onClose={()=>setPendingSpin(null)}
-      onResult={v=>addSpinReward(
-        pendingSpin.type==='seek'?pendingSpin.seekId:null,
-        pendingSpin.type==='jr'?pendingSpin.jrId:null,
-        pendingSpin.referralId,v
-      )}
-    />
-  ):null;
-
   if(session.role==='jr'){
     const jr=seekJrs.find(j=>sameId(j.id,session.jrId));
     if(!jr){
@@ -2784,7 +2804,12 @@ function App(){
     } else {
       console.log(`[SEEK route] JR PANEL — jr="${jr.name}" (id=${jr.id}) seekMember="${seekMember.name}" (id=${seekMember.id})`);
     }
-    return<><SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards}/>{spinModal}</>;
+    const jrPending=pendingSpins.filter(s=>sameId(s.jrId,jr.id));
+    if(jrPending.length>0){
+      const first=jrPending[0];
+      return<SpinModal seekerName={jr.name} pendingCount={jrPending.length} onResult={v=>addSpinReward(null,String(jr.id),first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;
+    }
+    return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards}/>;
   }
 
   if(session.role==='member'){
@@ -2795,11 +2820,16 @@ function App(){
       return<div style={{padding:40,textAlign:'center'}}>Membro não encontrado. <button className="btn" onClick={()=>setSession(null)}>Sair</button></div>;
     }
     console.log(`[SEEK route] SEEK PANEL — member="${member.name}" (id=${member.id})`);
-    return<><MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards}/>{spinModal}</>;
+    const memberPending=pendingSpins.filter(s=>sameId(s.seekId,member.id));
+    if(memberPending.length>0){
+      const first=memberPending[0];
+      return<SpinModal seekerName={member.name} pendingCount={memberPending.length} onResult={v=>addSpinReward(String(member.id),null,first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;
+    }
+    return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards}/>;
   }
 
   if(session.role==='master'){
-    return<><MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards}/>{spinModal}</>;
+    return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards}/>;
   }
 
   if(session.role==='adm'){
@@ -2809,7 +2839,7 @@ function App(){
     const mySeekJrs=seekJrs.filter(j=>myMembers.some(m=>sameId(m.id,j.seekId)));
     const myReferrals=referrals.filter(r=>myMembers.some(m=>sameId(m.id,r.memberId)));
     const myJrReferrals=jrReferrals.filter(r=>mySeekJrs.some(j=>sameId(j.id,r.jrId)));
-    return<><VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards}/>{spinModal}</>;
+    return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards}/>;
   }
 
   return null;
