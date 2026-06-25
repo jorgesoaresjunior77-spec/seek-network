@@ -1786,29 +1786,27 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
       {lightbox&&(
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.93)',zIndex:300,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:20}}
           onClick={()=>setLightbox(null)}>
-          <img src={lightbox.url} style={{maxWidth:'100%',maxHeight:'72vh',borderRadius:14,objectFit:'contain'}} alt={lightbox.caption||'Oferta'}/>
-          {lightbox.caption&&<div style={{color:'#fff',fontWeight:700,fontSize:'.9rem',marginTop:14,textAlign:'center'}}>{lightbox.caption}</div>}
-          <div style={{marginTop:14,background:'rgba(255,255,255,0.12)',borderRadius:12,padding:'10px 14px',maxWidth:300,textAlign:'center'}} onClick={e=>e.stopPropagation()}>
-            <div style={{color:'rgba(255,255,255,0.85)',fontSize:'.72rem',fontWeight:700,lineHeight:1.6,marginBottom:10}}>
-              Para enviar a imagem, primeiro salve-a no seu celular clicando no botão abaixo
-            </div>
+          <img src={lightbox.url} style={{maxWidth:'100%',maxHeight:'74vh',borderRadius:14,objectFit:'contain'}} alt={lightbox.caption||'Oferta'}/>
+          {lightbox.caption&&<div style={{color:'#fff',fontWeight:700,fontSize:'.9rem',marginTop:12,textAlign:'center'}}>{lightbox.caption}</div>}
+          <div style={{color:'rgba(255,255,255,0.55)',fontSize:'.7rem',fontWeight:600,marginTop:10,textAlign:'center'}}>
+            Compartilhe essa imagem pelo WhatsApp ou salve no seu celular.
+          </div>
+          <div style={{display:'flex',gap:10,marginTop:12}} onClick={e=>e.stopPropagation()}>
+            <button className="btn btn-green" style={{padding:'11px 18px',fontSize:'.82rem',gap:6}}
+              onClick={()=>shareOffer(lightbox)}>
+              <IcWA s={16} fill="#fff"/>📲 WhatsApp
+            </button>
             <a href={lightbox.url} download="oferta.jpg" style={{textDecoration:'none'}} onClick={e=>e.stopPropagation()}>
-              <button className="btn" style={{padding:'10px 18px',fontSize:'.8rem',gap:6,background:'rgba(255,255,255,0.15)',color:'#fff',border:'1.5px solid rgba(255,255,255,0.3)',borderRadius:14,cursor:'pointer',fontFamily:'inherit',fontWeight:800}}>
+              <button className="btn" style={{padding:'11px 18px',fontSize:'.82rem',gap:6,background:'rgba(255,255,255,0.15)',color:'#fff',border:'1.5px solid rgba(255,255,255,0.25)',cursor:'pointer',fontFamily:'inherit',fontWeight:700}}>
                 💾 Salvar Imagem
               </button>
             </a>
-          </div>
-          <div style={{display:'flex',alignItems:'center',gap:12,marginTop:12}} onClick={e=>e.stopPropagation()}>
-            <button className="btn" style={{padding:'10px 18px',fontSize:'.8rem',gap:6,color:'#25D366'}}
-              onClick={()=>shareOffer(lightbox)}>
-              <IcWA s={16} fill="#25D366"/>Enviar no WhatsApp
-            </button>
-            {isAdm&&<button className="icon-btn" style={{width:34,height:34,borderRadius:10}}
+            {isAdm&&<button className="icon-btn" style={{width:42,height:42,borderRadius:12,background:'rgba(255,255,255,0.1)',border:'1.5px solid rgba(255,255,255,0.2)'}}
               onClick={()=>{if(window.confirm('Remover esta oferta?')){onDeleteOffer(lightbox.id);setLightbox(null);}}}>
-              <IcTrash s={14} c="var(--red)"/>
+              <IcTrash s={15} c="#ff6b6b"/>
             </button>}
           </div>
-          <button style={{marginTop:14,background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:'.82rem',cursor:'pointer',fontFamily:'inherit',fontWeight:700}} onClick={()=>setLightbox(null)}>Fechar ✕</button>
+          <button style={{marginTop:16,background:'none',border:'none',color:'rgba(255,255,255,0.45)',fontSize:'.8rem',cursor:'pointer',fontFamily:'inherit',fontWeight:700}} onClick={()=>setLightbox(null)}>Fechar ✕</button>
         </div>
       )}
 
