@@ -149,8 +149,8 @@ const db=window.supabase.createClient(
 );
 /* DB (snake_case) → app (camelCase) row mappers */
 const mMember  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes,admId:r.adm_id?String(r.adm_id):null});
-const mRef     =r=>({id:r.id,memberId:String(r.member_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null});
-const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null});
+const mRef     =r=>({id:r.id,memberId:String(r.member_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null});
+const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null});
 const mSeekJr  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,seekId:String(r.seek_id),pin:r.pin,isNew:r.is_new});
 const mPassReq =r=>({id:r.id,phone:r.phone,type:r.type,resolved:r.resolved});
 const mNotif   =r=>({id:r.id,memberId:String(r.member_id),levelId:r.level_id,dismissed:r.dismissed});
@@ -2208,7 +2208,7 @@ function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onB
   const allCombined=[
     ...referrals.map(r=>({...r,_isJr:false})),
     ...jrReferrals.map(r=>({...r,_isJr:true})),
-  ].sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
+  ].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
 
   const byStatus={
     aguardando:allCombined.filter(r=>getStatus(r)==='aguardando'),
@@ -2432,7 +2432,7 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
   const allCombined=[
     ...referrals.filter(r=>r.isNew).map(r=>({...r,_isJr:false})),
     ...jrReferrals.filter(r=>r.isNew).map(r=>({...r,_isJr:true})),
-  ].sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
+  ].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
   const forgotReqs=(passReqs||[]).filter(r=>r.type==='forgot'&&!r.resolved);
   const newJrs=seekJrs.filter(j=>j.isNew);
   function getStatus(r){if(r.status)return r.status;if(r.paid)return'pago';if((r.productValue||0)>0)return'a_pagar';return'aguardando';}
