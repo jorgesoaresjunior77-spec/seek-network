@@ -849,13 +849,16 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
 
         {/* Stats */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
-          {[['Indicações Mês',monthRefs.length,null],['Valor Mês',fBRL(monthVol),null],['Comissão Mês',fBRL(monthCom),'var(--green)'],['Total Acumulado',fBRL(totalVol),null]].map(([l,v,c])=>(
+          {[['Indicações Mês',monthRefs.length,null],['Valor Mês',fBRL(monthVol),null],['Comissão Mês',fBRL(monthCom+bonusRoleta),'var(--green)'],['Total Acumulado',fBRL(totalVol),null]].map(([l,v,c])=>(
             <div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c||'var(--black)'}}>{v}</div></div>
           ))}
         </div>
-        {bonusRoleta>0&&<div className="nm-in" style={{padding:'12px 14px',marginBottom:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>🎰 Bônus Roleta acumulado</div>
-          <div style={{fontWeight:900,fontSize:'.92rem',color:'#8833BB'}}>+ {fBRL(bonusRoleta)}</div>
+        {bonusRoleta>0&&<div className="nm-in" style={{padding:'12px 14px',marginBottom:4}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>🎰 Bônus Roleta acumulado</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:'#8833BB'}}>+ {fBRL(bonusRoleta)}</div>
+          </div>
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>Este valor já está incluído no total a receber</div>
         </div>}
 
         {/* Graduation bar */}
@@ -1094,13 +1097,16 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
 
         {/* Commission summary */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-          {[['Comissão Total',fBRL(monthCom),'var(--green)'],['Bônus JR',fBRL(jrBonus),'var(--green)'],['A Receber',fBRL(monthComDue),'var(--red)'],['Recebido',fBRL(monthComPaid),'var(--green)']].map(([l,v,c])=>(
+          {[['Comissão Total',fBRL(monthCom),'var(--green)'],['Bônus JR',fBRL(jrBonus),'var(--green)'],['A Receber',fBRL(monthComDue+bonusRoleta),'var(--red)'],['Recebido',fBRL(monthComPaid),'var(--green)']].map(([l,v,c])=>(
             <div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c}}>{v}</div></div>
           ))}
         </div>
-        {bonusRoleta>0&&<div className="nm-in" style={{padding:'12px 14px',marginTop:10,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <div style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>🎰 Bônus Roleta acumulado</div>
-          <div style={{fontWeight:900,fontSize:'.92rem',color:'#8833BB'}}>+ {fBRL(bonusRoleta)}</div>
+        {bonusRoleta>0&&<div className="nm-in" style={{padding:'12px 14px',marginTop:10}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>🎰 Bônus Roleta acumulado</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:'#8833BB'}}>+ {fBRL(bonusRoleta)}</div>
+          </div>
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>Este valor já está incluído no total a receber</div>
         </div>}
       </div>
 
@@ -2675,7 +2681,7 @@ function ExtratoModal({role,data,onClose}){
         `Comissão Total: ${fBRL(totCom)}`,
         `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
         `Comissão Master (0,5%): ${fBRL(totVol*0.005)}`,
-        spinRewards.length>0?`🎰 Bônus Roleta Total: ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:'',``,
+        spinRewards.length>0?`🎰 Bônus Roleta Total - ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:'',``,
         `🏆 RANKING VENDEDORES`,
         ...admRank.map((a,i)=>`${i+1}. ${a.name} — ${fBRL(a.vol)} (${a.seeks} SEEK${a.seeks!==1?'s':''})`),
       ].join('\n');
@@ -2702,7 +2708,7 @@ function ExtratoModal({role,data,onClose}){
         `Volume Total: ${fBRL(totVol)}`,
         `Comissão Total: ${fBRL(totCom)}`,
         `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
-        spinRewards.length>0?`🎰 Bônus Roleta Total: ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:'',``,
+        spinRewards.length>0?`🎰 Bônus Roleta Total - ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:'',``,
         `🏆 RANKING SEEKs`,
         ...mRank.map((m,i)=>`${i+1}. ${m.name} (${m.lv.name}) — ${fBRL(m.vol)}`),
       ].join('\n');
@@ -2728,7 +2734,7 @@ function ExtratoModal({role,data,onClose}){
         `Total Indicações: ${referrals.length}  |  Volume Total: ${fBRL(totVol)}`,
         `Comissão Total: ${fBRL(totCom)}`,
         `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
-        spinRewards.length>0?`🎰 Bônus Roleta: ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:null,
+        spinRewards.length>0?`🎰 Bônus Roleta - ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:null,
         myJrs.length>0?`\n👥 SEEK JRs (${myJrs.length})`:null,
         ...myJrs.map(jr=>{
           const jrVol=jrReferrals.filter(r=>sameId(r.jrId,jr.id)).reduce((s,r)=>s+r.productValue,0);
@@ -2758,7 +2764,7 @@ function ExtratoModal({role,data,onClose}){
         `💰 COMISSÕES`,
         `Total: ${fBRL(totCom)}`,
         `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
-        spinRewards.length>0?`🎰 Bônus Roleta: ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:null,
+        spinRewards.length>0?`🎰 Bônus Roleta - ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:null,
       ].filter(l=>l!=null).join('\n');
     }
     return '';
@@ -2840,8 +2846,55 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
   const [won,setWon]=useState(null);
   const [pendingWin,setPendingWin]=useState(null);
 
+  function playSpinSound(){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      const times=[];let t=0;
+      while(t<4.0){
+        times.push(t);
+        const bell=Math.sin((t/4.2)*Math.PI);
+        t+=0.5-bell*0.46;
+      }
+      times.forEach(t=>{
+        const osc=ctx.createOscillator(),g=ctx.createGain();
+        osc.connect(g);g.connect(ctx.destination);
+        osc.type='triangle';osc.frequency.value=900;
+        const n=ctx.currentTime;
+        g.gain.setValueAtTime(0,n+t);
+        g.gain.linearRampToValueAtTime(0.28,n+t+0.004);
+        g.gain.linearRampToValueAtTime(0,n+t+0.028);
+        osc.start(n+t);osc.stop(n+t+0.032);
+      });
+    }catch(e){}
+  }
+
+  function playCelebrationSound(){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      [523,659,784,1047,1319].forEach((freq,i)=>{
+        const osc=ctx.createOscillator(),g=ctx.createGain();
+        osc.connect(g);g.connect(ctx.destination);
+        osc.type='sine';osc.frequency.value=freq;
+        const s=ctx.currentTime+i*0.12;
+        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.35,s+0.05);
+        g.gain.exponentialRampToValueAtTime(0.001,s+0.55);
+        osc.start(s);osc.stop(s+0.6);
+      });
+      [784,1047,1319,1568,1047].forEach((freq,i)=>{
+        const osc=ctx.createOscillator(),g=ctx.createGain();
+        osc.connect(g);g.connect(ctx.destination);
+        osc.type='triangle';osc.frequency.value=freq;
+        const s=ctx.currentTime+i*0.1+0.06;
+        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.18,s+0.04);
+        g.gain.exponentialRampToValueAtTime(0.001,s+0.45);
+        osc.start(s);osc.stop(s+0.5);
+      });
+    }catch(e){}
+  }
+
   function handleSpin(){
     if(spinning||won)return;
+    playSpinSound();
     const rand=Math.random();
     let cum=0,winner=SPIN_PRIZES[0];
     for(const p of SPIN_PRIZES){cum+=p.prob;if(rand<cum){winner=p;break;}}
@@ -2855,123 +2908,59 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
   function handleTransitionEnd(e){
     if(e.propertyName!=='transform'||!spinning)return;
     setSpinning(false);
-    if(pendingWin){setWon(pendingWin);onResult(pendingWin.value);}
+    if(pendingWin){setWon(pendingWin);onResult(pendingWin.value);playCelebrationSound();}
   }
 
   const size=270;
   const R=size/2;
   const conicGrad='conic-gradient('+SPIN_PRIZES.map(p=>`${p.color} ${p.start}deg ${p.start+p.span}deg`).join(',')+')';
+  const starDeco=[{s:'★',c:'#FFD700'},{s:'✦',c:'#FF6B00'},{s:'★',c:'#E63333'},{s:'✦',c:'#22AA44'},{s:'★',c:'#2277EE'},{s:'✦',c:'#8833BB'},{s:'★',c:'#FF69B4'},{s:'✦',c:'#DDAA00'}];
 
   return(
-    <div className="spin-overlay">
+    <div className="spin-overlay" style={{flexDirection:'column',gap:0}}>
       {won&&<Confetti/>}
-      <div style={{
-        background:'#fff',borderRadius:28,padding:'26px 20px 28px',
-        maxWidth:340,width:'calc(100% - 32px)',
-        display:'flex',flexDirection:'column',alignItems:'center',gap:18,
-        position:'relative',zIndex:1,
-        boxShadow:'0 24px 64px rgba(0,0,0,.5)',
-      }}>
-        {!won?(
-          <>
-            <div style={{textAlign:'center'}}>
-              <div style={{fontSize:'1.35rem',fontWeight:900,letterSpacing:'.03em',color:'#111',marginBottom:3}}>🎰 ROLETA DA SORTE</div>
-              <div style={{fontSize:'.76rem',color:'#888',fontWeight:700}}>Parabéns, {seekerName}! Você tem uma indicação premiada!</div>
-              {pendingCount>1&&<div style={{fontSize:'.68rem',color:'#FF7700',fontWeight:800,marginTop:4}}>{pendingCount} chances pendentes — gire uma por vez</div>}
-            </div>
+      {!won?(
+        <>
+          <div style={{textAlign:'center',marginBottom:16,zIndex:1}}>
+            <div style={{fontSize:'1.5rem',fontWeight:900,color:'#FFD700',letterSpacing:'.06em',textShadow:'0 2px 16px rgba(255,215,0,.7)'}}>🎰 ROLETA DA SORTE</div>
+            <div style={{fontSize:'.78rem',color:'rgba(255,255,255,.88)',fontWeight:700,marginTop:7}}>Parabéns, {seekerName}! Você tem uma indicação premiada!</div>
+            {pendingCount>1&&<div style={{fontSize:'.68rem',color:'#FF7700',fontWeight:800,marginTop:5}}>{pendingCount} chances pendentes — gire uma por vez</div>}
+          </div>
 
-            {/* Wheel container */}
+          <div style={{position:'relative',width:size+80,height:size+80,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            {starDeco.map(({s,c},i)=>(
+              <div key={i} style={{position:'absolute',fontSize:i%2===0?'1.4rem':'1rem',color:c,top:'50%',left:'50%',transform:`rotate(${i*45}deg) translateY(-${size/2+30}px) rotate(-${i*45}deg)`,textShadow:`0 0 10px ${c}`,pointerEvents:'none'}}>{s}</div>
+            ))}
             <div style={{position:'relative',width:size,height:size,flexShrink:0}}>
-              {/* Pointer */}
-              <div style={{
-                position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',
-                fontSize:'1.6rem',lineHeight:1,zIndex:3,
-                filter:'drop-shadow(0 2px 4px rgba(0,0,0,.6))',
-              }}>▼</div>
-              {/* Outer ring */}
-              <div style={{
-                position:'absolute',inset:-6,borderRadius:'50%',
-                background:'linear-gradient(135deg,#FFD700,#FF8C00,#E63333,#8833BB,#2277EE,#22AA44)',
-                zIndex:0,
-              }}/>
-              {/* Wheel */}
-              <div
-                onTransitionEnd={handleTransitionEnd}
-                style={{
-                  position:'absolute',inset:0,borderRadius:'50%',
-                  background:conicGrad,
-                  transform:`rotate(${rotation}deg)`,
-                  transition:spinning?'transform 4.2s cubic-bezier(0.17,0.67,0.12,0.99)':'none',
-                  zIndex:1,
-                }}
-              >
+              <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',fontSize:'1.6rem',lineHeight:1,zIndex:3,filter:'drop-shadow(0 2px 4px rgba(0,0,0,.7))'}}>▼</div>
+              <div style={{position:'absolute',inset:-6,borderRadius:'50%',background:'linear-gradient(135deg,#FFD700,#FF8C00,#E63333,#8833BB,#2277EE,#22AA44)',zIndex:0}}/>
+              <div onTransitionEnd={handleTransitionEnd} style={{position:'absolute',inset:0,borderRadius:'50%',background:conicGrad,transform:`rotate(${rotation}deg)`,transition:spinning?'transform 4.2s cubic-bezier(0.17,0.67,0.12,0.99)':'none',zIndex:1}}>
                 {SPIN_PRIZES.map(p=>{
                   const mid=p.start+p.span/2;
                   const rad=mid*Math.PI/180;
                   const r=0.60*R;
                   const x=R+r*Math.sin(rad);
                   const y=R-r*Math.cos(rad);
-                  return(
-                    <div key={p.value} style={{
-                      position:'absolute',left:x,top:y,
-                      transform:`translate(-50%,-50%) rotate(${mid}deg)`,
-                      color:'#fff',fontWeight:900,fontSize:'.70rem',
-                      textShadow:'0 1px 3px rgba(0,0,0,.9)',
-                      whiteSpace:'nowrap',pointerEvents:'none',lineHeight:1,
-                    }}>
-                      {p.label}
-                    </div>
-                  );
+                  return(<div key={p.value} style={{position:'absolute',left:x,top:y,transform:`translate(-50%,-50%) rotate(${mid}deg)`,color:'#fff',fontWeight:900,fontSize:'.70rem',textShadow:'0 1px 3px rgba(0,0,0,.9)',whiteSpace:'nowrap',pointerEvents:'none',lineHeight:1}}>{p.label}</div>);
                 })}
               </div>
-              {/* Center hub */}
-              <div style={{
-                position:'absolute',top:'50%',left:'50%',
-                transform:'translate(-50%,-50%)',
-                width:28,height:28,borderRadius:'50%',
-                background:'#fff',boxShadow:'0 2px 10px rgba(0,0,0,.5)',zIndex:4,
-              }}/>
+              <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:28,height:28,borderRadius:'50%',background:'#fff',boxShadow:'0 2px 10px rgba(0,0,0,.5)',zIndex:4}}/>
             </div>
+          </div>
 
-            <button
-              onClick={handleSpin}
-              disabled={spinning}
-              style={{
-                padding:'15px 44px',borderRadius:50,border:'none',
-                cursor:spinning?'not-allowed':'pointer',
-                background:spinning?'#ccc':'linear-gradient(135deg,#FF6B00,#E63333)',
-                color:'#fff',fontWeight:900,fontSize:'1.15rem',
-                letterSpacing:'.04em',
-                boxShadow:spinning?'none':'0 4px 20px rgba(230,51,51,.55)',
-                transition:'all .2s',
-              }}
-            >{spinning?'Girando...':'🎯  GIRAR!'}</button>
-          </>
-        ):(
-          <>
-            <div style={{fontSize:'3.2rem',textAlign:'center',animation:'prize-pop .5s ease'}}>🎉</div>
-            <div style={{textAlign:'center'}}>
-              <div style={{fontSize:'.85rem',fontWeight:700,color:'#888',marginBottom:8}}>Você ganhou</div>
-              <div style={{
-                fontSize:'3rem',fontWeight:900,lineHeight:1.1,
-                background:'linear-gradient(135deg,#FF6B00,#8833BB)',
-                WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',
-                animation:'prize-pop .5s ease',
-              }}>R$ {won.value}</div>
-              <div style={{fontSize:'.82rem',color:'#888',fontWeight:600,marginTop:6}}>de Bônus Roleta! 🎰</div>
-            </div>
-            <button
-              onClick={onClose}
-              style={{
-                padding:'14px 48px',borderRadius:50,border:'none',cursor:'pointer',
-                background:'linear-gradient(135deg,#1D7A3A,#22AA44)',
-                color:'#fff',fontWeight:900,fontSize:'1rem',
-                boxShadow:'0 4px 18px rgba(29,122,58,.45)',
-              }}
-            >Fechar</button>
-          </>
-        )}
-      </div>
+          <button onClick={handleSpin} disabled={spinning} style={{marginTop:22,padding:'15px 44px',borderRadius:50,border:'none',cursor:spinning?'not-allowed':'pointer',background:spinning?'#555':'linear-gradient(135deg,#FF6B00,#E63333)',color:'#fff',fontWeight:900,fontSize:'1.15rem',letterSpacing:'.04em',boxShadow:spinning?'none':'0 4px 22px rgba(230,51,51,.65)',transition:'all .2s'}}>{spinning?'Girando...':'🎯  GIRAR!'}</button>
+        </>
+      ):(
+        <>
+          <div style={{fontSize:'4.5rem',textAlign:'center',animation:'prize-pop .5s ease'}}>🎉</div>
+          <div style={{textAlign:'center',marginTop:10}}>
+            <div style={{fontSize:'.9rem',fontWeight:700,color:'rgba(255,255,255,.8)',marginBottom:10}}>Você ganhou</div>
+            <div style={{fontSize:'3.5rem',fontWeight:900,lineHeight:1.1,background:'linear-gradient(135deg,#FFD700,#FF8C00)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',animation:'prize-pop .5s ease'}}>R$ {won.value}</div>
+            <div style={{fontSize:'.85rem',color:'rgba(255,255,255,.7)',fontWeight:600,marginTop:10}}>de Bônus Roleta! 🎰</div>
+          </div>
+          <button onClick={onClose} style={{marginTop:30,padding:'14px 48px',borderRadius:50,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontWeight:900,fontSize:'1rem',boxShadow:'0 4px 18px rgba(29,122,58,.45)'}}>Fechar</button>
+        </>
+      )}
     </div>
   );
 }
