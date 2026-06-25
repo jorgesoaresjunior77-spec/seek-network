@@ -2424,16 +2424,16 @@ function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onB
 function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClose,onMarkRead,onMarkSold,onUpdateRef,onTogglePaid,onToggleJrPaid}){
   const [editItem,setEditItem]=useState(null);
   const allCombined=[
-    ...referrals.map(r=>({...r,_isJr:false})),
-    ...jrReferrals.map(r=>({...r,_isJr:true})),
+    ...referrals.filter(r=>r.isNew).map(r=>({...r,_isJr:false})),
+    ...jrReferrals.filter(r=>r.isNew).map(r=>({...r,_isJr:true})),
   ].sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
   const forgotReqs=(passReqs||[]).filter(r=>r.type==='forgot'&&!r.resolved);
   const newJrs=seekJrs.filter(j=>j.isNew);
   function getStatus(r){if(r.status)return r.status;if(r.paid)return'pago';if((r.productValue||0)>0)return'a_pagar';return'aguardando';}
   const stColors={aguardando:'var(--yellow)',a_pagar:'var(--red)',pago:'var(--green)'};
   const stLabels={aguardando:'Aguardando',a_pagar:'A Pagar',pago:'Pago'};
-  const unread=[...referrals,...jrReferrals].filter(r=>r.isNew).length+newJrs.length+forgotReqs.length;
-  const total=allCombined.length+forgotReqs.length+newJrs.length;
+  const unread=allCombined.length+newJrs.length+forgotReqs.length;
+  const total=unread;
 
   function SaleForm({r,isJr,onCancel,onSave}){
     const [prodType,setProdType]=useState('auto');
@@ -2562,12 +2562,9 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
                 <span>{fDate(r)}</span>
               </div>
               {r.observacoes&&<div style={{fontSize:'.68rem',color:'var(--muted)',fontStyle:'italic',marginBottom:6}}>💬 {r.observacoes}</div>}
-              <div style={{display:'flex',gap:6}} onClick={e=>e.stopPropagation()}>
-                {phone&&<a href={`https://wa.me/${phone}`} target="_blank" style={{textDecoration:'none'}}>
-                  <button className="btn" style={{padding:'5px 9px',fontSize:'.7rem',gap:3,color:'#25D366'}}><IcWA s={12} fill="#25D366"/>WA</button>
-                </a>}
-                {st==='a_pagar'&&<button style={{padding:'5px 10px',borderRadius:10,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontFamily:'inherit',fontWeight:900,fontSize:'.7rem',boxShadow:'2px 2px 8px rgba(29,122,58,.4)'}} onClick={()=>isJr?onToggleJrPaid(r.id):onTogglePaid(r.id)}>✓ PAGO</button>}
-                {r.isNew&&<button className="btn" style={{padding:'5px 9px',fontSize:'.7rem',color:'var(--muted)',marginLeft:'auto'}} onClick={()=>onMarkRead(r.id)}>✓ Lido</button>}
+              <div style={{display:'flex',gap:6,alignItems:'center'}} onClick={e=>e.stopPropagation()}>
+                {st==='aguardando'&&<button style={{padding:'5px 12px',borderRadius:10,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontFamily:'inherit',fontWeight:900,fontSize:'.72rem',boxShadow:'2px 2px 8px rgba(29,122,58,.4)'}} onClick={()=>setEditItem({ref:r,isJr})}>✅ Vendido</button>}
+                <button className="btn" style={{padding:'5px 9px',fontSize:'.7rem',color:'var(--muted)',marginLeft:'auto'}} onClick={()=>onMarkRead(r.id)}>✓ Lido</button>
               </div>
             </div>;
           })}
