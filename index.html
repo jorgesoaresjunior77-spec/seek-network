@@ -398,7 +398,7 @@ function ProductSelect({value,onChange}){
       <button key={p.id} type="button" className={`product-card${value===p.id?' selected':''}`} onClick={()=>onChange(p.id)}>
         <div className="product-card-icon">{p.icon}</div>
         <div className="product-card-name">{p.name}</div>
-        <div className="product-card-rate">{(p.rate*100).toFixed(1)}%</div>
+        <div className="product-card-rate">{Number((p.rate*100).toFixed(2)).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})}%</div>
       </button>
     ))}
   </div>;
@@ -607,6 +607,71 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
 
 
 /* ══════════════════════════════════════════════════════════════════
+   FIRST LOGIN — TROCA DE SENHA OBRIGATÓRIA
+══════════════════════════════════════════════════════════════════ */
+function FirstLoginScreen({userName,onSave,onLogout}){
+  const [pin1,setPin1]=useState('');
+  const [pin2,setPin2]=useState('');
+  const [err,setErr]=useState('');
+  const [saved,setSaved]=useState(false);
+
+  function submit(e){
+    e.preventDefault();setErr('');
+    if(!/^\d{4}$/.test(pin1)){setErr('A nova senha deve ter exatamente 4 dígitos numéricos.');return;}
+    if(pin1!==pin2){setErr('As senhas não coincidem. Digite novamente.');return;}
+    if(pin1==='0000'){setErr('Escolha uma senha diferente de 0000.');return;}
+    onSave(pin1);
+    setSaved(true);
+  }
+
+  if(saved){
+    return(
+      <div style={{minHeight:'100vh',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',padding:32}}>
+        <div style={{textAlign:'center',display:'flex',flexDirection:'column',alignItems:'center',gap:20}}>
+          <div style={{fontSize:'3rem'}}>✅</div>
+          <div style={{fontWeight:800,fontSize:'1.1rem'}}>Senha alterada com sucesso!</div>
+          <div style={{fontSize:'.84rem',color:'var(--muted)',fontWeight:600}}>Entrando no painel...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div style={{minHeight:'100vh',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',padding:'32px 22px'}}>
+      <div style={{width:'100%',maxWidth:380,display:'flex',flexDirection:'column',gap:24}}>
+        <SeekNetworkLogo/>
+        <div className="nm" style={{padding:'28px 22px'}}>
+          <div style={{textAlign:'center',marginBottom:22}}>
+            <div style={{fontSize:'2rem',marginBottom:10}}>🔐</div>
+            <div style={{fontWeight:900,fontSize:'1.05rem',marginBottom:8}}>Primeiro acesso</div>
+            <div style={{fontSize:'.83rem',color:'var(--muted)',lineHeight:1.65}}>
+              Olá{userName?`, ${userName}`:''}.{' '}
+              Por segurança, você precisa criar uma senha pessoal antes de continuar.<br/>
+              <strong>A senha deve ter 4 dígitos numéricos</strong> e não pode ser 0000.
+            </div>
+          </div>
+          <form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:14}}>
+            <Fld label="Nova senha (4 dígitos)">
+              <PinInput value={pin1} onChange={setPin1} autoFocus/>
+            </Fld>
+            <Fld label="Confirmar nova senha">
+              <PinInput value={pin2} onChange={setPin2}/>
+            </Fld>
+            {err&&<div style={{color:'var(--red)',fontSize:'.78rem',fontWeight:700,textAlign:'center',padding:'8px 12px',borderRadius:10,background:'rgba(192,57,43,0.07)'}}>{err}</div>}
+            <button type="submit" className="btn btn-dark btn-full" style={{padding:15,marginTop:4,fontSize:'.86rem',letterSpacing:'.06em'}}>
+              Salvar e Entrar
+            </button>
+          </form>
+        </div>
+        <button onClick={onLogout} style={{background:'none',border:'none',cursor:'pointer',fontSize:'.76rem',fontWeight:700,color:'var(--muted)',fontFamily:'inherit',textDecoration:'underline',textUnderlineOffset:3,textAlign:'center'}}>
+          Voltar ao login
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    REMUNERAÇÃO PANEL
 ══════════════════════════════════════════════════════════════════ */
 function RemuneracaoPanel(){
@@ -622,7 +687,7 @@ function RemuneracaoPanel(){
                 <span style={{fontSize:'1.1rem'}}>{p.icon}</span>
                 <span style={{fontWeight:600,fontSize:'.84rem'}}>{p.name}</span>
               </div>
-              <span style={{fontWeight:800,fontSize:'.84rem'}}>{(p.rate*100).toFixed(1)}% do valor</span>
+              <span style={{fontWeight:800,fontSize:'.84rem'}}>{Number((p.rate*100).toFixed(2)).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})}% do valor</span>
             </div>
           ))}
           <div style={{marginTop:12,fontSize:'.74rem',color:'var(--muted)',lineHeight:1.6}}>* O bônus de nível é aplicado sobre a comissão base do produto.</div>
@@ -1130,7 +1195,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
 /* ══════════════════════════════════════════════════════════════════
    ADM — DASHBOARD
 ══════════════════════════════════════════════════════════════════ */
-function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,credentials,onDeleteRef,onDeleteJrRef,spinRewards,showPaymentReminder}){
+function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,credentials,onDeleteRef,onDeleteJrRef,spinRewards,showPaymentReminder,hideAdmCommission}){
   const curY=new Date().getFullYear();
   const years=Array.from({length:5},(_,i)=>curY-2+i);
   const fil=referrals.filter(r=>r.month===sm&&r.year===sy);
@@ -1241,13 +1306,13 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
         ))}
       </div>
       {(spinRewards||[]).length>0&&<StatCard label="🎰 Bônus Roleta (SEEKs)" value={fBRL((spinRewards||[]).reduce((s,r)=>s+r.value,0))} color="#8833BB"/>}
-      <div className="nm" style={{padding:'18px'}}>
+      {!hideAdmCommission&&<div className="nm" style={{padding:'18px'}}>
         <div className="section-title" style={{marginBottom:12,display:'flex',alignItems:'center',gap:6}}><IcStar s={13}/>Minha Comissão ADM (0,5%)</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
           <div className="nm-in" style={{padding:'12px'}}><div className="section-title" style={{marginBottom:4}}>{MONTHS[sm-1].slice(0,3)} {sy}</div><div style={{fontWeight:800,color:'var(--green)'}}>{fBRL(([...fil,...jrFil]).reduce((s,r)=>s+r.productValue,0)*0.005)}</div></div>
           <div className="nm-in" style={{padding:'12px'}}><div className="section-title" style={{marginBottom:4}}>Total Geral</div><div style={{fontWeight:800,color:'var(--green)'}}>{fBRL(allTotV*0.005)}</div></div>
         </div>
-      </div>
+      </div>}
       {ranking.length>0&&<div>
         <div className="section-title" style={{paddingLeft:4,marginBottom:10}}>Ranking {MONTHS[sm-1]} {sy}</div>
         <div className="nm" style={{padding:'6px 16px'}}>
@@ -1318,7 +1383,7 @@ function AdmMembers({members,referrals,jrReferrals,seekJrs,credentials,onSelect,
         const initials=m.name.trim().slice(0,2).toUpperCase();
         const cred=credentials[m.id]||credentials[String(m.id)]||{};
         return<React.Fragment key={m.id}>
-        <div className="nm" style={{padding:'13px 16px',display:'flex',flexDirection:'column',gap:0}}>
+        <div className="nm" style={{padding:'13px 16px',display:'flex',flexDirection:'row',alignItems:'center',gap:6}}>
           <button style={{display:'flex',alignItems:'center',gap:12,flex:1,background:'none',border:'none',cursor:'pointer',minWidth:0,textAlign:'left'}} onClick={()=>onSelect(m)}>
             <div className="member-avatar">{initials}</div>
             <div style={{flex:1,minWidth:0}}>
@@ -1330,8 +1395,10 @@ function AdmMembers({members,referrals,jrReferrals,seekJrs,credentials,onSelect,
               <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>#{String(m.id).padStart(3,'0')} · {pts} pts{cred.login?` · ${maskPhone(cred.login)}`:''}</div>
             </div>
           </button>
-          <button className="icon-btn" onClick={()=>{setCredM(m);setNewPin('');setPinErr('');}}><IcKey s={14}/></button>
-          <button className="icon-btn" onClick={()=>setConfirmDel(m)}><IcTrash s={14} c="var(--red)"/></button>
+          <div style={{display:'flex',gap:6,flexShrink:0}}>
+            <button className="icon-btn" onClick={()=>{setCredM(m);setNewPin('');setPinErr('');}}><IcKey s={14}/></button>
+            <button className="icon-btn" onClick={()=>setConfirmDel(m)}><IcTrash s={14} c="var(--red)"/></button>
+          </div>
         </div>
         {myJrs.length>0&&<div style={{paddingLeft:16,paddingBottom:8,borderTop:'1px solid var(--gray)',marginTop:8}}>
           <div style={{fontSize:'.6rem',fontWeight:800,letterSpacing:'.1em',textTransform:'uppercase',color:'var(--muted)',margin:'6px 0 6px'}}>SEEK JR ({myJrs.length})</div>
@@ -1719,23 +1786,29 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
       {lightbox&&(
         <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.93)',zIndex:300,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:20}}
           onClick={()=>setLightbox(null)}>
-          <img src={lightbox.url} style={{maxWidth:'100%',maxHeight:'78vh',borderRadius:14,objectFit:'contain'}} alt={lightbox.caption||'Oferta'}/>
+          <img src={lightbox.url} style={{maxWidth:'100%',maxHeight:'72vh',borderRadius:14,objectFit:'contain'}} alt={lightbox.caption||'Oferta'}/>
           {lightbox.caption&&<div style={{color:'#fff',fontWeight:700,fontSize:'.9rem',marginTop:14,textAlign:'center'}}>{lightbox.caption}</div>}
-          <div style={{display:'flex',alignItems:'center',gap:16,marginTop:18}} onClick={e=>e.stopPropagation()}>
-            <div style={{display:'flex',flexDirection:'column',gap:6}}>
-              <button className="btn" style={{padding:'10px 18px',fontSize:'.8rem',gap:6,color:'#25D366'}}
-                onClick={()=>shareOffer(lightbox)}>
-                <IcWA s={16} fill="#25D366"/>Enviar no WhatsApp
-              </button>
-              <span style={{color:'rgba(255,255,255,0.55)',fontSize:'.64rem',fontWeight:700,textAlign:'center'}}>💡 Salve a imagem e anexe no WhatsApp</span>
+          <div style={{marginTop:14,background:'rgba(255,255,255,0.12)',borderRadius:12,padding:'10px 14px',maxWidth:300,textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+            <div style={{color:'rgba(255,255,255,0.85)',fontSize:'.72rem',fontWeight:700,lineHeight:1.6,marginBottom:10}}>
+              Para enviar a imagem, primeiro salve-a no seu celular clicando no botão abaixo
             </div>
-            <span style={{color:'rgba(255,255,255,0.55)',fontSize:'.7rem',fontWeight:600,flexShrink:0}}>Compartilhe com os clientes</span>
+            <a href={lightbox.url} download="oferta.jpg" style={{textDecoration:'none'}} onClick={e=>e.stopPropagation()}>
+              <button className="btn" style={{padding:'10px 18px',fontSize:'.8rem',gap:6,background:'rgba(255,255,255,0.15)',color:'#fff',border:'1.5px solid rgba(255,255,255,0.3)',borderRadius:14,cursor:'pointer',fontFamily:'inherit',fontWeight:800}}>
+                💾 Salvar Imagem
+              </button>
+            </a>
+          </div>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginTop:12}} onClick={e=>e.stopPropagation()}>
+            <button className="btn" style={{padding:'10px 18px',fontSize:'.8rem',gap:6,color:'#25D366'}}
+              onClick={()=>shareOffer(lightbox)}>
+              <IcWA s={16} fill="#25D366"/>Enviar no WhatsApp
+            </button>
             {isAdm&&<button className="icon-btn" style={{width:34,height:34,borderRadius:10}}
               onClick={()=>{if(window.confirm('Remover esta oferta?')){onDeleteOffer(lightbox.id);setLightbox(null);}}}>
               <IcTrash s={14} c="var(--red)"/>
             </button>}
           </div>
-          <button style={{marginTop:18,background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:'.82rem',cursor:'pointer',fontFamily:'inherit',fontWeight:700}} onClick={()=>setLightbox(null)}>Fechar ✕</button>
+          <button style={{marginTop:14,background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:'.82rem',cursor:'pointer',fontFamily:'inherit',fontWeight:700}} onClick={()=>setLightbox(null)}>Fechar ✕</button>
         </div>
       )}
 
@@ -2074,7 +2147,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
         <div style={{padding:'5px 16px 0',textAlign:'center'}}>
           <span style={{fontSize:'.76rem',fontWeight:800}}>{selAdm.name}</span>
         </div>
-        <AdmDashboard members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards}/>
+        <AdmDashboard members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} hideAdmCommission={true}/>
       </>}
       {view==='membros'&&<AdmMembers members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={selAdm?d=>onAddMember(d,selAdm.id):null} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
@@ -3084,7 +3157,6 @@ function App(){
     const nr=mRef(saved);
     const u=[...referrals,nr];setReferrals(u);
     if(mid)checkLevelUp(mid,old,u);
-    if(hasProduct&&mid)await addSpinPending(String(mid),null,saved.id);
   }
 
   async function updateReferral(rid,data){
@@ -3130,7 +3202,6 @@ function App(){
     }
     if(error){console.error('[addJrReferral] ERRO:',error);setDbError('Erro ao salvar indicação JR: '+error.message);return;}
     setJrReferrals(u=>[...u,mJrRef(saved)]);
-    if(hasProduct)await addSpinPending(null,String(data.jrId),saved.id);
   }
 
   async function markReferralSold(rid,data,isJr){
@@ -3232,6 +3303,30 @@ function App(){
       return<LoginScreen onLogin={s=>{console.log('[SEEK route] onLogin received session:',s);setSession(s);}} credentials={credentials} members={members} seekJrs={seekJrs}/>;
     }
     console.log('[SEEK route] rendering for session:',session);
+
+    /* Primeiro acesso: se o PIN é 0000, exigir troca antes de entrar no painel */
+    if(session.role!=='master'){
+      let firstKey=null;
+      let firstName=null;
+      if(session.role==='adm'){
+        firstKey=`adm_${session.admId}`;
+        const adm=adms.find(a=>sameId(a.id,session.admId));
+        firstName=adm?adm.name:null;
+      } else if(session.role==='member'){
+        firstKey=String(session.memberId);
+        const mb=members.find(m=>sameId(m.id,session.memberId));
+        firstName=mb?mb.name:null;
+      } else if(session.role==='jr'){
+        firstKey=`jr_${session.jrId}`;
+        const jr=seekJrs.find(j=>sameId(j.id,session.jrId));
+        firstName=jr?jr.name:null;
+      }
+      const currentPin=(credentials[firstKey]||{}).pin||'0000';
+      if(currentPin==='0000'){
+        return<FirstLoginScreen userName={firstName} onSave={newPin=>updatePin(firstKey,newPin)} onLogout={()=>setSession(null)}/>;
+      }
+    }
+
     if(session.role==='jr'){
       const jr=seekJrs.find(j=>sameId(j.id,session.jrId));
       if(!jr){
