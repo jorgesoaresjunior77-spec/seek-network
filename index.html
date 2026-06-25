@@ -2393,10 +2393,7 @@ function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onB
     </div>
 
     {selling&&<Sheet title="Confirmar Venda" onClose={()=>setSelling(null)}>
-      <SaleForm ref={selling.ref} onCancel={()=>setSelling(null)} onSave={async data=>{
-        await onMarkSold(selling.ref.id,data,selling.isJr);
-        setSelling(null);
-      }}/>
+      <SaleForm ref={selling.ref} onCancel={()=>setSelling(null)} onSave={data=>{setSelling(null);onMarkSold(selling.ref.id,data,selling.isJr);}}/>
     </Sheet>}
 
     {editing&&<Sheet title="Editar Indicação" onClose={()=>setEditing(null)}>
@@ -2577,8 +2574,8 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
         </div>}
         {editItem&&<Sheet title={getStatus(editItem.ref)==='aguardando'?'Confirmar Venda':'Editar Indicação'} onClose={()=>setEditItem(null)}>
           {getStatus(editItem.ref)==='aguardando'
-            ?<SaleForm r={editItem.ref} isJr={editItem.isJr} onCancel={()=>setEditItem(null)} onSave={async data=>{await onMarkSold(editItem.ref.id,data,editItem.isJr);setEditItem(null);}}/>
-            :<EditRefForm r={editItem.ref} isJr={editItem.isJr} onCancel={()=>setEditItem(null)} onSave={async data=>{await onUpdateRef(editItem.ref.id,data,editItem.isJr);setEditItem(null);}}/>
+            ?<SaleForm r={editItem.ref} isJr={editItem.isJr} onCancel={()=>setEditItem(null)} onSave={data=>{setEditItem(null);onMarkSold(editItem.ref.id,data,editItem.isJr);}}/>
+            :<EditRefForm r={editItem.ref} isJr={editItem.isJr} onCancel={()=>setEditItem(null)} onSave={data=>{setEditItem(null);onUpdateRef(editItem.ref.id,data,editItem.isJr);}}/>
           }
         </Sheet>}
       </div>
@@ -2984,37 +2981,42 @@ function App(){
   useEffect(()=>{
     async function boot(){
       cleanupLegacyStorageKeys();
+      // Fase 1 — tabelas críticas para login (aparece rápido)
       const [
-        {data:mRows,error:e1},{data:rRows},{data:cRows},{data:reqRows},
-        {data:jrRows},{data:jrRefRows},{data:notifRows},{data:offerRows},{data:admRows,error:eAdm},
-        {data:spinRows},{data:spinPendingRows},
+        {data:mRows,error:e1},{data:cRows},{data:admRows,error:eAdm},{data:jrRows},
       ]=await Promise.all([
         db.from('members').select('*'),
-        db.from('referrals').select('*'),
         db.from('credentials').select('*'),
-        db.from('pass_requests').select('*'),
+        db.from('adms').select('*'),
         db.from('seek_jrs').select('*'),
+      ]);
+      if(e1)console.error('[SEEK boot] members error:',e1);
+      if(eAdm)console.error('[SEEK boot] ERRO tabela adms:',JSON.stringify(eAdm));
+      setMembers((mRows||[]).map(mMember));
+      setAdms((admRows||[]).map(mAdm));
+      setCredentials(buildCreds(cRows));
+      setSeekJrs((jrRows||[]).map(mSeekJr));
+      setLoading(false); // ← tela de login aparece aqui
+      // Fase 2 — resto dos dados em background (enquanto usuário digita login)
+      const [
+        {data:rRows},{data:reqRows},{data:jrRefRows},
+        {data:notifRows},{data:offerRows},{data:spinRows},{data:spinPendingRows},
+      ]=await Promise.all([
+        db.from('referrals').select('*'),
+        db.from('pass_requests').select('*'),
         db.from('jr_referrals').select('*'),
         db.from('level_notifs').select('*'),
         db.from('offers').select('*'),
-        db.from('adms').select('*'),
         db.from('spin_rewards').select('*'),
         db.from('spin_pending').select('*'),
       ]);
-      if(e1)console.error('[SEEK boot] members error:',e1);
-      if(eAdm)console.error('[SEEK boot] ERRO tabela adms — provavelmente migration não rodou:',JSON.stringify(eAdm));
-      setMembers((mRows||[]).map(mMember));
-      setAdms((admRows||[]).map(mAdm));
       setReferrals((rRows||[]).map(mRef));
-      setCredentials(buildCreds(cRows));
       setPassReqs((reqRows||[]).map(mPassReq));
-      setSeekJrs((jrRows||[]).map(mSeekJr));
       setJrReferrals((jrRefRows||[]).map(mJrRef));
       setLevelNotifs((notifRows||[]).map(mNotif));
       setOffers((offerRows||[]).map(mOffer));
       setSpinRewards((spinRows||[]).map(mSpin));
       setPendingSpins((spinPendingRows||[]).map(mSpinPending));
-      setLoading(false);
     }
     boot();
   },[]);
@@ -3130,22 +3132,23 @@ function App(){
     const mid=String(memberId);
     const hasProduct=(data.productValue||0)>0;
     const refStatus=hasProduct?'a_pagar':'aguardando';
-    // Tentativa 1: insert completo (requer migration: colunas status + observacoes)
+    // Otimista: insere na UI antes de esperar o DB
+    const tmpId=`__tmp_${Date.now()}`;
+    const tmpRef={id:tmpId,memberId:mid,clientName:data.clientName,whatsapp:data.whatsapp||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString()};
+    const withTmp=[...referrals,tmpRef];
+    setReferrals(withTmp);
+    checkLevelUp(mid,old,withTmp);
     let {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null}).select().single();
-    // Tentativa 2: fallback sem colunas opcionais (migration ainda não rodou)
     if(error&&error.code==='42703'){
-      console.warn('[addReferral] colunas opcionais ausentes — migration pendente. Tentando sem status/observacoes. Erro original:',error.message);
       ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false}).select().single());
     }
-    if(error){console.error('[addReferral] ERRO:',error);setDbError('Erro ao salvar indicação: '+error.message);return;}
-    const nr=mRef(saved);
-    const u=[...referrals,nr];setReferrals(u);
-    if(mid)checkLevelUp(mid,old,u);
+    if(error){console.error('[addReferral] ERRO:',error);setReferrals(old);setDbError('Erro ao salvar indicação: '+error.message);return;}
+    setReferrals(u=>u.map(r=>r.id===tmpId?mRef(saved):r));
   }
 
   async function updateReferral(rid,data){
-    await db.from('referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day}).eq('id',rid);
     setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data}:r));
+    db.from('referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day}).eq('id',rid);
   }
 
   async function togglePaid(rid){
@@ -3154,10 +3157,10 @@ function App(){
     const newPaid=!ref.paid;
     const newStatus=newPaid?'pago':'a_pagar';
     const paidAt=newPaid?new Date().toISOString():null;
+    setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
     let {error}=await db.from('referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
     if(error&&error.code==='42703')({error}=await db.from('referrals').update({paid:newPaid}).eq('id',rid));
-    if(error)console.error('[togglePaid]',error);
-    setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
+    if(error){console.error('[togglePaid]',error);setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:ref.paid,status:ref.status,paidAt:ref.paidAt}:r));}
   }
 
   async function deleteReferral(rid){
@@ -3179,41 +3182,43 @@ function App(){
   async function addJrReferral(data){
     const hasProduct=(data.productValue||0)>0;
     const refStatus=hasProduct?'a_pagar':'aguardando';
+    const tmpId=`__tmp_${Date.now()}`;
+    const tmpRef={id:tmpId,jrId:String(data.jrId),clientName:data.clientName,whatsapp:data.whatsapp||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:true,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString()};
+    setJrReferrals(u=>[...u,tmpRef]);
     let {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null}).select().single();
     if(error&&error.code==='42703'){
-      console.warn('[addJrReferral] colunas opcionais ausentes — migration pendente. Tentando sem status/observacoes.');
       ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true}).select().single());
     }
-    if(error){console.error('[addJrReferral] ERRO:',error);setDbError('Erro ao salvar indicação JR: '+error.message);return;}
-    setJrReferrals(u=>[...u,mJrRef(saved)]);
+    if(error){console.error('[addJrReferral] ERRO:',error);setJrReferrals(u=>u.filter(r=>r.id!==tmpId));setDbError('Erro ao salvar indicação JR: '+error.message);return;}
+    setJrReferrals(u=>u.map(r=>r.id===tmpId?mJrRef(saved):r));
   }
 
   async function markReferralSold(rid,data,isJr){
     if(isJr){
       const ref=jrReferrals.find(r=>sameId(r.id,rid));
       if(!ref)return;
+      setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r));
       let {error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
       if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
       if(error)console.error('[markReferralSold jr]',error);
-      setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r));
-      await addSpinPending(null,String(ref.jrId),String(rid));
+      addSpinPending(null,String(ref.jrId),String(rid));
     }else{
       const ref=referrals.find(r=>sameId(r.id,rid));
       if(!ref)return;
       const oldRefs=[...referrals];
-      let {error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
-      if(error&&error.code==='42703')({error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
-      if(error)console.error('[markReferralSold]',error);
       const newRefs=referrals.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r);
       setReferrals(newRefs);
       checkLevelUp(ref.memberId,oldRefs,newRefs);
-      await addSpinPending(String(ref.memberId),null,String(rid));
+      let {error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
+      if(error&&error.code==='42703')({error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
+      if(error)console.error('[markReferralSold]',error);
+      addSpinPending(String(ref.memberId),null,String(rid));
     }
   }
 
   async function updateJrReferral(rid,data){
-    await db.from('jr_referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day}).eq('id',rid);
     setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data}:r));
+    db.from('jr_referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day}).eq('id',rid);
   }
 
   async function addSpinPending(seekId,jrId,referralId){
@@ -3239,10 +3244,10 @@ function App(){
     const newPaid=!ref.paid;
     const newStatus=newPaid?'pago':'a_pagar';
     const paidAt=newPaid?new Date().toISOString():null;
+    setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
     let {error}=await db.from('jr_referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
     if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({paid:newPaid}).eq('id',rid));
-    if(error)console.error('[toggleJrPaid]',error);
-    setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
+    if(error){console.error('[toggleJrPaid]',error);setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:ref.paid,status:ref.status,paidAt:ref.paidAt}:r));}
   }
 
   async function deleteJrReferral(rid){
