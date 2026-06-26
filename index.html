@@ -673,6 +673,120 @@ function FirstLoginScreen({userName,onSave,onLogout}){
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   RADAR SEEK — notícias VW via RSS
+══════════════════════════════════════════════════════════════════ */
+function RadarSeek({onClose}){
+  const [news,setNews]=useState([]);
+  const [loading,setLoading]=useState(true);
+  const [err,setErr]=useState('');
+  const feeds=[
+    'https://www.motor1.com.br/rss/news/',
+    'https://quatrorodas.abril.com.br/feed/',
+    'https://www.noticiasautomotivas.com.br/feed/',
+    'https://www.uol.com.br/carros/rss.xml',
+  ];
+  async function load(){
+    setLoading(true);setErr('');
+    try{
+      const results=await Promise.allSettled(feeds.map(async url=>{
+        const r=await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(url)+'&count=40');
+        const d=await r.json();
+        if(d.status!=='ok')return[];
+        return d.items.filter(it=>/volkswagen|\bvw\b/i.test(it.title));
+      }));
+      const all=results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
+      const seen=new Set();
+      const deduped=all.filter(it=>{if(seen.has(it.link))return false;seen.add(it.link);return true;});
+      deduped.sort((a,b)=>new Date(b.pubDate||0)-new Date(a.pubDate||0));
+      setNews(deduped);
+      if(deduped.length===0)setErr('Nenhuma notícia sobre Volkswagen encontrada no momento.');
+    }catch(e){
+      setErr('Erro ao carregar notícias.');
+    }finally{
+      setLoading(false);
+    }
+  }
+  React.useEffect(()=>{load();},[]);
+  return(
+    <div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',display:'flex',flexDirection:'column',maxWidth:640,margin:'0 auto'}}>
+      <TopBar title="📡 Radar Seek" left={<button className="icon-btn" onClick={onClose}><IcLeft s={18}/></button>} right={<button className="icon-btn" onClick={load} style={{fontSize:'1rem'}}>{loading?'⌛':'🔄'}</button>}/>
+      <div style={{flex:1,overflowY:'auto',padding:'0 16px 100px'}}>
+        {loading&&<div style={{textAlign:'center',padding:40,color:'var(--muted)',fontWeight:700}}>Buscando notícias...</div>}
+        {!loading&&err&&<div style={{textAlign:'center',padding:30,color:'var(--red)',fontWeight:700}}>{err}<br/><br/><button className="btn btn-dark" style={{padding:'10px 22px'}} onClick={load}>🔄 Tentar novamente</button></div>}
+        {!loading&&!err&&news.map((item,i)=>(
+          <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none',color:'inherit',display:'block',marginBottom:12}}>
+            <div className="nm" style={{padding:0,overflow:'hidden'}}>
+              {item.thumbnail&&item.thumbnail.startsWith('http')&&<img src={item.thumbnail} alt="" style={{width:'100%',maxHeight:180,objectFit:'cover',display:'block'}}/>}
+              <div style={{padding:'12px 14px'}}>
+                <div style={{fontWeight:800,fontSize:'.86rem',lineHeight:1.45,marginBottom:6,color:'var(--black)'}}>{item.title}</div>
+                {item.description&&<div style={{fontSize:'.74rem',color:'var(--muted)',lineHeight:1.65,marginBottom:6}}>{item.description.replace(/<[^>]+>/g,'').slice(0,160)}{item.description.length>160?'…':''}</div>}
+                <div style={{fontSize:'.66rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{color:'var(--muted)'}}>{item.pubDate?new Date(item.pubDate).toLocaleDateString('pt-BR'):''}</span>
+                  <span style={{color:'var(--green)',fontWeight:800}}>Ler mais →</span>
+                </div>
+              </div>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HELP MODAL
+══════════════════════════════════════════════════════════════════ */
+const HELP_ITEMS={
+  adm:[
+    {q:'Como recebo as indicações dos meus SEEKs?',a:'As indicações aparecem automaticamente no sino de notificações. Clique no sino para ver, abra a indicação e preencha o produto e valor.'},
+    {q:'Como confirmo uma venda?',a:'Abra a indicação nas notificações, preencha os dados e clique no botão verde "VENDA CONCLUÍDA".'},
+    {q:'Quando devo marcar como pago?',a:'Todo dia 10 do mês, acesse suas indicações e clique em "PAGAR" em cada venda do mês anterior.'},
+    {q:'Como cadastro um novo SEEK?',a:'Vá na aba "SEEK", clique em "+ Novo" e preencha os dados. A senha inicial é sempre 0000.'},
+    {q:'Como vejo o desempenho dos meus SEEKs?',a:'No painel principal você vê o ranking e os totais. Clique em cada SEEK para ver detalhes.'},
+  ],
+  member:[
+    {q:'Como faço uma indicação?',a:'Clique em "Indicar" ou "+ Nova Indicação", preencha o nome e WhatsApp do cliente e envie. O vendedor será notificado automaticamente.'},
+    {q:'Quando recebo minha comissão?',a:'Após o vendedor confirmar a venda, o valor vai para "A Pagar". Todo dia 10 o vendedor realiza os pagamentos.'},
+    {q:'O que é a Roleta da Sorte?',a:'A cada indicação confirmada como venda pelo vendedor, você ganha uma chance de girar a roleta e ganhar um bônus em dinheiro. A roleta aparece no seu próximo login.'},
+    {q:'Como subo de nível?',a:'Acumule pontos através das suas vendas indicadas. 1 ponto = R$ 100.000 em vendas. Veja os níveis na tela de Regras.'},
+    {q:'Como compartilho meu cartão?',a:'Clique em "Compartilhar Cartão" e envie a mensagem pelo WhatsApp para seus contatos.'},
+  ],
+  jr:[
+    {q:'Como faço uma indicação?',a:'Clique em "Indicar", preencha o nome e WhatsApp do cliente. Seu SEEK padrinho e o vendedor serão notificados.'},
+    {q:'Quem é meu padrinho SEEK?',a:'O SEEK que te cadastrou no sistema. Você pode ver o nome do seu padrinho no seu painel.'},
+    {q:'Quando recebo minha comissão?',a:'Após o vendedor confirmar a venda como concluída, o valor entra em "A Pagar". Os pagamentos são feitos todo dia 10.'},
+    {q:'Como me torno um SEEK?',a:'Ao atingir R$ 2.000.000 em volume total de vendas acumuladas, você é promovido automaticamente a SEEK.'},
+    {q:'O que é a Roleta da Sorte?',a:'A cada indicação confirmada como venda, você ganha uma chance de girar a roleta e ganhar um bônus. Ela aparece no seu próximo login.'},
+  ],
+};
+function HelpModal({role,onClose}){
+  const faqs=HELP_ITEMS[role]||[];
+  const [open,setOpen]=useState(null);
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'88vh'}}>
+        <div className="handle"/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+          <span style={{fontWeight:900,fontSize:'1rem'}}>❓ Ajuda</span>
+          <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:10,maxHeight:'72vh',overflowY:'auto'}}>
+          {faqs.map((item,i)=>(
+            <div key={i} className="nm-in" style={{padding:'12px 14px',cursor:'pointer'}} onClick={()=>setOpen(open===i?null:i)}>
+              <div style={{fontWeight:800,fontSize:'.84rem',color:'var(--black)',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                <span>{item.q}</span>
+                <span style={{color:'var(--muted)',flexShrink:0,fontSize:'.8rem'}}>{open===i?'▲':'▼'}</span>
+              </div>
+              {open===i&&<div style={{fontSize:'.78rem',color:'var(--muted)',lineHeight:1.7,marginTop:8,paddingTop:8,borderTop:'1px solid var(--gray)'}}>{item.a}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    REMUNERAÇÃO PANEL
 ══════════════════════════════════════════════════════════════════ */
 function RemuneracaoPanel({isMaster,onBack}){
@@ -768,6 +882,8 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const [showJrOffers,setShowJrOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
   const [showRegras,setShowRegras]=useState(false);
+  const [showRadar,setShowRadar]=useState(false);
+  const [showHelp,setShowHelp]=useState(false);
 
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
@@ -829,7 +945,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const sorted=[...monthRefs].sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
 
   return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
-    <TopBar logo="SEEK NETWORK" right={<button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>}/>
+    <TopBar logo="SEEK NETWORK" right={<div style={{display:'flex',gap:6,alignItems:'center'}}><button className="icon-btn" style={{fontSize:'.9rem'}} onClick={()=>setShowHelp(true)}>❓</button><button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button></div>}/>
     <div style={{padding:'4px 16px 8px',textAlign:'center'}}><span style={{fontSize:'0.55rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>SEEK JR</span></div>
     <div className="page" style={{paddingBottom:30}}>
 
@@ -906,6 +1022,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowRadar(true)}>📡 Radar Seek</button>
 
       {/* Referrals */}
       <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
@@ -945,6 +1062,8 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
       </form>
     </Sheet>}
     {showRegras&&<div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',overflowY:'auto'}}><RemuneracaoPanel onBack={()=>setShowRegras(false)}/></div>}
+    {showRadar&&<RadarSeek onClose={()=>setShowRadar(false)}/>}
+    {showHelp&&<HelpModal role="jr" onClose={()=>setShowHelp(false)}/>}
   </div>;
 }
 
@@ -962,6 +1081,8 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const [showJrOffers,setShowJrOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
   const [showRegras,setShowRegras]=useState(false);
+  const [showRadar,setShowRadar]=useState(false);
+  const [showHelp,setShowHelp]=useState(false);
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
   const [cfPin,setCfPin]=useState('');
@@ -1061,7 +1182,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
 
   return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
     {myLevelNotif&&<LevelUpModal level={getSeekLevel(points)} onClose={()=>onDismissNotif(myLevelNotif.id)}/>}
-    <TopBar logo="SEEK NETWORK" right={<button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>}/>
+    <TopBar logo="SEEK NETWORK" right={<div style={{display:'flex',gap:6,alignItems:'center'}}><button className="icon-btn" style={{fontSize:'.9rem'}} onClick={()=>setShowHelp(true)}>❓</button><button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button></div>}/>
     <div style={{padding:'4px 16px 8px',textAlign:'center'}}><span style={{fontSize:'0.55rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>SEEK</span></div>
     <div className="page" style={{paddingBottom:30}}>
 
@@ -1142,6 +1263,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowRadar(true)}>📡 Radar Seek</button>
 
       {/* My JRs */}
       {myJrs.length>0&&<div>
@@ -1209,6 +1331,8 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
       </form>
     </Sheet>}
     {showRegras&&<div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',overflowY:'auto'}}><RemuneracaoPanel onBack={()=>setShowRegras(false)}/></div>}
+    {showRadar&&<RadarSeek onClose={()=>setShowRadar(false)}/>}
+    {showHelp&&<HelpModal role="member" onClose={()=>setShowHelp(false)}/>}
   </div>;
 }
 
@@ -2630,6 +2754,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
   const [showOffers,setShowOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
   const [showBell,setShowBell]=useState(false);
+  const [showHelp,setShowHelp]=useState(false);
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -2654,6 +2779,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
               {badge>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{badge}</span>}
               <IcBell s={18} c="var(--muted)"/>
             </button>
+            <button className="icon-btn" style={{fontSize:'.9rem'}} onClick={()=>setShowHelp(true)}>❓</button>
             <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
           </div>
         }/>
@@ -2679,6 +2805,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onMarkSold={onMarkSold} onUpdateRef={updateRef} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
       {showExtrato&&<ExtratoModal role="adm" data={{adm,members,referrals,jrReferrals,seekJrs,spinRewards}} onClose={()=>setShowExtrato(false)}/>}
+      {showHelp&&<HelpModal role="adm" onClose={()=>setShowHelp(false)}/>}
     </div>
   );
 }
