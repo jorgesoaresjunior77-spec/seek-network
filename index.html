@@ -453,9 +453,9 @@ function Confirm({title,msg,onCancel,onOk}){
 }
 function TopBar({title,left,right,logo}){
   return<div className="top-bar" style={{maxWidth:640,margin:'0 auto'}}>
-    <div style={{width:44}}>{left}</div>
+    <div style={{flex:1,minWidth:44}}>{left}</div>
     {logo?<SeekNetworkMark/>:<span style={{fontWeight:800,fontSize:'.92rem',letterSpacing:'.04em'}}>{title}</span>}
-    <div style={{width:44,display:'flex',justifyContent:'flex-end'}}>{right}</div>
+    <div style={{flex:1,minWidth:44,display:'flex',justifyContent:'flex-end'}}>{right}</div>
   </div>;
 }
 function StatCard({label,value,color}){
@@ -851,7 +851,7 @@ function RemuneracaoPanel({isMaster,onBack}){
             A cada indicação cadastrada (status A Pagar), o SEEK ou SEEK JR que fez a indicação ganha automaticamente <strong>1 chance de girar a Roleta da Sorte</strong>.<br/>
             A roleta aparece no próximo login do SEEK/SEEK JR, antes do painel principal. Se houver mais de uma chance acumulada, elas são apresentadas uma por vez.
           </div>
-          <div style={{fontWeight:700,fontSize:'.78rem',marginBottom:8,color:'var(--black)'}}>Premiação (resultado ponderado por software):</div>
+          <div style={{fontWeight:700,fontSize:'.78rem',marginBottom:8,color:'var(--black)'}}>{isMaster?'Premiação (resultado ponderado por software):':'Prêmios disponíveis:'}</div>
           {SPIN_PRIZES.map(p=>(
             <div key={p.value} className="rem-row" style={{padding:'8px 0'}}>
               <div style={{display:'flex',alignItems:'center',gap:10}}>
@@ -862,7 +862,7 @@ function RemuneracaoPanel({isMaster,onBack}){
             </div>
           ))}
           <div style={{marginTop:12,padding:'10px 12px',borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.73rem',color:'var(--muted)',lineHeight:1.7}}>
-            💡 A roleta possui 6 fatias iguais visualmente, mas a probabilidade de cada prêmio é controlada por software. O valor ganho é somado ao total a receber do SEEK/JR e aparece no extrato.
+            {isMaster?'💡 A roleta possui 6 fatias iguais visualmente, mas a probabilidade de cada prêmio é controlada por software. O valor ganho é somado ao total a receber do SEEK/JR e aparece no extrato.':'💡 O valor ganho é somado ao total a receber e aparece no extrato. A cada venda confirmada pelo vendedor, você ganha 1 chance de girar.'}
           </div>
         </div>
       </div>
@@ -3459,21 +3459,27 @@ function App(){
     setOffers(u=>u.filter(o=>o.id!==id));
   }
 
-  function markRead(id,type){
+  async function markRead(id,type){
+    console.log('[markRead] chamado id='+id+' type='+type);
     if(type==='forgot'){
       setPassReqs(u=>u.map(r=>sameId(r.id,id)?{...r,resolved:true}:r));
-      db.from('pass_requests').update({resolved:true}).eq('id',id);
+      const {error}=await db.from('pass_requests').update({resolved:true}).eq('id',id);
+      if(error)console.error('[markRead] pass_requests erro:',error);
+      else console.log('[markRead] pass_requests ok');
     } else if(type==='jr'){
       setSeekJrs(u=>u.map(j=>sameId(j.id,id)?{...j,isNew:false}:j));
-      db.from('seek_jrs').update({is_new:false}).eq('id',id);
+      const {error}=await db.from('seek_jrs').update({is_new:false}).eq('id',id);
+      if(error)console.error('[markRead] seek_jrs erro:',error);
+      else console.log('[markRead] seek_jrs ok');
     } else {
+      const inRefs=referrals.some(r=>sameId(r.id,id));
+      console.log('[markRead] ref — inRefs:'+inRefs+' id:'+id);
       setReferrals(u=>u.map(r=>sameId(r.id,id)?{...r,isNew:false}:r));
       setJrReferrals(u=>u.map(r=>sameId(r.id,id)?{...r,isNew:false}:r));
-      if(referrals.some(r=>sameId(r.id,id))){
-        db.from('referrals').update({is_new:false}).eq('id',id);
-      } else {
-        db.from('jr_referrals').update({is_new:false}).eq('id',id);
-      }
+      const table=inRefs?'referrals':'jr_referrals';
+      const {error}=await db.from(table).update({is_new:false}).eq('id',id);
+      if(error)console.error('[markRead] '+table+' erro:',error);
+      else console.log('[markRead] '+table+' ok id:'+id);
     }
   }
 
