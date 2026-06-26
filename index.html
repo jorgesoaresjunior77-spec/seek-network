@@ -50,6 +50,7 @@ html,body{font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;backgrou
 @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .handle{width:38px;height:5px;background:var(--gray);border-radius:99px;margin:0 auto 18px;box-shadow:var(--nm-in);}
 .page{padding:18px 16px 100px;display:flex;flex-direction:column;gap:14px;max-width:640px;margin:0 auto;}
+.page::after{content:"Criado e Desenvolvido por Seek Network 2026";display:block;text-align:center;font-size:.6rem;color:var(--muted);opacity:.45;font-weight:600;letter-spacing:.04em;padding-top:4px;}
 .divider{height:1px;background:linear-gradient(90deg,transparent,var(--gray),transparent);margin:2px 0;}
 .stat-n{font-size:1.45rem;font-weight:800;letter-spacing:-.02em;text-shadow:1px 1px 2px rgba(0,0,0,.14);line-height:1;}
 .new-badge{position:absolute;top:-6px;right:-6px;background:var(--green);color:#fff;font-size:.6rem;font-weight:900;border-radius:99px;padding:2px 7px;box-shadow:2px 2px 6px rgba(0,0,0,.2);}
@@ -154,7 +155,7 @@ const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whats
 const mSeekJr  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,seekId:String(r.seek_id),pin:r.pin,isNew:r.is_new});
 const mPassReq =r=>({id:r.id,phone:r.phone,type:r.type,resolved:r.resolved});
 const mNotif   =r=>({id:r.id,memberId:String(r.member_id),levelId:r.level_id,dismissed:r.dismissed});
-const mOffer   =r=>({id:r.id,url:r.url,caption:r.caption});
+const mOffer   =r=>({id:r.id,url:r.url,caption:r.caption,category:r.category||'zero-km'});
 const mAdm     =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes});
 const mSpin       =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,referralId:r.referral_id?String(r.referral_id):null,value:Number(r.value),paid:r.paid||false,createdAt:r.created_at});
 const mSpinPending=r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,referralId:r.referral_id?String(r.referral_id):null,createdAt:r.created_at});
@@ -674,10 +675,10 @@ function FirstLoginScreen({userName,onSave,onLogout}){
 /* ══════════════════════════════════════════════════════════════════
    REMUNERAÇÃO PANEL
 ══════════════════════════════════════════════════════════════════ */
-function RemuneracaoPanel(){
+function RemuneracaoPanel({isMaster,onBack}){
   return(
     <div style={{maxWidth:640,margin:'0 auto'}}>
-      <TopBar title="Remuneração & Regras"/>
+      <TopBar title="Remuneração & Regras" left={onBack&&<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
       <div className="page" style={{paddingBottom:110}}>
         <div className="nm" style={{padding:'20px 18px'}}>
           <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>🏷️ Produtos & Comissões</div>
@@ -743,7 +744,7 @@ function RemuneracaoPanel(){
                 <div style={{width:16,height:16,borderRadius:'50%',background:p.color,flexShrink:0}}/>
                 <span style={{fontWeight:700,fontSize:'.84rem'}}>{p.label}</span>
               </div>
-              <span style={{fontWeight:800,fontSize:'.84rem',color:p.color}}>{(p.prob*100).toFixed(0)}% de chance</span>
+              {isMaster&&<span style={{fontWeight:800,fontSize:'.84rem',color:p.color}}>{(p.prob*100).toFixed(0)}% de chance</span>}
             </div>
           ))}
           <div style={{marginTop:12,padding:'10px 12px',borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.73rem',color:'var(--muted)',lineHeight:1.7}}>
@@ -766,6 +767,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const [showPin,setShowPin]=useState(false);
   const [showJrOffers,setShowJrOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
+  const [showRegras,setShowRegras]=useState(false);
 
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
@@ -795,6 +797,11 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}
     if(newPin!==cfPin){setPinErr('Senhas não coincidem.');return;}
     onChangePin(credKey,newPin);setOldPin('');setNewPin('');setCfPin('');setShowPin(false);alert('Senha alterada!');
+  }
+
+  function shareCard(){
+    const msg=encodeURIComponent(`Seek Network\n\nOlá, convido você para ir à Motomecânica Volkswagen e conversar com o Consultor de Vendas Junior. Você pode agendar sua visita pelo WhatsApp: (51)996509660\n\nVocê foi indicado(a) por: ${jr.name} — ID: ${jr.id}JR`);
+    window.open(`https://wa.me/?text=${msg}`,'_blank');
   }
 
   function RefForm({onClose,onSave}){
@@ -893,7 +900,11 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
         Encontrei uma Oportunidade
       </button>
 
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={15}/>Alterar Senha</button>
+      <button className="btn btn-green btn-full" style={{padding:14,gap:8,fontSize:'.86rem'}} onClick={shareCard}>📲 Compartilhar Cartão</button>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <button className="btn" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={15}/>Senha</button>
+        <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
+      </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
 
       {/* Referrals */}
@@ -933,6 +944,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
         <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={()=>setShowPin(false)}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Salvar</button></div>
       </form>
     </Sheet>}
+    {showRegras&&<div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',overflowY:'auto'}}><RemuneracaoPanel onBack={()=>setShowRegras(false)}/></div>}
   </div>;
 }
 
@@ -949,6 +961,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const [showMemberOffers,setShowMemberOffers]=useState(false);
   const [showJrOffers,setShowJrOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
+  const [showRegras,setShowRegras]=useState(false);
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
   const [cfPin,setCfPin]=useState('');
@@ -997,7 +1010,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   }
 
   function shareCard(){
-    const msg=encodeURIComponent(`SEEK — Indicações\n\nOlá! Te convido a conhecer a Motomecânica Volkswagen.\n\nID SEEK: #${String(member.id).padStart(3,'0')}\n${member.name}\n\nJunior Soares · (51)99650-9660\n\nConecte oportunidades. Multiplique resultados.`);
+    const msg=encodeURIComponent(`Seek Network\n\nOlá, convido você para ir à Motomecânica Volkswagen e conversar com o Consultor de Vendas Junior. Você pode agendar sua visita pelo WhatsApp: (51)996509660\n\nVocê foi indicado(a) por: ${member.name} — ID: #${String(member.id).padStart(3,'0')}`);
     window.open(`https://wa.me/?text=${msg}`,'_blank');
   }
 
@@ -1123,11 +1136,11 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
       <button className="btn btn-dark btn-full" style={{padding:14,marginTop:4}} onClick={()=>setShowAddJr(true)}>
         <IcPlus s={18} c="#fff"/>Cadastrar SEEK JR
       </button>
+      <button className="btn btn-green btn-full" style={{padding:14,gap:8,fontSize:'.86rem'}} onClick={shareCard}>📲 Compartilhar Cartão</button>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-        <button className="btn" style={{padding:12}} onClick={shareCard}><IcShare s={14}/>Cartão</button>
         <button className="btn" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={14}/>Senha</button>
+        <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>{setShowPin(true);setOldPin('');setNewPin('');setCfPin('');setPinErr('')}}><IcKey s={14}/>Alterar Senha</button>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
 
       {/* My JRs */}
@@ -1195,6 +1208,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={()=>setShowPin(false)}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Salvar</button></div>
       </form>
     </Sheet>}
+    {showRegras&&<div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',overflowY:'auto'}}><RemuneracaoPanel onBack={()=>setShowRegras(false)}/></div>}
   </div>;
 }
 
@@ -1480,6 +1494,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
   const [showEdit,setShowEdit]=useState(false);
   const [delMember,setDelMember]=useState(false);
   const [showCreds,setShowCreds]=useState(false);
+  const [showExtrato,setShowExtrato]=useState(false);
   const [newPin,setNewPin]=useState('');
   const [pinErr,setPinErr]=useState('');
 
@@ -1581,11 +1596,13 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
           </div>{i<myRefs.length-1&&<Div/>}</div>;
         })}
       </div>
+      <button className="btn btn-dark btn-full" style={{padding:14,marginTop:4}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
       <button className="btn btn-full" style={{color:'var(--red)',padding:14}} onClick={()=>setDelMember(true)}><IcTrash s={14}/>Excluir membro</button>
     </div>
     {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><ReferralForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral(d);setShowAdd(false);}} label="Salvar"/></Sheet>}
     {editRef&&<Sheet title="Editar Indicação" onClose={()=>setEditRef(null)}><ReferralForm initial={editRef} onCancel={()=>setEditRef(null)} onSave={d=>{onUpdateReferral(editRef.id,d);setEditRef(null);}} label="Salvar"/></Sheet>}
     {showEdit&&<EditMemberForm member={member} onClose={()=>setShowEdit(false)} onSave={d=>{onUpdateMember(member.id,d);setShowEdit(false);}}/>}
+    {showExtrato&&<ExtratoModal role="member" isAdm={true} data={{member,referrals:myRefs,jrReferrals,seekJrs,spinRewards:(spinRewards||[]).filter(s=>sameId(s.seekId,member.id))}} onClose={()=>setShowExtrato(false)} onTogglePaid={onTogglePaid}/>}
     {showCreds&&(()=>{
       const phone=cred.login?(cred.login.startsWith('55')&&cred.login.length>=12?cred.login:`55${cred.login}`):'';
       function saveP(){if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}onUpdatePin(member.id,newPin);setPinErr('');setNewPin('');setShowCreds(false);}
@@ -1755,6 +1772,7 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
   const [showAdd,setShowAdd]=useState(false);
   const [imgUrl,setImgUrl]=useState('');
   const [caption,setCaption]=useState('');
+  const [category,setCategory]=useState('zero-km');
   const [fileErr,setFileErr]=useState('');
   const [lightbox,setLightbox]=useState(null);
 
@@ -1768,8 +1786,8 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
   }
   function saveOffer(){
     if(!imgUrl){setFileErr('Selecione uma imagem.');return;}
-    onAddOffer({id:Date.now(),url:imgUrl,caption:caption.trim()});
-    setImgUrl('');setCaption('');setShowAdd(false);
+    onAddOffer({id:Date.now(),url:imgUrl,caption:caption.trim(),category});
+    setImgUrl('');setCaption('');setCategory('zero-km');setShowAdd(false);
   }
   function shareOffer(offer){
     const msg=[
@@ -1850,6 +1868,11 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
               </div>
             </label>
             {fileErr&&<div style={{color:'var(--red)',fontSize:'.76rem',fontWeight:700}}>{fileErr}</div>}
+            <div style={{display:'flex',gap:8}}>
+              {[['zero-km','🚗 Zero KM'],['semi-novo','🚘 Semi Novo']].map(([id,lbl])=>(
+                <button key={id} type="button" onClick={()=>setCategory(id)} style={{flex:1,padding:'9px 6px',borderRadius:10,border:`2px solid ${category===id?'var(--green)':'var(--gray)'}`,background:category===id?'rgba(29,122,58,.1)':'transparent',fontWeight:700,fontSize:'.78rem',cursor:'pointer',fontFamily:'inherit',color:category===id?'var(--green)':'var(--muted)'}}>{lbl}</button>
+              ))}
+            </div>
             <Fld label="Legenda (opcional)">
               <input className="inp" value={caption} onChange={e=>setCaption(e.target.value)} placeholder="Descrição da oferta..." style={{textTransform:'none'}}/>
             </Fld>
@@ -1864,20 +1887,27 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
           <Empty text={isAdm?"Nenhuma oferta. Toque em Adicionar!":"Nenhuma oferta disponível no momento."}/>
         ):(
           <div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:10}}>
-              {offers.map(offer=>(
-                <div key={offer.id}
-                  style={{cursor:'pointer',borderRadius:10,overflow:'hidden',position:'relative',aspectRatio:'9/14',boxShadow:'3px 3px 8px rgba(0,0,0,0.14),-2px -2px 6px rgba(255,255,255,0.9)'}}
-                  onClick={()=>setLightbox(offer)}>
-                  <img src={offer.url} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} alt={offer.caption||'Oferta'}/>
-                  {offer.caption&&(
-                    <div style={{position:'absolute',bottom:0,left:0,right:0,background:'linear-gradient(transparent,rgba(0,0,0,0.72))',padding:'14px 4px 4px',fontSize:'.48rem',color:'#fff',fontWeight:700,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
-                      {offer.caption}
+            {[['zero-km','🚗 Automóveis Zero KM'],['semi-novo','🚘 Automóveis Semi Novos']].map(([cat,label])=>{
+              const catOffers=offers.filter(o=>cat==='zero-km'?(o.category===cat||!o.category):o.category===cat);
+              if(catOffers.length===0)return null;
+              return<div key={cat} style={{marginBottom:16}}>
+                <div style={{fontWeight:800,fontSize:'.78rem',color:'var(--muted)',marginBottom:8,letterSpacing:'.04em'}}>{label}</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8}}>
+                  {catOffers.map(offer=>(
+                    <div key={offer.id}
+                      style={{cursor:'pointer',borderRadius:10,overflow:'hidden',position:'relative',aspectRatio:'9/14',boxShadow:'3px 3px 8px rgba(0,0,0,0.14),-2px -2px 6px rgba(255,255,255,0.9)'}}
+                      onClick={()=>setLightbox(offer)}>
+                      <img src={offer.url} style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} alt={offer.caption||'Oferta'}/>
+                      {offer.caption&&(
+                        <div style={{position:'absolute',bottom:0,left:0,right:0,background:'linear-gradient(transparent,rgba(0,0,0,0.72))',padding:'14px 4px 4px',fontSize:'.48rem',color:'#fff',fontWeight:700,lineHeight:1.2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                          {offer.caption}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>;
+            })}
             <div style={{fontSize:'.64rem',color:'var(--muted)',textAlign:'center',fontWeight:600,letterSpacing:'.04em'}}>
               Toque em uma imagem para ampliar e compartilhar
             </div>
@@ -2164,7 +2194,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
       {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} seekJrs={seekJrs} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
       {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} seekJrs={seekJrs} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
       {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,editRefDirect.memberId)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
-      {view==='remuneracao'&&<RemuneracaoPanel/>}
+      {view==='remuneracao'&&<RemuneracaoPanel isMaster={true}/>}
 
       {!inSubView&&(
         <div style={{position:'fixed',bottom:74,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 32px)',maxWidth:576,zIndex:19,padding:0}}>
@@ -2638,7 +2668,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} seekJrs={seekJrs} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
       {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} seekJrs={seekJrs} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
       {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,editRefDirect.memberId)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
-      {view==='remuneracao'&&<RemuneracaoPanel/>}
+      {view==='remuneracao'&&<RemuneracaoPanel isMaster={false}/>}
 
       {!inSubView&&(
         <div style={{position:'fixed',bottom:74,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 32px)',maxWidth:576,zIndex:19,padding:0}}>
@@ -2656,7 +2686,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
 /* ══════════════════════════════════════════════════════════════════
    EXTRATO MODAL — relatório completo para WhatsApp / Impressão
 ══════════════════════════════════════════════════════════════════ */
-function ExtratoModal({role,data,onClose}){
+function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
   const now=new Date();
   const dateStr=`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
 
@@ -2723,8 +2753,10 @@ function ExtratoModal({role,data,onClose}){
       const pts=calcPoints(totVol);
       const lv=getSeekLevel(pts);
       const totCom=referrals.reduce((s,r)=>s+r.commission,0);
+      const bonusR=spinRewards.reduce((s,r)=>s+r.value,0);
+      const bonusRUnpaid=spinRewards.filter(r=>!r.paid).reduce((s,r)=>s+r.value,0);
       const pago=referrals.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
-      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+bonusRUnpaid;
       const nextLv=lv.id==='elite'?null:SEEK_LEVELS[SEEK_LEVELS.findIndex(l=>l.id===lv.id)+1];
       const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
       return [
@@ -2734,11 +2766,11 @@ function ExtratoModal({role,data,onClose}){
         `🎖️ NÍVEL: ${lv.name.toUpperCase()}`,
         `Pontos: ${pts} pts  |  Bônus: +${(lv.bonus*100).toFixed(0)}%`,
         nextLv?`Próximo nível: ${nextLv.name} (faltam ${nextLv.min-pts} pts)`:`✅ Nível Máximo!`,``,
-        `💰 COMISSÕES`,
-        `Total Indicações: ${referrals.length}  |  Volume Total: ${fBRL(totVol)}`,
-        `Comissão Total: ${fBRL(totCom)}`,
-        `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
-        spinRewards.length>0?`🎰 Bônus Roleta - ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:null,
+        `💰 RESUMO FINANCEIRO`,
+        `Valor Vendido: ${fBRL(totVol)}`,
+        `Comissão Total: ${fBRL(totCom+bonusR)} (comissões + bônus)`,
+        `A Pagar: ${fBRL(apagar)}`,
+        bonusR>0?`🎰 Bônus Roleta: ${fBRL(bonusR)} (discriminado)`:null,
         myJrs.length>0?`\n👥 SEEK JRs (${myJrs.length})`:null,
         ...myJrs.map(jr=>{
           const jrVol=jrReferrals.filter(r=>sameId(r.jrId,jr.id)).reduce((s,r)=>s+r.productValue,0);
@@ -2750,8 +2782,10 @@ function ExtratoModal({role,data,onClose}){
       const {jr,referrals,seekMember,spinRewards=[]}=data;
       const totVol=referrals.reduce((s,r)=>s+r.productValue,0);
       const totCom=referrals.reduce((s,r)=>s+r.commission,0);
+      const bonusR=spinRewards.reduce((s,r)=>s+r.value,0);
+      const bonusRUnpaid=spinRewards.filter(r=>!r.paid).reduce((s,r)=>s+r.value,0);
       const pago=referrals.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
-      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
+      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+bonusRUnpaid;
       const jrLv=getJrLevel(totVol);
       const gradPct=Math.min(100,(totVol/JR_GRADUATION)*100).toFixed(1);
       return [
@@ -2762,13 +2796,13 @@ function ExtratoModal({role,data,onClose}){
         ``,
         `📊 DESEMPENHO`,
         `Total Indicações: ${referrals.length}`,
-        `Volume Total: ${fBRL(totVol)}`,
         `Nível JR: ${jrLv.name}  |  Bônus para SEEK: ${(jrLv.bonus*100).toFixed(0)}%`,
         `Progresso para SEEK: ${gradPct}% de ${fBRL(JR_GRADUATION)}`,``,
-        `💰 COMISSÕES`,
-        `Total: ${fBRL(totCom)}`,
-        `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
-        spinRewards.length>0?`🎰 Bônus Roleta - ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:null,
+        `💰 RESUMO FINANCEIRO`,
+        `Valor Vendido: ${fBRL(totVol)}`,
+        `Comissão Total: ${fBRL(totCom+bonusR)} (comissões + bônus)`,
+        `A Pagar: ${fBRL(apagar)}`,
+        bonusR>0?`🎰 Bônus Roleta: ${fBRL(bonusR)} (discriminado)`:null,
       ].filter(l=>l!=null).join('\n');
     }
     return '';
@@ -2797,9 +2831,25 @@ function ExtratoModal({role,data,onClose}){
           <span style={{fontWeight:900,fontSize:'1rem'}}>📋 Extrato</span>
           <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
         </div>
-        <div className="nm-in" style={{padding:'16px',marginBottom:16,fontFamily:'monospace',fontSize:'.74rem',whiteSpace:'pre-wrap',lineHeight:1.75,maxHeight:'58vh',overflowY:'auto',borderRadius:16,color:'var(--black)'}}>
+        <div className="nm-in" style={{padding:'16px',marginBottom:16,fontFamily:'monospace',fontSize:'.74rem',whiteSpace:'pre-wrap',lineHeight:1.75,maxHeight:'46vh',overflowY:'auto',borderRadius:16,color:'var(--black)'}}>
           {text}
         </div>
+        {isAdm&&onTogglePaid&&(role==='member'||role==='jr')&&(()=>{
+          const refs=(role==='member'?data.referrals:data.referrals).filter(r=>!r.paid);
+          if(refs.length===0)return null;
+          return<div style={{marginBottom:14}}>
+            <div style={{fontWeight:800,fontSize:'.76rem',color:'var(--muted)',letterSpacing:'.06em',textTransform:'uppercase',marginBottom:8}}>Indicações a pagar</div>
+            {refs.map((r,i)=>(
+              <div key={r.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'7px 0',borderBottom:i<refs.length-1?'1px solid var(--gray)':'none'}}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:'.82rem'}}>{r.clientName}</div>
+                  <div style={{fontSize:'.7rem',color:'var(--muted)'}}>{fBRL(r.commission)}</div>
+                </div>
+                <button className="pill" style={{background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',boxShadow:'2px 2px 8px rgba(29,122,58,.3)'}} onClick={()=>onTogglePaid(r.id)}>PAGAR</button>
+              </div>
+            ))}
+          </div>;
+        })()}
         <div style={{display:'flex',gap:10}}>
           <button className="btn btn-full" style={{gap:6,color:'#25D366'}} onClick={sendWhatsApp}>
             <IcWA s={15} fill="#25D366"/>WhatsApp
@@ -3272,7 +3322,7 @@ function App(){
   }
 
   async function addOffer(data){
-    const {data:saved,error}=await db.from('offers').insert({url:data.url,caption:data.caption||''}).select().single();
+    const {data:saved,error}=await db.from('offers').insert({url:data.url,caption:data.caption||'',category:data.category||'zero-km'}).select().single();
     if(error){console.error('[addOffer]',error);return;}
     setOffers(u=>[...u,mOffer(saved)]);
   }
