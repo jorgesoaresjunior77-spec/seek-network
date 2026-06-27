@@ -898,6 +898,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const monthRefs=myRefs.filter(r=>r.month===sm&&r.year===sy);
   const monthVol=monthRefs.reduce((s,r)=>s+r.productValue,0);
   const monthCom=monthRefs.reduce((s,r)=>s+r.commission,0);
+  const monthComDue=monthRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
   const totalVol=myRefs.reduce((s,r)=>s+r.productValue,0);
   const gradPct=Math.min(100,(totalVol/JR_GRADUATION)*100);
   const graduated=totalVol>=JR_GRADUATION;
@@ -906,6 +907,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const jrLvPct=jrLv.max===Infinity?100:Math.min(100,Math.round(((totalVol-jrLv.min)/(jrLv.max-jrLv.min))*100));
   const initials=jr.name.trim().slice(0,2).toUpperCase();
   const bonusRoleta=(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)).reduce((s,r)=>s+r.value,0);
+  const bonusRoletaPendente=(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)&&!s.paid).reduce((s,r)=>s+r.value,0);
 
   function changePin(e){
     e.preventDefault();setPinErr('');
@@ -972,7 +974,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
 
         {/* Stats */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
-          {[['Indicações Mês',monthRefs.length,null],['Valor Mês',fBRL(monthVol),null],['Comissão Mês',fBRL(monthCom+bonusRoleta),'var(--green)'],['Total Acumulado',fBRL(totalVol),null]].map(([l,v,c])=>(
+          {[['Indicações Mês',monthRefs.length,null],['Valor Mês',fBRL(monthVol),null],['A Receber',fBRL(monthComDue+bonusRoletaPendente),'var(--red)'],['Total Acumulado',fBRL(totalVol),null]].map(([l,v,c])=>(
             <div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c||'var(--black)'}}>{v}</div></div>
           ))}
         </div>
@@ -1119,6 +1121,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
 
   const initials=member.name.trim().slice(0,2).toUpperCase();
   const bonusRoleta=(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)).reduce((s,r)=>s+r.value,0);
+  const bonusRoletaPendente=(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid).reduce((s,r)=>s+r.value,0);
   const myLevelNotif=(levelNotifs||[]).find(n=>sameId(n.memberId,member.id)&&!n.dismissed);
   const nextLevel=level.id==='elite'?null:SEEK_LEVELS[SEEK_LEVELS.findIndex(l=>l.id===level.id)+1];
 
@@ -1231,7 +1234,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
 
         {/* Commission summary */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-          {[['Comissão Total',fBRL(monthCom),'var(--green)'],['Bônus JR',fBRL(jrBonus),'var(--green)'],['A Receber',fBRL(monthComDue+bonusRoleta),'var(--red)'],['Recebido',fBRL(monthComPaid),'var(--green)']].map(([l,v,c])=>(
+          {[['Comissão Total',fBRL(monthCom),'var(--green)'],['Bônus JR',fBRL(jrBonus),'var(--green)'],['A Receber',fBRL(monthComDue+bonusRoletaPendente),'var(--red)'],['Recebido',fBRL(monthComPaid),'var(--green)']].map(([l,v,c])=>(
             <div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c}}>{v}</div></div>
           ))}
         </div>
@@ -2073,41 +2076,68 @@ function AdmTabBar({view,setView,onOffers}){
 /* ══════════════════════════════════════════════════════════════════
    ADM LEDGER
 ══════════════════════════════════════════════════════════════════ */
-function AdmLedger({title,referrals,members,seekJrs,paid,onBack,onTogglePaid,onToggleJrPaid}){
+function AdmLedger({title,referrals,members,seekJrs,paid,onBack,onTogglePaid,onToggleJrPaid,spinRewards}){
   const fil=[...referrals].filter(r=>r.paid===paid).sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
+  const spinFil=!paid?(spinRewards||[]).filter(s=>!s.paid):[];
+  const spinTotal=spinFil.reduce((s,r)=>s+r.value,0);
+  const comTotal=fil.reduce((s,r)=>s+r.commission,0);
   return(
     <>
       <TopBar title={title} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
       <div className="page">
-        <StatCard label={paid?'Total Pago':'Total a Pagar'} value={fBRL(fil.reduce((s,r)=>s+r.commission,0))} color={paid?'var(--green)':'var(--red)'}/>
+        <StatCard label={paid?'Total Pago':'Total a Pagar'} value={fBRL(comTotal+spinTotal)} color={paid?'var(--green)':'var(--red)'}/>
         <div className="nm" style={{padding:'6px 16px'}}>
-          {fil.length===0?<Empty text={paid?'Nenhuma paga.':'Tudo em dia!'}/>:fil.map((r,i)=>{
-            const isJrRef=!!r.jrId;
-            const m=isJrRef?(seekJrs||[]).find(j=>sameId(j.id,r.jrId)):members.find(x=>sameId(x.id,r.memberId));
-            const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
-            return(
-              <div key={r.id}>
-                <div style={{padding:'12px 0'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:4}}>
-                    <div>
-                      <div style={{fontWeight:700,fontSize:'.86rem',display:'flex',alignItems:'center',gap:5}}>{m?m.name:'?'}{isJrRef&&<span className="tag-jr">JR</span>}</div>
-                      <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>{r.clientName}</div>
-                      {r.productValue>0&&<div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:2}}>{pt.icon} {pt.name} · {fBRL(r.productValue)}</div>}
+          {fil.length===0&&spinFil.length===0?<Empty text={paid?'Nenhuma paga.':'Tudo em dia!'}/>:<>
+            {fil.map((r,i)=>{
+              const isJrRef=!!r.jrId;
+              const m=isJrRef?(seekJrs||[]).find(j=>sameId(j.id,r.jrId)):members.find(x=>sameId(x.id,r.memberId));
+              const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
+              return(
+                <div key={r.id}>
+                  <div style={{padding:'12px 0'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:4}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:'.86rem',display:'flex',alignItems:'center',gap:5}}>{m?m.name:'?'}{isJrRef&&<span className="tag-jr">JR</span>}</div>
+                        <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>{r.clientName}</div>
+                        {r.productValue>0&&<div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:2}}>{pt.icon} {pt.name} · {fBRL(r.productValue)}</div>}
+                      </div>
+                      <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,flexShrink:0}}>{fDate(r)}</div>
                     </div>
-                    <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,flexShrink:0}}>{fDate(r)}</div>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                      <div style={{fontWeight:800,color:paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
+                      {paid
+                        ?<span style={{fontSize:'.72rem',fontWeight:800,color:'var(--green)',display:'inline-flex',alignItems:'center',gap:4}}><IcCheck s={11}/>Pago</span>
+                        :<button className="pill" style={{background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',boxShadow:'2px 2px 8px rgba(29,122,58,.3)'}} onClick={()=>(isJrRef&&onToggleJrPaid)?onToggleJrPaid(r.id):onTogglePaid(r.id)}>PAGAR</button>
+                      }
+                    </div>
                   </div>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                    <div style={{fontWeight:800,color:paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
-                    {paid
-                      ?<span style={{fontSize:'.72rem',fontWeight:800,color:'var(--green)',display:'inline-flex',alignItems:'center',gap:4}}><IcCheck s={11}/>Pago</span>
-                      :<button className="pill" style={{background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',boxShadow:'2px 2px 8px rgba(29,122,58,.3)'}} onClick={()=>(isJrRef&&onToggleJrPaid)?onToggleJrPaid(r.id):onTogglePaid(r.id)}>PAGAR</button>
-                    }
-                  </div>
+                  {(i<fil.length-1||spinFil.length>0)&&<Div/>}
                 </div>
-                {i<fil.length-1&&<Div/>}
-              </div>
-            );
-          })}
+              );
+            })}
+            {spinFil.map((s,i)=>{
+              const seek=s.seekId?members.find(m=>sameId(m.id,s.seekId)):null;
+              const jr=s.jrId?(seekJrs||[]).find(j=>sameId(j.id,s.jrId)):null;
+              const nome=seek?seek.name:jr?jr.name+'JR':'?';
+              const dt=s.createdAt?new Date(s.createdAt):null;
+              const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
+              return(
+                <div key={'sp_'+s.id}>
+                  <div style={{padding:'12px 0'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:10,marginBottom:4}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:'.86rem',color:'#8833BB'}}>🎰 Bônus Roleta</div>
+                        <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,marginTop:2}}>{nome}</div>
+                      </div>
+                      <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,flexShrink:0}}>{dtStr}</div>
+                    </div>
+                    <div style={{fontWeight:800,color:'var(--red)'}}>{fBRL(s.value)}</div>
+                  </div>
+                  {i<spinFil.length-1&&<Div/>}
+                </div>
+              );
+            })}
+          </>}
         </div>
       </div>
     </>
@@ -2315,8 +2345,8 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
       </>}
       {view==='membros'&&<AdmMembers members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={selAdm?d=>onAddMember(d,selAdm.id):null} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
-      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} seekJrs={seekJrs} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
-      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} seekJrs={seekJrs} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
+      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} seekJrs={seekJrs} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} spinRewards={spinRewards}/>}
+      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} seekJrs={seekJrs} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} spinRewards={spinRewards}/>}
       {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,editRefDirect.memberId)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={true}/>}
 
@@ -2791,8 +2821,8 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} showPaymentReminder={true}/>}
       {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={d=>onAddMember(d,adm.id)} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
-      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} seekJrs={seekJrs} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
-      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} seekJrs={seekJrs} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
+      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} seekJrs={seekJrs} paid={false} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} spinRewards={spinRewards}/>}
+      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} seekJrs={seekJrs} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} spinRewards={spinRewards}/>}
       {view==='editRef'&&editRefDirect&&<AdmMemberDetail member={members.find(m=>sameId(m.id,editRefDirect.memberId))||{id:0,name:'?'}} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,editRefDirect.memberId)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={false}/>}
 
@@ -2803,7 +2833,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       )}
       {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)}/>}
       {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onMarkSold={onMarkSold} onUpdateRef={updateRef} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
-      {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
+      {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
       {showExtrato&&<ExtratoModal role="adm" data={{adm,members,referrals,jrReferrals,seekJrs,spinRewards}} onClose={()=>setShowExtrato(false)}/>}
       {showHelp&&<HelpModal role="adm" onClose={()=>setShowHelp(false)}/>}
     </div>
@@ -3245,12 +3275,18 @@ function App(){
       db.from('credentials').delete().eq('key',midStr),
       ...jrIds.map(jid=>db.from('credentials').delete().eq('key',`jr_${jid}`)),
       db.from('members').delete().eq('id',mid),
+      db.from('spin_rewards').delete().eq('seek_id',midStr),
+      jrIds.length?db.from('spin_rewards').delete().in('jr_id',jrIds):Promise.resolve(),
+      db.from('spin_pending').delete().eq('seek_id',midStr),
+      jrIds.length?db.from('spin_pending').delete().in('jr_id',jrIds):Promise.resolve(),
     ]);
     setMembers(u=>u.filter(m=>!sameId(m.id,mid)));
     setSeekJrs(u=>u.filter(j=>!sameId(j.seekId,mid)));
     setReferrals(u=>u.filter(r=>!sameId(r.memberId,mid)));
     setJrReferrals(u=>u.filter(r=>!jrIds.some(jid=>sameId(r.jrId,jid))));
     setCredentials(u=>{const nc={...u};delete nc[midStr];jrIds.forEach(jid=>delete nc[`jr_${jid}`]);return nc;});
+    setSpinRewards(u=>u.filter(s=>!sameId(s.seekId,mid)&&!jrIds.some(jid=>sameId(s.jrId,jid))));
+    setPendingSpins(u=>u.filter(s=>!sameId(s.seekId,mid)&&!jrIds.some(jid=>sameId(s.jrId,jid))));
   }
 
   async function deleteSeekJr(jid){
@@ -3259,10 +3295,14 @@ function App(){
       db.from('jr_referrals').delete().eq('jr_id',jidStr),
       db.from('credentials').delete().eq('key',`jr_${jidStr}`),
       db.from('seek_jrs').delete().eq('id',jidStr),
+      db.from('spin_rewards').delete().eq('jr_id',jidStr),
+      db.from('spin_pending').delete().eq('jr_id',jidStr),
     ]);
     setSeekJrs(u=>u.filter(j=>!sameId(j.id,jid)));
     setJrReferrals(u=>u.filter(r=>!sameId(r.jrId,jid)));
     setCredentials(u=>{const nc={...u};delete nc[`jr_${jidStr}`];return nc;});
+    setSpinRewards(u=>u.filter(s=>!sameId(s.jrId,jid)));
+    setPendingSpins(u=>u.filter(s=>!sameId(s.jrId,jid)));
   }
 
   async function addAdm(data){
@@ -3343,7 +3383,8 @@ function App(){
     const paidAt=newPaid?new Date().toISOString():null;
     setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
     setSpinRewards(u=>u.map(s=>sameId(s.referralId,rid)?{...s,paid:newPaid}:s));
-    db.from('spin_rewards').update({paid:newPaid}).eq('referral_id',String(rid));
+    const {error:spinErr}=await db.from('spin_rewards').update({paid:newPaid}).eq('referral_id',String(rid));
+    if(spinErr)console.error('[togglePaid] spin_rewards erro:',spinErr);
     let {error}=await db.from('referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
     if(error&&error.code==='42703')({error}=await db.from('referrals').update({paid:newPaid}).eq('id',rid));
     if(error){console.error('[togglePaid]',error);setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:ref.paid,status:ref.status,paidAt:ref.paidAt}:r));}
@@ -3432,7 +3473,8 @@ function App(){
     const paidAt=newPaid?new Date().toISOString():null;
     setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
     setSpinRewards(u=>u.map(s=>sameId(s.referralId,rid)?{...s,paid:newPaid}:s));
-    db.from('spin_rewards').update({paid:newPaid}).eq('referral_id',String(rid));
+    const {error:spinErr}=await db.from('spin_rewards').update({paid:newPaid}).eq('referral_id',String(rid));
+    if(spinErr)console.error('[toggleJrPaid] spin_rewards erro:',spinErr);
     let {error}=await db.from('jr_referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
     if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({paid:newPaid}).eq('id',rid));
     if(error){console.error('[toggleJrPaid]',error);setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:ref.paid,status:ref.status,paidAt:ref.paidAt}:r));}
@@ -3450,7 +3492,7 @@ function App(){
 
   async function addOffer(data){
     const {data:saved,error}=await db.from('offers').insert({url:data.url,caption:data.caption||'',category:data.category||'zero-km'}).select().single();
-    if(error){console.error('[addOffer]',error);return;}
+    if(error){console.error('[addOffer]',error);setDbError('Erro ao salvar oferta: '+error.message);return;}
     setOffers(u=>[...u,mOffer(saved)]);
   }
 
