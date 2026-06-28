@@ -2861,86 +2861,103 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   A PAGAR POR SEEK — lista organizada por SEEK para o VENDEDOR
+   LEDGER POR SEEK — A Pagar e Pagas organizados por SEEK/JR
 ══════════════════════════════════════════════════════════════════ */
-function APagarPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,onBack,onPayAllForSeek}){
-  const unpaidRefs=referrals.filter(r=>!r.paid);
-  const unpaidJrRefs=jrReferrals.filter(r=>!r.paid);
-  const unpaidSpins=(spinRewards||[]).filter(s=>!s.paid);
-  const total=unpaidRefs.reduce((s,r)=>s+r.commission,0)+unpaidJrRefs.reduce((s,r)=>s+r.commission,0)+unpaidSpins.reduce((s,r)=>s+r.value,0);
-  const groups=members.map(m=>{
+function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,paid,onBack,onPayAllForSeek}){
+  const allSpins=spinRewards||[];
+  const filtRefs=referrals.filter(r=>r.paid===paid);
+  const filtJrRefs=jrReferrals.filter(r=>r.paid===paid);
+  const filtSpins=paid?allSpins.filter(s=>s.paid):allSpins.filter(s=>!s.paid);
+  const total=filtRefs.reduce((s,r)=>s+r.commission,0)+filtJrRefs.reduce((s,r)=>s+r.commission,0)+filtSpins.reduce((s,r)=>s+r.value,0);
+  const comColor=paid?'var(--green)':'var(--red)';
+
+  /* flat list: [seek-entry, jr-entry, jr-entry, seek-entry, ...] */
+  const entries=[];
+  members.forEach(m=>{
     const myJrs=seekJrs.filter(j=>sameId(j.seekId,m.id));
-    const refs=unpaidRefs.filter(r=>sameId(r.memberId,m.id));
-    const spins=unpaidSpins.filter(s=>sameId(s.seekId,m.id));
-    const jrGroups=myJrs.map(jr=>{
-      const jr_refs=unpaidJrRefs.filter(r=>sameId(r.jrId,jr.id));
-      const jr_spins=unpaidSpins.filter(s=>sameId(s.jrId,jr.id));
-      if(!jr_refs.length&&!jr_spins.length)return null;
-      return{jr,refs:jr_refs,spins:jr_spins};
-    }).filter(Boolean);
-    const subtotal=refs.reduce((s,r)=>s+r.commission,0)+spins.reduce((s,r)=>s+r.value,0)+jrGroups.reduce((sg,g)=>sg+g.refs.reduce((s,r)=>s+r.commission,0)+g.spins.reduce((s,r)=>s+r.value,0),0);
-    if(!refs.length&&!spins.length&&!jrGroups.length)return null;
-    return{m,refs,spins,jrGroups,subtotal};
-  }).filter(Boolean);
-  function renderRef(r){
+    const refs=filtRefs.filter(r=>sameId(r.memberId,m.id));
+    const spins=filtSpins.filter(s=>sameId(s.seekId,m.id));
+    if(refs.length||spins.length)
+      entries.push({type:'seek',m,refs,spins,sub:refs.reduce((s,r)=>s+r.commission,0)+spins.reduce((s,r)=>s+r.value,0)});
+    myJrs.forEach(jr=>{
+      const jr_refs=filtJrRefs.filter(r=>sameId(r.jrId,jr.id));
+      const jr_spins=filtSpins.filter(s=>sameId(s.jrId,jr.id));
+      if(jr_refs.length||jr_spins.length)
+        entries.push({type:'jr',jr,seekName:m.name,seekId:m.id,refs:jr_refs,spins:jr_spins,sub:jr_refs.reduce((s,r)=>s+r.commission,0)+jr_spins.reduce((s,r)=>s+r.value,0)});
+    });
+  });
+
+  function refRow(r){
     const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
     return(
-      <div key={r.id}>
-        <div style={{padding:'10px 0'}}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
-            <div style={{fontWeight:700,fontSize:'.84rem'}}>{r.clientName}</div>
-            <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
-          </div>
-          <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:4}}>{pt.icon} {pt.name} · {fBRL(r.productValue)}</div>
-          <div style={{fontWeight:800,color:'var(--red)'}}>{fBRL(r.commission)}</div>
+      <div key={r.id} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',padding:'4px 0 4px 8px'}}>
+        <div style={{flex:1,minWidth:0,paddingRight:8}}>
+          <span style={{fontWeight:700,fontSize:'.82rem'}}>{r.clientName}</span>
+          <span style={{fontSize:'.68rem',color:'var(--muted)',marginLeft:5}}>{pt.icon} {pt.name}</span>
         </div>
-        <Div/>
+        <div style={{flexShrink:0,textAlign:'right'}}>
+          <div style={{fontWeight:800,fontSize:'.8rem',color:comColor}}>{fBRL(r.commission)}</div>
+          <div style={{fontSize:'.62rem',color:'var(--muted)'}}>{fDate(r)}</div>
+        </div>
       </div>
     );
   }
-  function renderSpin(s,prefix){
+
+  function spinRow(s,prefix){
     const dt=s.createdAt?new Date(s.createdAt):null;
     const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
     return(
-      <div key={prefix+s.id}>
-        <div style={{padding:'10px 0'}}>
-          <div style={{display:'flex',justifyContent:'space-between',marginBottom:2}}>
-            <div style={{fontWeight:700,fontSize:'.84rem',color:'#8833BB'}}>🎰 Bônus Roleta</div>
-            <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{dtStr}</div>
-          </div>
-          <div style={{fontWeight:800,color:'var(--red)'}}>{fBRL(s.value)}</div>
+      <div key={prefix+s.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0 4px 8px'}}>
+        <span style={{fontWeight:700,fontSize:'.82rem',color:'#8833BB'}}>Roleta</span>
+        <div style={{textAlign:'right'}}>
+          <div style={{fontWeight:800,fontSize:'.8rem',color:comColor}}>{fBRL(s.value)}</div>
+          <div style={{fontSize:'.62rem',color:'var(--muted)'}}>{dtStr}</div>
         </div>
-        <Div/>
       </div>
     );
   }
+
+  function EntryCard({e}){
+    const isSeek=e.type==='seek';
+    return(
+      <div className="nm" style={{padding:'12px 16px',marginBottom:6}}>
+        <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
+          <div style={{fontWeight:900,fontSize:'.9rem'}}>{isSeek?e.m.name:e.jr.name}</div>
+          {!isSeek&&<span className="tag-jr">JR</span>}
+          {!isSeek&&<span style={{fontSize:'.67rem',color:'var(--muted)',fontWeight:600}}>de {e.seekName}</span>}
+        </div>
+        {e.refs.length>0&&(
+          <>
+            <div style={{fontSize:'.63rem',fontWeight:900,color:'var(--muted)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:3}}>📋 Comissões</div>
+            {e.refs.map(r=>refRow(r))}
+            <div style={{marginBottom:6}}/>
+          </>
+        )}
+        {e.spins.length>0&&(
+          <>
+            <div style={{fontSize:'.63rem',fontWeight:900,color:'var(--muted)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:3}}>🎰 Bônus Roleta</div>
+            {e.spins.map(s=>spinRow(s,isSeek?'sp_':'jrsp_'))}
+            <div style={{marginBottom:6}}/>
+          </>
+        )}
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:8,borderTop:'1.5px solid rgba(0,0,0,.07)'}}>
+          <span style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>Subtotal</span>
+          <span style={{fontWeight:900,color:comColor,fontSize:'.9rem'}}>{fBRL(e.sub)}</span>
+        </div>
+        {!paid&&isSeek&&onPayAllForSeek&&(
+          <button style={{width:'100%',marginTop:10,padding:'10px 0',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',borderRadius:12,boxShadow:'2px 2px 8px rgba(29,122,58,.3)',fontFamily:'inherit',fontWeight:900,fontSize:'.8rem',cursor:'pointer'}} onClick={()=>onPayAllForSeek(e.m.id)}>PAGAR TUDO — {e.m.name}</button>
+        )}
+      </div>
+    );
+  }
+
   return(
     <>
-      <TopBar title="A Pagar" left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
+      <TopBar title={paid?'Comissões Pagas':'A Pagar'} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
       <div className="page">
-        <StatCard label="Total a Pagar" value={fBRL(total)} color="var(--red)"/>
-        {groups.length===0&&<Empty text="Tudo em dia!"/>}
-        {groups.map(({m,refs,spins,jrGroups,subtotal})=>(
-          <React.Fragment key={m.id}>
-            <div className="section-title" style={{paddingLeft:4}}>{m.name}</div>
-            <div className="nm" style={{padding:'4px 16px'}}>
-              {refs.map(r=>renderRef(r))}
-              {spins.map(s=>renderSpin(s,'sp_'))}
-              {jrGroups.map(({jr,refs:jr_refs,spins:jr_spins})=>(
-                <div key={'jr_'+jr.id}>
-                  <div style={{fontSize:'.68rem',fontWeight:900,color:'var(--muted)',padding:'6px 0 2px',textTransform:'uppercase',letterSpacing:'.07em',display:'flex',alignItems:'center',gap:6}}>{jr.name}<span className="tag-jr">JR</span></div>
-                  {jr_refs.map(r=>renderRef(r))}
-                  {jr_spins.map(s=>renderSpin(s,'jrsp_'))}
-                </div>
-              ))}
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 0'}}>
-                <span style={{fontWeight:800,fontSize:'.84rem'}}>Subtotal</span>
-                <span style={{fontWeight:900,color:'var(--red)',fontSize:'.9rem'}}>{fBRL(subtotal)}</span>
-              </div>
-              <button style={{width:'100%',marginBottom:8,padding:'11px 0',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',borderRadius:14,boxShadow:'2px 2px 8px rgba(29,122,58,.3)',fontFamily:'inherit',fontWeight:900,fontSize:'.82rem',cursor:'pointer'}} onClick={()=>onPayAllForSeek(m.id)}>PAGAR TUDO — {m.name}</button>
-            </div>
-          </React.Fragment>
-        ))}
+        <StatCard label={paid?'Total Pago':'Total a Pagar'} value={fBRL(total)} color={paid?'var(--green)':'var(--red)'}/>
+        {entries.length===0&&<Empty text={paid?'Nenhuma comissão paga.':'Tudo em dia!'}/>}
+        {entries.map(e=><EntryCard key={e.type==='seek'?'seek_'+e.m.id:'jr_'+e.jr.id} e={e}/>)}
       </div>
     </>
   );
@@ -2993,8 +3010,8 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} showPaymentReminder={true}/>}
       {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={d=>onAddMember(d,adm.id)} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} onToggleSpinPaid={onToggleSpinPaid}/>}
-      {view==='pending'&&<APagarPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek}/>}
-      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} seekJrs={seekJrs} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} spinRewards={spinRewards} onToggleSpinPaid={onToggleSpinPaid}/>}
+      {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek}/>}
+      {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} paid={true} onBack={()=>setView('dashboard')}/>}
       {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} onToggleSpinPaid={onToggleSpinPaid}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={false}/>}
 
