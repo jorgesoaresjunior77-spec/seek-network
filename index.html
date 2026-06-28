@@ -813,63 +813,62 @@ function RemuneracaoPanel({isMaster,onBack}){
    A PAGAR MODAL — somente visualização (SEEK / SEEK JR)
 ══════════════════════════════════════════════════════════════════ */
 function APagarModal({commissions,spinItems,allRefs=[],onClose}){
-  const total=commissions.reduce((s,r)=>s+r.commission,0)+spinItems.reduce((s,r)=>s+r.value,0);
+  const comTotal=commissions.reduce((s,r)=>s+r.commission,0);
+  const spinTotal=spinItems.reduce((s,r)=>s+r.value,0);
+  const total=comTotal+spinTotal;
+  const allLookup=[...allRefs,...commissions];
+  const avulsos=spinItems.filter(s=>!allLookup.some(r=>sameId(r.id,s.referralId)));
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="handle"/>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
           <span style={{fontWeight:900,fontSize:'1rem'}}>💰 A Receber</span>
           <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
         </div>
-        <div className="nm-in" style={{padding:'12px 16px',marginBottom:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-          <span style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em'}}>Total a Receber</span>
-          <span style={{fontWeight:900,fontSize:'1.1rem',color:'var(--red)'}}>{fBRL(total)}</span>
-        </div>
-        <div style={{overflowY:'auto',maxHeight:'60vh'}}>
+        <div style={{overflowY:'auto',maxHeight:'64vh'}}>
           {commissions.length===0&&spinItems.length===0&&<Empty text="Nenhum item pendente!"/>}
-          {commissions.length>0&&<>
-            <div style={{fontSize:'.62rem',fontWeight:900,color:'var(--muted)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6,paddingLeft:2}}>📋 Minhas Comissões</div>
-            <div className="nm" style={{padding:'4px 16px',marginBottom:12}}>
-              {commissions.map((r,i)=>{
-                const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
-                return<div key={r.id}><div style={{padding:'10px 0'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontWeight:700,fontSize:'.84rem'}}>{r.clientName}</div>
-                      <div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:2}}>{pt.icon} {pt.name}</div>
+          <div className="nm" style={{padding:'0 14px'}}>
+            {commissions.map((r,i)=>{
+              const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
+              const linked=spinItems.find(s=>sameId(s.referralId,r.id));
+              return(
+                <React.Fragment key={r.id}>
+                  <div style={{padding:'11px 0'}}>
+                    <div style={{fontWeight:800,fontSize:'.8rem',marginBottom:3}}>Cliente: {r.clientName}</div>
+                    <div style={{fontSize:'.68rem',color:'var(--muted)',lineHeight:1.6}}>
+                      {pt.icon} {pt.name}&nbsp;·&nbsp;Venda: {fBRL(r.productValue)}&nbsp;·&nbsp;Comissão: <span style={{color:'var(--red)',fontWeight:800}}>{fBRL(r.commission)}</span>
                     </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontWeight:800,fontSize:'.82rem',color:'var(--red)'}}>{fBRL(r.commission)}</div>
-                      <div style={{fontSize:'.62rem',color:'var(--muted)'}}>{fDate(r)}</div>
-                    </div>
+                    {linked&&<div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:700,marginTop:3}}>🎰 Bônus Roleta desta indicação: {fBRL(linked.value)}</div>}
                   </div>
-                </div>{i<commissions.length-1&&<Div/>}</div>;
-              })}
-            </div>
-          </>}
-          {spinItems.length>0&&<>
-            <div style={{fontSize:'.62rem',fontWeight:900,color:'var(--muted)',letterSpacing:'.1em',textTransform:'uppercase',marginBottom:6,paddingLeft:2}}>🎰 Meus Bônus Roleta</div>
-            <div className="nm" style={{padding:'4px 16px',marginBottom:12}}>
-              {spinItems.map((s,i)=>{
-                const dt=s.createdAt?new Date(s.createdAt):null;
-                const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
-                const linked=[...allRefs,...commissions].find(r=>sameId(r.id,s.referralId));
-                return<div key={'s_'+s.id}><div style={{padding:'10px 0'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-                    <div style={{flex:1}}>
-                      <div style={{fontWeight:700,fontSize:'.84rem',color:'#8833BB'}}>Roleta</div>
-                      {linked&&<div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:2}}>Ref. {linked.clientName}</div>}
-                    </div>
-                    <div style={{textAlign:'right',flexShrink:0}}>
-                      <div style={{fontWeight:800,fontSize:'.82rem',color:'var(--red)'}}>{fBRL(s.value)}</div>
-                      <div style={{fontSize:'.62rem',color:'var(--muted)'}}>{dtStr}</div>
-                    </div>
+                  {(i<commissions.length-1||avulsos.length>0)&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
+                </React.Fragment>
+              );
+            })}
+            {avulsos.map((s,i)=>{
+              const dt=s.createdAt?new Date(s.createdAt):null;
+              const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
+              return(
+                <React.Fragment key={'av_'+s.id}>
+                  <div style={{padding:'10px 0'}}>
+                    <div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:800}}>🎰 Bônus Roleta Avulso</div>
+                    <div style={{fontSize:'.67rem',color:'var(--muted)',marginTop:2}}>{fBRL(s.value)}{dtStr?` · ${dtStr}`:''}</div>
                   </div>
-                </div>{i<spinItems.length-1&&<Div/>}</div>;
-              })}
-            </div>
-          </>}
+                  {i<avulsos.length-1&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
+                </React.Fragment>
+              );
+            })}
+            {(commissions.length>0||spinItems.length>0)&&<div style={{borderTop:'2px solid rgba(0,0,0,.06)',padding:'10px 0 12px'}}>
+              <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                {comTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>Comissões: <span style={{color:'var(--red)',fontWeight:800}}>{fBRL(comTotal)}</span></div>}
+                {spinTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>Bônus Roleta: <span style={{color:'#8833BB',fontWeight:800}}>{fBRL(spinTotal)}</span></div>}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
+                  <span style={{fontSize:'.62rem',fontWeight:800,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em'}}>💰 Total a Receber</span>
+                  <span style={{fontWeight:900,fontSize:'1rem',color:'var(--red)'}}>{fBRL(total)}</span>
+                </div>
+              </div>
+            </div>}
+          </div>
         </div>
       </div>
     </div>
@@ -2407,8 +2406,8 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
       </>}
       {view==='membros'&&<AdmMembers members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={selAdm?d=>onAddMember(d,selAdm.id):null} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>}
-      {view==='pending'&&<AdmLedger title="A Pagar" referrals={allRefs} members={members} seekJrs={seekJrs} paid={false} onBack={()=>setView('dashboard')} spinRewards={spinRewards} readOnly={true}/>}
-      {view==='paid'&&<AdmLedger title="Comissões Pagas" referrals={allRefs} members={members} seekJrs={seekJrs} paid={true} onBack={()=>setView('dashboard')} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} spinRewards={spinRewards} onToggleSpinPaid={onToggleSpinPaid}/>}
+      {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} paid={false} onBack={()=>setView('dashboard')} readOnly={true}/>}
+      {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} paid={true} onBack={()=>setView('dashboard')} readOnly={true}/>}
       {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,_m.id)} onUpdateReferral={onUpdateReferral} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={true}/>}
 
@@ -2802,7 +2801,7 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
             const st=getStatus(r);
             const digits=(r.whatsapp||'').replace(/\D/g,'');
             const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
-            return<div key={r.id} style={{borderRadius:14,padding:'10px 12px',marginBottom:6,background:r.isNew?'var(--bg-up)':'transparent',border:r.isNew?'1.5px solid rgba(29,122,58,.15)':'1.5px solid rgba(0,0,0,.04)',cursor:'pointer'}} onClick={()=>setEditItem({ref:r,isJr})}>
+            return<div key={r.id} style={{borderRadius:14,padding:'10px 12px',marginBottom:6,background:r.isNew?'var(--bg-up)':'transparent',border:r.isNew?'1.5px solid rgba(29,122,58,.15)':'1.5px solid rgba(0,0,0,.04)',cursor:'pointer'}} onClick={()=>{if(r.isNew)onMarkRead(r.id);setEditItem({ref:r,isJr});}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:4}}>
                 <div style={{flex:1}}>
                   {r.isNew&&<span style={{display:'inline-block',width:7,height:7,borderRadius:'50%',background:'var(--red)',marginRight:6,verticalAlign:'middle'}}/>}
@@ -2818,10 +2817,9 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
               </div>
               {r.productValue>0&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:r.observacoes?4:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name||'Automóvel'} · {fBRL(r.productValue)} · <span style={{color:'var(--green)',fontWeight:700}}>{fBRL(r.commission)}</span></div>}
               {r.observacoes&&<div style={{fontSize:'.68rem',color:'var(--muted)',fontStyle:'italic',marginBottom:6}}>💬 {r.observacoes}</div>}
-              <div style={{display:'flex',gap:6,alignItems:'center'}} onClick={e=>e.stopPropagation()}>
-                {st==='aguardando'&&<button style={{padding:'5px 12px',borderRadius:10,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontFamily:'inherit',fontWeight:900,fontSize:'.72rem',boxShadow:'2px 2px 8px rgba(29,122,58,.4)'}} onClick={()=>setEditItem({ref:r,isJr})}>✅ Vendido</button>}
-                <button className="btn" style={{padding:'5px 9px',fontSize:'.7rem',color:'var(--muted)',marginLeft:'auto'}} onClick={()=>onMarkRead(r.id)}>✓ Lido</button>
-              </div>
+              {st==='aguardando'&&<div onClick={e=>e.stopPropagation()}>
+                <button style={{padding:'5px 12px',borderRadius:10,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontFamily:'inherit',fontWeight:900,fontSize:'.72rem',boxShadow:'2px 2px 8px rgba(29,122,58,.4)'}} onClick={()=>{if(r.isNew)onMarkRead(r.id);setEditItem({ref:r,isJr});}}>✅ Vendido</button>
+              </div>}
             </div>;
           })}
         </div>}
@@ -2839,7 +2837,7 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
 /* ══════════════════════════════════════════════════════════════════
    LEDGER POR SEEK — A Pagar e Pagas organizados por SEEK/JR
 ══════════════════════════════════════════════════════════════════ */
-function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,paid,onBack,onPayAllForSeek,onPayAllForJr}){
+function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false}){
   const allSpins=spinRewards||[];
   const filtRefs=paid?referrals.filter(r=>r.paid):referrals.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0));
   const filtJrRefs=paid?jrReferrals.filter(r=>r.paid):jrReferrals.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0));
@@ -2847,7 +2845,6 @@ function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,paid,o
   const total=filtRefs.reduce((s,r)=>s+r.commission,0)+filtJrRefs.reduce((s,r)=>s+r.commission,0)+filtSpins.reduce((s,r)=>s+r.value,0);
   const comColor=paid?'var(--green)':'var(--red)';
 
-  /* flat list: [seek-entry, jr-entry, jr-entry, seek-entry, ...] */
   const entries=[];
   members.forEach(m=>{
     const myJrs=seekJrs.filter(j=>sameId(j.seekId,m.id));
@@ -2863,69 +2860,61 @@ function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,paid,o
     });
   });
 
-  function refRow(r){
-    const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
-    return(
-      <div key={r.id} style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',padding:'4px 0 4px 8px'}}>
-        <div style={{flex:1,minWidth:0,paddingRight:8}}>
-          <span style={{fontWeight:700,fontSize:'.82rem'}}>{r.clientName}</span>
-          <span style={{fontSize:'.68rem',color:'var(--muted)',marginLeft:5}}>{pt.icon} {pt.name}</span>
-        </div>
-        <div style={{flexShrink:0,textAlign:'right'}}>
-          <div style={{fontWeight:800,fontSize:'.8rem',color:comColor}}>{fBRL(r.commission)}</div>
-          <div style={{fontSize:'.62rem',color:'var(--muted)'}}>{fDate(r)}</div>
-        </div>
-      </div>
-    );
-  }
-
-  function spinRow(s,prefix){
-    const dt=s.createdAt?new Date(s.createdAt):null;
-    const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
-    return(
-      <div key={prefix+s.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'4px 0 4px 8px'}}>
-        <span style={{fontWeight:700,fontSize:'.82rem',color:'#8833BB'}}>Roleta</span>
-        <div style={{textAlign:'right'}}>
-          <div style={{fontWeight:800,fontSize:'.8rem',color:comColor}}>{fBRL(s.value)}</div>
-          <div style={{fontSize:'.62rem',color:'var(--muted)'}}>{dtStr}</div>
-        </div>
-      </div>
-    );
-  }
-
   function EntryCard({e}){
     const isSeek=e.type==='seek';
+    const name=isSeek?e.m.name:e.jr.name;
+    const comTotal=e.refs.reduce((s,r)=>s+r.commission,0);
+    const spinTotal=e.spins.reduce((s,r)=>s+r.value,0);
+    const avulsos=e.spins.filter(s=>!e.refs.some(r=>sameId(s.referralId,r.id)));
+    const showPay=!paid&&!readOnly;
     return(
-      <div className="nm" style={{padding:'12px 16px',marginBottom:6}}>
-        <div style={{display:'flex',alignItems:'center',gap:7,marginBottom:10}}>
-          <div style={{fontWeight:900,fontSize:'.9rem'}}>{isSeek?e.m.name:e.jr.name}</div>
+      <div style={{marginBottom:12}}>
+        <div style={{background:'rgba(0,0,0,.04)',borderRadius:'12px 12px 0 0',padding:'10px 14px',display:'flex',alignItems:'center',gap:7}}>
+          <span style={{fontWeight:900,fontSize:'.88rem'}}>👤 {name}</span>
           {!isSeek&&<span className="tag-jr">JR</span>}
-          {!isSeek&&<span style={{fontSize:'.67rem',color:'var(--muted)',fontWeight:600}}>de {e.seekName}</span>}
+          {!isSeek&&<span style={{fontSize:'.66rem',color:'var(--muted)',fontWeight:600}}>— JR de {e.seekName}</span>}
         </div>
-        {e.refs.length>0&&(
-          <>
-            <div style={{fontSize:'.63rem',fontWeight:900,color:'var(--muted)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:3}}>📋 Comissões</div>
-            {e.refs.map(r=>refRow(r))}
-            <div style={{marginBottom:6}}/>
-          </>
-        )}
-        {e.spins.length>0&&(
-          <>
-            <div style={{fontSize:'.63rem',fontWeight:900,color:'var(--muted)',letterSpacing:'.09em',textTransform:'uppercase',marginBottom:3}}>🎰 Bônus Roleta</div>
-            {e.spins.map(s=>spinRow(s,isSeek?'sp_':'jrsp_'))}
-            <div style={{marginBottom:6}}/>
-          </>
-        )}
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:8,borderTop:'1.5px solid rgba(0,0,0,.07)'}}>
-          <span style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>Subtotal</span>
-          <span style={{fontWeight:900,color:comColor,fontSize:'.9rem'}}>{fBRL(e.sub)}</span>
+        <div className="nm" style={{borderRadius:showPay?'0':'0 0 12px 12px',padding:'0 14px'}}>
+          {e.refs.map((r,i)=>{
+            const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
+            const linked=e.spins.find(s=>sameId(s.referralId,r.id));
+            return(
+              <React.Fragment key={r.id}>
+                <div style={{padding:'11px 0'}}>
+                  <div style={{fontWeight:800,fontSize:'.8rem',marginBottom:3}}>Cliente: {r.clientName}</div>
+                  <div style={{fontSize:'.68rem',color:'var(--muted)',lineHeight:1.6}}>
+                    {pt.icon} {pt.name}&nbsp;·&nbsp;Venda: {fBRL(r.productValue)}&nbsp;·&nbsp;Comissão: <span style={{color:comColor,fontWeight:800}}>{fBRL(r.commission)}</span>
+                  </div>
+                  {linked&&<div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:700,marginTop:3}}>🎰 Bônus Roleta desta indicação: {fBRL(linked.value)}</div>}
+                </div>
+                {(i<e.refs.length-1||avulsos.length>0)&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
+              </React.Fragment>
+            );
+          })}
+          {avulsos.map((s,i)=>{
+            const dt=s.createdAt?new Date(s.createdAt):null;
+            const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
+            return(
+              <React.Fragment key={'av_'+s.id}>
+                <div style={{padding:'10px 0'}}>
+                  <div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:800}}>🎰 Bônus Roleta Avulso</div>
+                  <div style={{fontSize:'.67rem',color:'var(--muted)',marginTop:2}}>{fBRL(s.value)}{dtStr?` · ${dtStr}`:''}</div>
+                </div>
+                {i<avulsos.length-1&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
+              </React.Fragment>
+            );
+          })}
+          <div style={{borderTop:'2px solid rgba(0,0,0,.06)',padding:'10px 0'+(showPay?'':' 12px')}}>
+            <div style={{fontSize:'.61rem',fontWeight:900,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:5}}>📊 Subtotal {name}</div>
+            <div style={{display:'flex',flexDirection:'column',gap:3,paddingLeft:4}}>
+              {comTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>Comissões: <span style={{color:comColor,fontWeight:800}}>{fBRL(comTotal)}</span></div>}
+              {spinTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>Bônus Roleta: <span style={{color:'#8833BB',fontWeight:800}}>{fBRL(spinTotal)}</span></div>}
+              <div style={{fontSize:'.75rem',fontWeight:900,marginTop:2}}>TOTAL: <span style={{color:comColor}}>{fBRL(e.sub)}</span></div>
+            </div>
+          </div>
         </div>
-        {!paid&&isSeek&&onPayAllForSeek&&(
-          <button style={{width:'100%',marginTop:10,padding:'10px 0',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',borderRadius:12,boxShadow:'2px 2px 8px rgba(29,122,58,.3)',fontFamily:'inherit',fontWeight:900,fontSize:'.8rem',cursor:'pointer'}} onClick={()=>onPayAllForSeek(e.m.id)}>PAGAR TUDO — {e.m.name}</button>
-        )}
-        {!paid&&!isSeek&&onPayAllForJr&&(
-          <button style={{width:'100%',marginTop:10,padding:'10px 0',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',borderRadius:12,boxShadow:'2px 2px 8px rgba(29,122,58,.3)',fontFamily:'inherit',fontWeight:900,fontSize:'.8rem',cursor:'pointer'}} onClick={()=>onPayAllForJr(e.jr.id)}>PAGAR TUDO — {e.jr.name}</button>
-        )}
+        {showPay&&isSeek&&onPayAllForSeek&&<button style={{width:'100%',padding:'11px 0',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',borderRadius:'0 0 12px 12px',boxShadow:'2px 4px 12px rgba(29,122,58,.35)',fontFamily:'inherit',fontWeight:900,fontSize:'.8rem',cursor:'pointer'}} onClick={()=>onPayAllForSeek(e.m.id)}>PAGAR TUDO — {name}</button>}
+        {showPay&&!isSeek&&onPayAllForJr&&<button style={{width:'100%',padding:'11px 0',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',borderRadius:'0 0 12px 12px',boxShadow:'2px 4px 12px rgba(29,122,58,.35)',fontFamily:'inherit',fontWeight:900,fontSize:'.8rem',cursor:'pointer'}} onClick={()=>onPayAllForJr(e.jr.id)}>PAGAR TUDO — {name}</button>}
       </div>
     );
   }
@@ -2934,9 +2923,12 @@ function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,paid,o
     <>
       <TopBar title={paid?'Comissões Pagas':'A Pagar'} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
       <div className="page">
-        <StatCard label={paid?'Total Pago':'Total a Pagar'} value={fBRL(total)} color={paid?'var(--green)':'var(--red)'}/>
         {entries.length===0&&<Empty text={paid?'Nenhuma comissão paga.':'Tudo em dia!'}/>}
         {entries.map(e=><EntryCard key={e.type==='seek'?'seek_'+e.m.id:'jr_'+e.jr.id} e={e}/>)}
+        {entries.length>0&&<div style={{padding:'14px 16px',background:'var(--black)',borderRadius:14,color:'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
+          <span style={{fontSize:'.7rem',fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',opacity:.75}}>{paid?'Total Pago':'💰 Total Geral a Pagar'}</span>
+          <span style={{fontWeight:900,fontSize:'.95rem'}}>{fBRL(total)}</span>
+        </div>}
       </div>
     </>
   );
