@@ -673,67 +673,6 @@ function FirstLoginScreen({userName,onSave,onLogout}){
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   RADAR SEEK — notícias VW via RSS
-══════════════════════════════════════════════════════════════════ */
-function RadarSeek({onClose}){
-  const [news,setNews]=useState([]);
-  const [loading,setLoading]=useState(true);
-  const [err,setErr]=useState('');
-  const feeds=[
-    'https://www.motor1.com.br/rss/news/',
-    'https://quatrorodas.abril.com.br/feed/',
-    'https://www.noticiasautomotivas.com.br/feed/',
-    'https://www.uol.com.br/carros/rss.xml',
-  ];
-  async function load(){
-    setLoading(true);setErr('');
-    try{
-      const results=await Promise.allSettled(feeds.map(async url=>{
-        const r=await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(url)+'&count=40');
-        const d=await r.json();
-        if(d.status!=='ok')return[];
-        return d.items.filter(it=>/volkswagen|\bvw\b/i.test(it.title));
-      }));
-      const all=results.flatMap(r=>r.status==='fulfilled'?r.value:[]);
-      const seen=new Set();
-      const deduped=all.filter(it=>{if(seen.has(it.link))return false;seen.add(it.link);return true;});
-      deduped.sort((a,b)=>new Date(b.pubDate||0)-new Date(a.pubDate||0));
-      setNews(deduped);
-      if(deduped.length===0)setErr('Nenhuma notícia sobre Volkswagen encontrada no momento.');
-    }catch(e){
-      setErr('Erro ao carregar notícias.');
-    }finally{
-      setLoading(false);
-    }
-  }
-  React.useEffect(()=>{load();},[]);
-  return(
-    <div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',display:'flex',flexDirection:'column',maxWidth:640,margin:'0 auto'}}>
-      <TopBar title="📡 Radar Seek" left={<button className="icon-btn" onClick={onClose}><IcLeft s={18}/></button>} right={<button className="icon-btn" onClick={load} style={{fontSize:'1rem'}}>{loading?'⌛':'🔄'}</button>}/>
-      <div style={{flex:1,overflowY:'auto',padding:'0 16px 100px'}}>
-        {loading&&<div style={{textAlign:'center',padding:40,color:'var(--muted)',fontWeight:700}}>Buscando notícias...</div>}
-        {!loading&&err&&<div style={{textAlign:'center',padding:30,color:'var(--red)',fontWeight:700}}>{err}<br/><br/><button className="btn btn-dark" style={{padding:'10px 22px'}} onClick={load}>🔄 Tentar novamente</button></div>}
-        {!loading&&!err&&news.map((item,i)=>(
-          <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" style={{textDecoration:'none',color:'inherit',display:'block',marginBottom:12}}>
-            <div className="nm" style={{padding:0,overflow:'hidden'}}>
-              {item.thumbnail&&item.thumbnail.startsWith('http')&&<img src={item.thumbnail} alt="" style={{width:'100%',maxHeight:180,objectFit:'cover',display:'block'}}/>}
-              <div style={{padding:'12px 14px'}}>
-                <div style={{fontWeight:800,fontSize:'.86rem',lineHeight:1.45,marginBottom:6,color:'var(--black)'}}>{item.title}</div>
-                {item.description&&<div style={{fontSize:'.74rem',color:'var(--muted)',lineHeight:1.65,marginBottom:6}}>{item.description.replace(/<[^>]+>/g,'').slice(0,160)}{item.description.length>160?'…':''}</div>}
-                <div style={{fontSize:'.66rem',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{color:'var(--muted)'}}>{item.pubDate?new Date(item.pubDate).toLocaleDateString('pt-BR'):''}</span>
-                  <span style={{color:'var(--green)',fontWeight:800}}>Ler mais →</span>
-                </div>
-              </div>
-            </div>
-          </a>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════════
    HELP MODAL
 ══════════════════════════════════════════════════════════════════ */
 const HELP_ITEMS={
@@ -931,7 +870,6 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const [showJrOffers,setShowJrOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
   const [showRegras,setShowRegras]=useState(false);
-  const [showRadar,setShowRadar]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const [showAPagar,setShowAPagar]=useState(false);
 
@@ -1076,7 +1014,6 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowRadar(true)}>📡 Radar Seek</button>
 
       {/* Referrals */}
       <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
@@ -1117,7 +1054,6 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
       </form>
     </Sheet>}
     {showRegras&&<div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',overflowY:'auto'}}><RemuneracaoPanel onBack={()=>setShowRegras(false)}/></div>}
-    {showRadar&&<RadarSeek onClose={()=>setShowRadar(false)}/>}
     {showHelp&&<HelpModal role="jr" onClose={()=>setShowHelp(false)}/>}
   </div>;
 }
@@ -1136,7 +1072,6 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const [showJrOffers,setShowJrOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
   const [showRegras,setShowRegras]=useState(false);
-  const [showRadar,setShowRadar]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const [showAPagar,setShowAPagar]=useState(false);
   const [oldPin,setOldPin]=useState('');
@@ -1322,7 +1257,6 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowRadar(true)}>📡 Radar Seek</button>
 
       {/* My JRs */}
       {myJrs.length>0&&<div>
@@ -1391,7 +1325,6 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
       </form>
     </Sheet>}
     {showRegras&&<div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',overflowY:'auto'}}><RemuneracaoPanel onBack={()=>setShowRegras(false)}/></div>}
-    {showRadar&&<RadarSeek onClose={()=>setShowRadar(false)}/>}
     {showHelp&&<HelpModal role="member" onClose={()=>setShowHelp(false)}/>}
   </div>;
 }
