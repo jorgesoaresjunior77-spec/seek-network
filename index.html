@@ -2120,21 +2120,64 @@ function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
 /* ══════════════════════════════════════════════════════════════════
    FIPE — CONSULTA
 ══════════════════════════════════════════════════════════════════ */
+function FipeResultadoCard({r,onNova}){
+  const lbl={color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'};
+  const val=r.Valor||r.valor;
+  const marca=r.Marca||r.marca;
+  const modelo=r.Modelo||r.modelo;
+  const anoModelo=r.AnoModelo||r.anoModelo||r.ano;
+  const combustivel=r.Combustivel||r.combustivel;
+  const codigoFipe=r.CodigoFipe||r.codigoFipe||r.codigo;
+  const mesRef=r.MesReferencia||r.mesReferencia;
+  return(
+    <div className="nm" style={{padding:'20px 18px',marginBottom:12}}>
+      <div style={{textAlign:'center',marginBottom:16}}>
+        <div style={{fontSize:'2rem',fontWeight:900,color:'var(--green)'}}>{val}</div>
+        <div style={{fontSize:'.65rem',color:'var(--muted)',fontWeight:700,marginTop:2,letterSpacing:'.06em',textTransform:'uppercase'}}>Preço Médio FIPE</div>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 16px',fontSize:'.75rem',marginBottom:16}}>
+        {codigoFipe&&<div><span style={lbl}>Código FIPE</span><span style={{fontWeight:800}}>{codigoFipe}</span></div>}
+        {combustivel&&<div><span style={lbl}>Combustível</span><span style={{fontWeight:800}}>{combustivel}</span></div>}
+        {marca&&<div><span style={lbl}>Marca</span><span style={{fontWeight:800}}>{marca}</span></div>}
+        {anoModelo&&<div><span style={lbl}>Ano Modelo</span><span style={{fontWeight:800}}>{anoModelo}</span></div>}
+        {modelo&&<div style={{gridColumn:'1/-1'}}><span style={lbl}>Modelo</span><span style={{fontWeight:800}}>{modelo}</span></div>}
+        {mesRef&&<div style={{gridColumn:'1/-1'}}><span style={lbl}>Referência</span><span style={{fontWeight:800}}>{mesRef}</span></div>}
+      </div>
+      <button className="btn btn-full" style={{padding:12}} onClick={onNova}>🔄 Nova Consulta</button>
+    </div>
+  );
+}
+
 function FipeConsulta(){
   const FIPE_BASE='https://parallelum.com.br/fipe/api/v1';
   const TIPOS=[{id:'carros',l:'🚗 Carro'},{id:'motos',l:'🏍️ Moto'},{id:'caminhoes',l:'🚛 Caminhão'}];
   const ERR='Não foi possível carregar os dados FIPE. Verifique sua conexão.';
+  const ERR_PLACA='Consulta por placa indisponível no momento. Use a busca por Marca/Modelo.';
 
+  const [modo,setModo]=React.useState('marca');
+
+  // ── Marca/Modelo ──
   const [tipo,setTipo]=React.useState(null);
   const [marcas,setMarcas]=React.useState([]);
-  const [marca,setMarca]=React.useState('');
+  const [marcaTexto,setMarcaTexto]=React.useState('');
+  const [marcaCodigo,setMarcaCodigo]=React.useState('');
+  const [marcaAberta,setMarcaAberta]=React.useState(false);
   const [modelos,setModelos]=React.useState([]);
-  const [modelo,setModelo]=React.useState('');
+  const [modeloTexto,setModeloTexto]=React.useState('');
+  const [modeloCodigo,setModeloCodigo]=React.useState('');
+  const [modeloAberto,setModeloAberto]=React.useState(false);
   const [anos,setAnos]=React.useState([]);
   const [ano,setAno]=React.useState('');
   const [resultado,setResultado]=React.useState(null);
   const [loading,setLoading]=React.useState('');
   const [erro,setErro]=React.useState('');
+
+  // ── Placa ──
+  const [tipoPlaca,setTipoPlaca]=React.useState('mercosul');
+  const [placa,setPlaca]=React.useState('');
+  const [resultadoPlaca,setResultadoPlaca]=React.useState(null);
+  const [loadingPlaca,setLoadingPlaca]=React.useState(false);
+  const [erroPlaca,setErroPlaca]=React.useState('');
 
   async function apiFetch(url){
     const r=await fetch(url);
@@ -2143,27 +2186,31 @@ function FipeConsulta(){
   }
 
   async function onTipo(t){
-    setTipo(t);setMarcas([]);setMarca('');setModelos([]);setModelo('');setAnos([]);setAno('');setResultado(null);setErro('');
+    setTipo(t);
+    setMarcas([]);setMarcaTexto('');setMarcaCodigo('');setMarcaAberta(false);
+    setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);
+    setAnos([]);setAno('');setResultado(null);setErro('');
     setLoading('marcas');
     try{const d=await apiFetch(`${FIPE_BASE}/${t}/marcas`);setMarcas(d);}
     catch(e){setErro(ERR);}
     finally{setLoading('');}
   }
 
-  async function onMarca(v){
-    setMarca(v);setModelos([]);setModelo('');setAnos([]);setAno('');setResultado(null);setErro('');
-    if(!v)return;
+  async function onMarcaSelect(codigo,nome){
+    setMarcaTexto(nome);setMarcaCodigo(codigo);setMarcaAberta(false);
+    setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);
+    setAnos([]);setAno('');setResultado(null);setErro('');
     setLoading('modelos');
-    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${v}/modelos`);setModelos(d.modelos||d);}
+    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${codigo}/modelos`);setModelos(d.modelos||d);}
     catch(e){setErro(ERR);}
     finally{setLoading('');}
   }
 
-  async function onModelo(v){
-    setModelo(v);setAnos([]);setAno('');setResultado(null);setErro('');
-    if(!v)return;
+  async function onModeloSelect(codigo,nome){
+    setModeloTexto(nome);setModeloCodigo(codigo);setModeloAberto(false);
+    setAnos([]);setAno('');setResultado(null);setErro('');
     setLoading('anos');
-    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${marca}/modelos/${v}/anos`);setAnos(d);}
+    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${marcaCodigo}/modelos/${codigo}/anos`);setAnos(d);}
     catch(e){setErro(ERR);}
     finally{setLoading('');}
   }
@@ -2172,12 +2219,70 @@ function FipeConsulta(){
     setAno(v);setResultado(null);setErro('');
     if(!v)return;
     setLoading('resultado');
-    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${marca}/modelos/${modelo}/anos/${v}`);setResultado(d);}
+    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${marcaCodigo}/modelos/${modeloCodigo}/anos/${v}`);setResultado(d);}
     catch(e){setErro(ERR);}
     finally{setLoading('');}
   }
 
-  function reset(){setTipo(null);setMarcas([]);setMarca('');setModelos([]);setModelo('');setAnos([]);setAno('');setResultado(null);setErro('');}
+  function reset(){
+    setTipo(null);
+    setMarcas([]);setMarcaTexto('');setMarcaCodigo('');setMarcaAberta(false);
+    setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);
+    setAnos([]);setAno('');setResultado(null);setErro('');
+  }
+
+  function clearMarca(){
+    setMarcaTexto('');setMarcaCodigo('');setMarcaAberta(false);
+    setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);
+    setAnos([]);setAno('');setResultado(null);
+  }
+
+  function clearModelo(){
+    setModeloTexto('');setModeloCodigo('');setModeloAberto(false);
+    setAnos([]);setAno('');setResultado(null);
+  }
+
+  const marcasFiltradas=marcaTexto.length>=2
+    ?marcas.filter(m=>m.nome.toLowerCase().includes(marcaTexto.toLowerCase()))
+    :[];
+
+  const modelosFiltrados=modeloTexto.length>=2
+    ?modelos.filter(m=>m.nome.toLowerCase().includes(modeloTexto.toLowerCase()))
+    :[];
+
+  function mascaraPlaca(val,tp){
+    const s=val.replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
+    if(tp==='mercosul') return s.slice(0,7);
+    const r=s.slice(0,7);
+    return r.length>3?r.slice(0,3)+'-'+r.slice(3):r;
+  }
+
+  function onPlacaChange(e){
+    setPlaca(mascaraPlaca(e.target.value,tipoPlaca));
+    setResultadoPlaca(null);setErroPlaca('');
+  }
+
+  function onTipoPlacaChange(t){
+    setTipoPlaca(t);setPlaca('');setResultadoPlaca(null);setErroPlaca('');
+  }
+
+  async function consultarPlaca(){
+    const p=placa.replace('-','');
+    if(!p)return;
+    setLoadingPlaca(true);setResultadoPlaca(null);setErroPlaca('');
+    try{
+      const d=await apiFetch(`https://placa-fipe.vercel.app/api/${p}`);
+      if(d&&(d.Valor||d.valor)){setResultadoPlaca(d);}
+      else{setErroPlaca(ERR_PLACA);}
+    }catch(e){
+      setErroPlaca(ERR_PLACA);
+    }finally{setLoadingPlaca(false);}
+  }
+
+  const dropStyle={position:'absolute',top:'100%',left:0,right:0,background:'var(--card,#fff)',border:'1.5px solid var(--border,#e5e7eb)',borderRadius:10,zIndex:200,maxHeight:200,overflowY:'auto',boxShadow:'0 4px 16px rgba(0,0,0,.13)',marginTop:2};
+  const dropItemStyle={padding:'10px 14px',cursor:'pointer',fontSize:'.82rem',borderBottom:'1px solid var(--border,#f3f4f6)'};
+  const dropEmptyStyle={padding:'12px 14px',color:'var(--muted)',fontSize:'.78rem'};
+  const clearBtnStyle={background:'none',border:'none',cursor:'pointer',fontSize:'1rem',padding:'0 4px',color:'var(--muted)',lineHeight:1,flexShrink:0};
 
   return(
     <div className="page" style={{paddingBottom:120}}>
@@ -2185,82 +2290,166 @@ function FipeConsulta(){
         <span style={{fontSize:'.6rem',fontWeight:900,letterSpacing:'.14em',color:'var(--muted)',textTransform:'uppercase'}}>Tabela FIPE</span>
       </div>
 
-      <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-        <span className="label">Tipo de Veículo</span>
-        <div style={{display:'flex',gap:8}}>
-          {TIPOS.map(({id,l})=>(
-            <button key={id} className={`btn${tipo===id?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>onTipo(id)}>{l}</button>
-          ))}
+      <div className="nm" style={{padding:'10px 12px',marginBottom:12}}>
+        <div style={{display:'flex',gap:6}}>
+          <button className={`btn${modo==='marca'?' btn-dark':''}`} style={{flex:1,padding:'9px 4px',fontSize:'.73rem'}} onClick={()=>setModo('marca')}>🔍 Por Marca/Modelo</button>
+          <button className={`btn${modo==='placa'?' btn-dark':''}`} style={{flex:1,padding:'9px 4px',fontSize:'.73rem'}} onClick={()=>setModo('placa')}>🚗 Por Placa</button>
         </div>
       </div>
 
-      {tipo&&(
-        <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-          <span className="label">Marca</span>
-          {loading==='marcas'
-            ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
-            :<select className="inp" value={marca} onChange={e=>onMarca(e.target.value)} disabled={marcas.length===0}>
-              <option value="">Selecione a marca</option>
-              {marcas.map(m=><option key={m.codigo} value={m.codigo}>{m.nome}</option>)}
-            </select>
-          }
-        </div>
-      )}
-
-      {marca&&(
-        <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-          <span className="label">Modelo</span>
-          {loading==='modelos'
-            ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
-            :<select className="inp" value={modelo} onChange={e=>onModelo(e.target.value)} disabled={modelos.length===0}>
-              <option value="">Selecione o modelo</option>
-              {modelos.map(m=><option key={m.codigo} value={m.codigo}>{m.nome}</option>)}
-            </select>
-          }
-        </div>
-      )}
-
-      {modelo&&(
-        <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-          <span className="label">Ano</span>
-          {loading==='anos'
-            ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
-            :<select className="inp" value={ano} onChange={e=>onAno(e.target.value)} disabled={anos.length===0}>
-              <option value="">Selecione o ano</option>
-              {anos.map(a=><option key={a.codigo} value={a.codigo}>{a.nome}</option>)}
-            </select>
-          }
-        </div>
-      )}
-
-      {loading==='resultado'&&(
-        <div className="nm" style={{padding:24,textAlign:'center',marginBottom:12}}>
-          <div style={{color:'var(--muted)',fontSize:'.85rem'}}>Buscando dados FIPE...</div>
-        </div>
-      )}
-
-      {resultado&&loading===''&&(
-        <div className="nm" style={{padding:'20px 18px',marginBottom:12}}>
-          <div style={{textAlign:'center',marginBottom:16}}>
-            <div style={{fontSize:'2rem',fontWeight:900,color:'var(--green)'}}>{resultado.Valor}</div>
-            <div style={{fontSize:'.65rem',color:'var(--muted)',fontWeight:700,marginTop:2,letterSpacing:'.06em',textTransform:'uppercase'}}>Preço Médio FIPE</div>
+      {modo==='marca'&&(
+        <React.Fragment>
+          <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+            <span className="label">Tipo de Veículo</span>
+            <div style={{display:'flex',gap:8}}>
+              {TIPOS.map(({id,l})=>(
+                <button key={id} className={`btn${tipo===id?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>onTipo(id)}>{l}</button>
+              ))}
+            </div>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 16px',fontSize:'.75rem',marginBottom:16}}>
-            <div><span style={{color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'}}>Código FIPE</span><span style={{fontWeight:800}}>{resultado.CodigoFipe}</span></div>
-            <div><span style={{color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'}}>Combustível</span><span style={{fontWeight:800}}>{resultado.Combustivel}</span></div>
-            <div><span style={{color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'}}>Marca</span><span style={{fontWeight:800}}>{resultado.Marca}</span></div>
-            <div><span style={{color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'}}>Ano Modelo</span><span style={{fontWeight:800}}>{resultado.AnoModelo}</span></div>
-            <div style={{gridColumn:'1/-1'}}><span style={{color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'}}>Modelo</span><span style={{fontWeight:800}}>{resultado.Modelo}</span></div>
-            <div style={{gridColumn:'1/-1'}}><span style={{color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'}}>Referência</span><span style={{fontWeight:800}}>{resultado.MesReferencia}</span></div>
-          </div>
-          <button className="btn btn-full" style={{padding:12}} onClick={reset}>🔄 Nova Consulta</button>
-        </div>
+
+          {tipo&&(
+            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+              <span className="label">Marca</span>
+              {loading==='marcas'
+                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+                :<div style={{position:'relative'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <input
+                      className="inp"
+                      style={{flex:1,margin:0}}
+                      placeholder="Digite a marca..."
+                      value={marcaTexto}
+                      onChange={e=>{
+                        const v=e.target.value;
+                        setMarcaTexto(v);setMarcaCodigo('');
+                        setMarcaAberta(v.length>=2);
+                        if(!v)clearMarca();
+                      }}
+                      onFocus={()=>{if(marcaTexto.length>=2&&!marcaCodigo)setMarcaAberta(true);}}
+                      onBlur={()=>setTimeout(()=>setMarcaAberta(false),200)}
+                    />
+                    {marcaTexto&&<button style={clearBtnStyle} onClick={clearMarca}>✕</button>}
+                  </div>
+                  {marcaAberta&&(
+                    <div style={dropStyle}>
+                      {marcasFiltradas.length===0
+                        ?<div style={dropEmptyStyle}>Nenhuma marca encontrada para "{marcaTexto}"</div>
+                        :marcasFiltradas.map(m=>(
+                          <div key={m.codigo} style={dropItemStyle} onMouseDown={()=>onMarcaSelect(m.codigo,m.nome)}>{m.nome}</div>
+                        ))
+                      }
+                    </div>
+                  )}
+                </div>
+              }
+            </div>
+          )}
+
+          {marcaCodigo&&(
+            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+              <span className="label">Modelo</span>
+              {loading==='modelos'
+                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+                :<div style={{position:'relative'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <input
+                      className="inp"
+                      style={{flex:1,margin:0}}
+                      placeholder="Digite o modelo..."
+                      value={modeloTexto}
+                      onChange={e=>{
+                        const v=e.target.value;
+                        setModeloTexto(v);setModeloCodigo('');
+                        setModeloAberto(v.length>=2);
+                        if(!v)clearModelo();
+                      }}
+                      onFocus={()=>{if(modeloTexto.length>=2&&!modeloCodigo)setModeloAberto(true);}}
+                      onBlur={()=>setTimeout(()=>setModeloAberto(false),200)}
+                    />
+                    {modeloTexto&&<button style={clearBtnStyle} onClick={clearModelo}>✕</button>}
+                  </div>
+                  {modeloAberto&&(
+                    <div style={dropStyle}>
+                      {modelosFiltrados.length===0
+                        ?<div style={dropEmptyStyle}>Nenhum modelo encontrado para "{modeloTexto}"</div>
+                        :modelosFiltrados.map(m=>(
+                          <div key={m.codigo} style={dropItemStyle} onMouseDown={()=>onModeloSelect(m.codigo,m.nome)}>{m.nome}</div>
+                        ))
+                      }
+                    </div>
+                  )}
+                </div>
+              }
+            </div>
+          )}
+
+          {modeloCodigo&&(
+            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+              <span className="label">Ano</span>
+              {loading==='anos'
+                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+                :<select className="inp" value={ano} onChange={e=>onAno(e.target.value)} disabled={anos.length===0}>
+                  <option value="">Selecione o ano</option>
+                  {anos.map(a=><option key={a.codigo} value={a.codigo}>{a.nome}</option>)}
+                </select>
+              }
+            </div>
+          )}
+
+          {loading==='resultado'&&(
+            <div className="nm" style={{padding:24,textAlign:'center',marginBottom:12}}>
+              <div style={{color:'var(--muted)',fontSize:'.85rem'}}>Buscando dados FIPE...</div>
+            </div>
+          )}
+
+          {resultado&&loading===''&&<FipeResultadoCard r={resultado} onNova={reset}/>}
+
+          {erro&&(
+            <div style={{padding:'14px 16px',color:'var(--red)',fontSize:'.8rem',fontWeight:700,background:'rgba(220,38,38,.08)',borderRadius:14,marginBottom:12}}>
+              ⚠️ {erro}
+            </div>
+          )}
+        </React.Fragment>
       )}
 
-      {erro&&(
-        <div style={{padding:'14px 16px',color:'var(--red)',fontSize:'.8rem',fontWeight:700,background:'rgba(220,38,38,.08)',borderRadius:14,marginBottom:12}}>
-          ⚠️ {erro}
-        </div>
+      {modo==='placa'&&(
+        <React.Fragment>
+          <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+            <span className="label">Tipo de Placa</span>
+            <div style={{display:'flex',gap:8,marginBottom:16}}>
+              <button className={`btn${tipoPlaca==='mercosul'?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>onTipoPlacaChange('mercosul')}>🔵 Mercosul (ABC1D23)</button>
+              <button className={`btn${tipoPlaca==='antiga'?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>onTipoPlacaChange('antiga')}>⬜ Antiga (ABC-1234)</button>
+            </div>
+            <span className="label">Placa</span>
+            <input
+              className="inp"
+              placeholder={tipoPlaca==='mercosul'?'Ex: ABC1D23':'Ex: ABC-1234'}
+              value={placa}
+              onChange={onPlacaChange}
+              maxLength={tipoPlaca==='mercosul'?7:8}
+              style={{textTransform:'uppercase',letterSpacing:'.1em',fontWeight:700,fontSize:'1.1rem'}}
+            />
+            <button
+              className="btn btn-full btn-dark"
+              style={{marginTop:10,padding:12,fontSize:'.85rem'}}
+              onClick={consultarPlaca}
+              disabled={loadingPlaca||(tipoPlaca==='mercosul'?placa.length!==7:placa.length!==8)}
+            >
+              {loadingPlaca?'Consultando...':'🔍 Consultar'}
+            </button>
+          </div>
+
+          {resultadoPlaca&&!loadingPlaca&&(
+            <FipeResultadoCard r={resultadoPlaca} onNova={()=>{setPlaca('');setResultadoPlaca(null);setErroPlaca('');}}/>
+          )}
+
+          {erroPlaca&&(
+            <div style={{padding:'14px 16px',color:'var(--red)',fontSize:'.8rem',fontWeight:700,background:'rgba(220,38,38,.08)',borderRadius:14,marginBottom:12}}>
+              ⚠️ {erroPlaca}
+            </div>
+          )}
+        </React.Fragment>
       )}
     </div>
   );
