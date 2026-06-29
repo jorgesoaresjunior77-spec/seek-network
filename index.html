@@ -892,6 +892,67 @@ function APagarModal({commissions,spinItems,allRefs=[],onClose}){
   );
 }
 
+function BonusRoletaModal({spinItems,allRefs=[],onClose}){
+  const sorted=[...spinItems].sort((a,b)=>{
+    if(a.paid!==b.paid)return a.paid?1:-1;
+    if(!a.createdAt||!b.createdAt)return 0;
+    return new Date(b.createdAt)-new Date(a.createdAt);
+  });
+  const totalPendente=spinItems.filter(s=>!s.paid).reduce((t,s)=>t+s.value,0);
+  const totalGeral=spinItems.reduce((t,s)=>t+s.value,0);
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
+        <div className="handle"/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <span style={{fontWeight:900,fontSize:'1rem'}}>🎰 Bônus Roleta</span>
+          <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+        </div>
+        <div style={{overflowY:'auto',maxHeight:'64vh'}}>
+          {spinItems.length===0&&<Empty text="Nenhum bônus roleta ainda!"/>}
+          <div className="nm" style={{padding:'0 14px'}}>
+            {sorted.map((s,i)=>{
+              const ref=allRefs.find(r=>sameId(r.id,s.referralId));
+              const clientName=ref?ref.clientName:'Avulso';
+              const dt=s.createdAt?new Date(s.createdAt):null;
+              const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
+              return(
+                <React.Fragment key={s.id}>
+                  <div style={{padding:'11px 0'}}>
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+                      <div>
+                        <div style={{fontWeight:800,fontSize:'.8rem',color:'#8833BB',marginBottom:3}}>🎰 Roleta — ref. {clientName}</div>
+                        <div style={{fontSize:'.68rem',color:'var(--muted)',lineHeight:1.6}}>
+                          {fBRL(s.value)}{dtStr?` · ${dtStr}`:''}
+                        </div>
+                      </div>
+                      <span style={{fontSize:'.68rem',fontWeight:800,padding:'3px 9px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:s.paid?'var(--green)':'var(--red)',flexShrink:0,whiteSpace:'nowrap'}}>
+                        {s.paid?'Pago':'A Pagar'}
+                      </span>
+                    </div>
+                  </div>
+                  {i<sorted.length-1&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
+                </React.Fragment>
+              );
+            })}
+            {spinItems.length>0&&(
+              <div style={{borderTop:'2px solid rgba(0,0,0,.06)',padding:'10px 0 12px'}}>
+                <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                  {totalPendente>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>A Pagar: <span style={{color:'var(--red)',fontWeight:800}}>{fBRL(totalPendente)}</span></div>}
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
+                    <span style={{fontSize:'.62rem',fontWeight:800,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em'}}>🎰 Total Geral</span>
+                    <span style={{fontWeight:900,fontSize:'1rem',color:'#8833BB'}}>{fBRL(totalGeral)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════════════════════════════════════════════════════════
    SEEK JR PANEL
 ══════════════════════════════════════════════════════════════════ */
@@ -906,6 +967,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const [showRegras,setShowRegras]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const [showAPagar,setShowAPagar]=useState(false);
+  const [showBonusRoleta,setShowBonusRoleta]=useState(false);
 
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
@@ -1002,13 +1064,13 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
               :<div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c||'var(--black)'}}>{v}</div></div>
           ))}
         </div>
-        {bonusRoletaPendente>0&&<div className="nm-in" style={{padding:'12px 14px',marginBottom:4}}>
+        {bonusRoleta>0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>🎰 Bônus Roleta pendente</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>+ {fBRL(bonusRoletaPendente)}</div>
+            <div style={{fontSize:'.72rem',fontWeight:800,color:'#8833BB'}}>🎰 Bônus Roleta ▸</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:bonusRoletaPendente>0?'var(--red)':'var(--green)'}}>{bonusRoletaPendente>0?'+ '+fBRL(bonusRoletaPendente):'✓ Pago'}</div>
           </div>
-          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>Incluído no total A Receber · toque no card para ver detalhes</div>
-        </div>}
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{bonusRoletaPendente>0?'Incluído no total A Receber':'Tudo pago!'} · Total: {fBRL(bonusRoleta)}</div>
+        </button>}
 
         {/* Graduation bar */}
         {graduated&&<div style={{marginBottom:10,padding:'8px 14px',borderRadius:12,background:'rgba(29,122,58,0.1)',fontSize:'.76rem',fontWeight:800,color:'var(--green)',textAlign:'center'}}>🎓 Graduado para SEEK!</div>}
@@ -1078,6 +1140,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     {showJrOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowJrOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
     {showExtrato&&<ExtratoModal role="jr" data={{jr,referrals:referrals.filter(r=>sameId(r.jrId,jr.id)),seekMember,spinRewards:(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id))}} onClose={()=>setShowExtrato(false)}/>}
     {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.jrId,jr.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)&&!s.paid)} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowAPagar(false)}/>}
+    {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id))} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowBonusRoleta(false)}/>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
       <form onSubmit={changePin} style={{display:'flex',flexDirection:'column',gap:18}}>
         <Fld label="Senha Atual"><PinInput value={oldPin} onChange={setOldPin} autoFocus/></Fld>
@@ -1108,6 +1171,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const [showRegras,setShowRegras]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const [showAPagar,setShowAPagar]=useState(false);
+  const [showBonusRoleta,setShowBonusRoleta]=useState(false);
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
   const [cfPin,setCfPin]=useState('');
@@ -1265,13 +1329,13 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
               :<div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c}}>{v}</div></div>
           ))}
         </div>
-        {bonusRoletaPendente>0&&<div className="nm-in" style={{padding:'12px 14px',marginTop:10}}>
+        {bonusRoleta>0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:10,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>🎰 Bônus Roleta pendente</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>+ {fBRL(bonusRoletaPendente)}</div>
+            <div style={{fontSize:'.72rem',fontWeight:800,color:'#8833BB'}}>🎰 Bônus Roleta ▸</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:bonusRoletaPendente>0?'var(--red)':'var(--green)'}}>{bonusRoletaPendente>0?'+ '+fBRL(bonusRoletaPendente):'✓ Pago'}</div>
           </div>
-          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>Incluído no total A Receber · toque no card para ver detalhes</div>
-        </div>}
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{bonusRoletaPendente>0?'Incluído no total A Receber':'Tudo pago!'} · Total: {fBRL(bonusRoleta)}</div>
+        </button>}
       </div>
 
       {/* Medals showcase */}
@@ -1349,6 +1413,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     {showMemberOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowMemberOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
     {showExtrato&&<ExtratoModal role="member" data={{member,referrals:referrals.filter(r=>sameId(r.memberId,member.id)),jrReferrals,seekJrs,spinRewards:(spinRewards||[]).filter(s=>sameId(s.seekId,member.id))}} onClose={()=>setShowExtrato(false)}/>}
     {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.memberId,member.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid)} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowAPagar(false)}/>}
+    {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id))} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowBonusRoleta(false)}/>}
     {showAdd&&<Sheet title="Encontrei uma Oportunidade" onClose={()=>setShowAdd(false)}><RefForm onClose={()=>setShowAdd(false)} onSave={onAddReferral}/></Sheet>}
     {showAddJr&&<Sheet title="Cadastrar SEEK JR" onClose={()=>setShowAddJr(false)}><JrForm onClose={()=>setShowAddJr(false)} onSave={onAddJr}/></Sheet>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
@@ -1375,8 +1440,9 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
   const jrFil=jrReferrals.filter(r=>r.month===sm&&r.year===sy);
   const totV=([...fil,...jrFil]).reduce((s,r)=>s+r.productValue,0);
   const spinAP=(spinRewards||[]).filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
+  const spinPaidTotal=(spinRewards||[]).filter(s=>s.paid).reduce((s,r)=>s+r.value,0);
   const comAP=([...fil,...jrFil]).filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP;
-  const comP=([...fil,...jrFil]).filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+  const comP=([...fil,...jrFil]).filter(r=>r.paid).reduce((s,r)=>s+r.commission,0)+spinPaidTotal;
   const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
   const newSeekRefs=referrals.filter(r=>r.isNew);
   const newJrRefs=jrReferrals.filter(r=>r.isNew);
