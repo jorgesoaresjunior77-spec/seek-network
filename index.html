@@ -2381,13 +2381,13 @@ function FipeConsulta(){
     setAnos([]);setAno('');setResultado(null);
   }
 
-  const marcasFiltradas=marcaTexto.length>=2
+  const marcasFiltradas=marcaTexto
     ?marcas.filter(m=>m.nome.toLowerCase().includes(marcaTexto.toLowerCase()))
-    :[];
+    :marcas;
 
-  const modelosFiltrados=modeloTexto.length>=2
+  const modelosFiltrados=modeloTexto
     ?modelos.filter(m=>m.nome.toLowerCase().includes(modeloTexto.toLowerCase()))
-    :[];
+    :modelos;
 
   function mascaraPlaca(val,tp){
     const s=val.replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
@@ -2462,10 +2462,10 @@ function FipeConsulta(){
                       onChange={e=>{
                         const v=e.target.value;
                         setMarcaTexto(v);setMarcaCodigo('');
-                        setMarcaAberta(v.length>=2);
-                        if(!v)clearMarca();
+                        setMarcaAberta(true);
+                        if(!v){setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);setAnos([]);setAno('');setResultado(null);}
                       }}
-                      onFocus={()=>{if(marcaTexto.length>=2&&!marcaCodigo)setMarcaAberta(true);}}
+                      onFocus={()=>{if(marcas.length>0)setMarcaAberta(true);}}
                       onBlur={()=>setTimeout(()=>setMarcaAberta(false),200)}
                     />
                     {marcaTexto&&<button style={clearBtnStyle} onClick={clearMarca}>✕</button>}
@@ -2500,10 +2500,10 @@ function FipeConsulta(){
                       onChange={e=>{
                         const v=e.target.value;
                         setModeloTexto(v);setModeloCodigo('');
-                        setModeloAberto(v.length>=2);
-                        if(!v)clearModelo();
+                        setModeloAberto(true);
+                        if(!v){setAnos([]);setAno('');setResultado(null);}
                       }}
-                      onFocus={()=>{if(modeloTexto.length>=2&&!modeloCodigo)setModeloAberto(true);}}
+                      onFocus={()=>{if(modelos.length>0)setModeloAberto(true);}}
                       onBlur={()=>setTimeout(()=>setModeloAberto(false),200)}
                     />
                     {modeloTexto&&<button style={clearBtnStyle} onClick={clearModelo}>✕</button>}
@@ -2554,6 +2554,9 @@ function FipeConsulta(){
 
       {modo==='placa'&&(
         <React.Fragment>
+          <div style={{padding:'10px 14px',background:'rgba(245,158,11,.1)',borderRadius:10,marginBottom:10,fontSize:'.75rem',color:'#92400e',fontWeight:600}}>
+            ⚠️ A consulta por placa depende de API externa e pode estar indisponível. Se não funcionar, use a busca por Marca/Modelo.
+          </div>
           <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
             <span className="label">Tipo de Placa</span>
             <div style={{display:'flex',gap:8,marginBottom:16}}>
@@ -2595,6 +2598,405 @@ function FipeConsulta(){
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   SIMULADOR DE FINANCIAMENTO
+══════════════════════════════════════════════════════════════════ */
+function SimuladorFinanciamento(){
+  const FIPE_BASE='https://parallelum.com.br/fipe/api/v1';
+  const TIPOS=[{id:'carros',l:'🚗 Carro'},{id:'motos',l:'🏍️ Moto'},{id:'caminhoes',l:'🚛 Caminhão'}];
+  const PARCELAS_OPT=[12,24,36,48,60];
+  const ERR_FIPE='Não foi possível carregar os dados FIPE. Verifique sua conexão.';
+
+  const [passo,setPasso]=React.useState('veiculo');
+
+  // ── Step 1: seleção FIPE ──
+  const [tipo,setTipo]=React.useState(null);
+  const [marcas,setMarcas]=React.useState([]);
+  const [marcaTexto,setMarcaTexto]=React.useState('');
+  const [marcaCodigo,setMarcaCodigo]=React.useState('');
+  const [marcaAberta,setMarcaAberta]=React.useState(false);
+  const [modelos,setModelos]=React.useState([]);
+  const [modeloTexto,setModeloTexto]=React.useState('');
+  const [modeloCodigo,setModeloCodigo]=React.useState('');
+  const [modeloAberto,setModeloAberto]=React.useState(false);
+  const [anos,setAnos]=React.useState([]);
+  const [anoSel,setAnoSel]=React.useState('');
+  const [dadosFipe,setDadosFipe]=React.useState(null);
+  const [loadingF,setLoadingF]=React.useState('');
+  const [erroF,setErroF]=React.useState('');
+
+  // ── Step 2: parâmetros ──
+  const [valorVeiculo,setValorVeiculo]=React.useState('');
+  const [taxa,setTaxa]=React.useState('');
+  const [entradaRS,setEntradaRS]=React.useState('');
+  const [entradaPct,setEntradaPct]=React.useState('');
+  const [parcelas,setParcelas]=React.useState(48);
+  const [resultado,setResultado]=React.useState(null);
+
+  async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error();return r.json();}
+
+  function parseFipeValor(str){
+    if(!str)return 0;
+    return parseFloat(str.replace('R$','').replace(/\./g,'').replace(',','.').trim())||0;
+  }
+
+  async function simOnTipo(t){
+    setTipo(t);
+    setMarcas([]);setMarcaTexto('');setMarcaCodigo('');setMarcaAberta(false);
+    setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);
+    setAnos([]);setAnoSel('');setDadosFipe(null);setErroF('');
+    setLoadingF('marcas');
+    try{const d=await apiFetch(`${FIPE_BASE}/${t}/marcas`);setMarcas(d);}
+    catch(e){setErroF(ERR_FIPE);}
+    finally{setLoadingF('');}
+  }
+
+  async function simOnMarca(codigo,nome){
+    setMarcaTexto(nome);setMarcaCodigo(codigo);setMarcaAberta(false);
+    setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);
+    setAnos([]);setAnoSel('');setDadosFipe(null);setErroF('');
+    setLoadingF('modelos');
+    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${codigo}/modelos`);setModelos(d.modelos||d);}
+    catch(e){setErroF(ERR_FIPE);}
+    finally{setLoadingF('');}
+  }
+
+  async function simOnModelo(codigo,nome){
+    setModeloTexto(nome);setModeloCodigo(codigo);setModeloAberto(false);
+    setAnos([]);setAnoSel('');setDadosFipe(null);setErroF('');
+    setLoadingF('anos');
+    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${marcaCodigo}/modelos/${codigo}/anos`);setAnos(d);}
+    catch(e){setErroF(ERR_FIPE);}
+    finally{setLoadingF('');}
+  }
+
+  async function simOnAno(v){
+    setAnoSel(v);setDadosFipe(null);setErroF('');
+    if(!v)return;
+    setLoadingF('resultado');
+    try{const d=await apiFetch(`${FIPE_BASE}/${tipo}/marcas/${marcaCodigo}/modelos/${modeloCodigo}/anos/${v}`);setDadosFipe(d);}
+    catch(e){setErroF(ERR_FIPE);}
+    finally{setLoadingF('');}
+  }
+
+  function irParaCalculo(){
+    const pv=parseFipeValor(dadosFipe?.Valor||dadosFipe?.valor||'');
+    setValorVeiculo(pv>0?String(pv):'');
+    setEntradaRS('');setEntradaPct('');setTaxa('');setResultado(null);
+    setPasso('calculo');
+  }
+
+  function simOnValor(v){
+    setValorVeiculo(v);
+    const pv=parseFloat(v)||0;
+    if(entradaPct&&pv>0)setEntradaRS(Number((pv*parseFloat(entradaPct)/100).toFixed(2)).toString());
+    setResultado(null);
+  }
+
+  function simOnEntradaRS(v){
+    setEntradaRS(v);
+    const pv=parseFloat(valorVeiculo)||0;
+    const rs=parseFloat(v)||0;
+    if(pv>0)setEntradaPct(Number((rs/pv*100).toFixed(2)).toString());
+    else setEntradaPct('');
+    setResultado(null);
+  }
+
+  function simOnEntradaPct(v){
+    setEntradaPct(v);
+    const pv=parseFloat(valorVeiculo)||0;
+    const pct=parseFloat(v)||0;
+    if(pv>0)setEntradaRS(Number((pv*pct/100).toFixed(2)).toString());
+    else setEntradaRS('');
+    setResultado(null);
+  }
+
+  function calcular(){
+    const PV=parseFloat(valorVeiculo)||0;
+    const entrada=parseFloat(entradaRS)||0;
+    const i=(parseFloat(taxa)||0)/100;
+    const n=parcelas;
+    if(PV<=0||i<=0||n<=0||entrada<0||entrada>=PV)return;
+    const financiado=PV-entrada;
+    const PMT=financiado*(i*Math.pow(1+i,n))/(Math.pow(1+i,n)-1);
+    const totalFinanciado=PMT*n;
+    const totalPagar=totalFinanciado+entrada;
+    const totalJuros=totalFinanciado-financiado;
+    const entPct=PV>0?(entrada/PV*100):0;
+    setResultado({PV,entrada,entPct,financiado,i,n,PMT,totalPagar,totalJuros});
+  }
+
+  function enviarWhatsApp(){
+    if(!resultado)return;
+    const {PV,entrada,entPct,financiado,i,n,PMT,totalPagar,totalJuros}=resultado;
+    const nm=`${dadosFipe?.Marca||dadosFipe?.marca||marcaTexto} ${dadosFipe?.Modelo||dadosFipe?.modelo||modeloTexto} ${dadosFipe?.AnoModelo||dadosFipe?.anoModelo||anoSel}`.trim();
+    const msg=[
+      `*💰 SIMULAÇÃO DE FINANCIAMENTO*`,``,
+      `🚗 *Veículo:* ${nm}`,
+      `💵 *Valor do veículo:* ${fBRL(PV)}`,
+      `🏦 *Entrada:* ${fBRL(entrada)} (${entPct.toFixed(1)}%)`,
+      `📋 *Valor financiado:* ${fBRL(financiado)}`,
+      `📈 *Taxa:* ${(i*100).toFixed(2)}% ao mês`,
+      `📅 *Parcelas:* ${n}x de ${fBRL(PMT)}`,
+      `💳 *Total a pagar:* ${fBRL(totalPagar)}`,
+      `💸 *Total de juros:* ${fBRL(totalJuros)}`,
+      ``,`_Simulação gerada pelo SEEK Network_`
+    ].join('\n');
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,'_blank');
+  }
+
+  function resetar(){
+    setPasso('veiculo');setTipo(null);
+    setMarcas([]);setMarcaTexto('');setMarcaCodigo('');setMarcaAberta(false);
+    setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);
+    setAnos([]);setAnoSel('');setDadosFipe(null);setErroF('');setLoadingF('');
+    setValorVeiculo('');setTaxa('');setEntradaRS('');setEntradaPct('');setParcelas(48);setResultado(null);
+  }
+
+  const dropS={position:'absolute',top:'100%',left:0,right:0,background:'var(--card,#fff)',border:'1.5px solid var(--border,#e5e7eb)',borderRadius:10,zIndex:200,maxHeight:220,overflowY:'auto',boxShadow:'0 4px 16px rgba(0,0,0,.13)',marginTop:2};
+  const dropI={padding:'10px 14px',cursor:'pointer',fontSize:'.82rem',borderBottom:'1px solid var(--border,#f3f4f6)'};
+  const clrBtn={background:'none',border:'none',cursor:'pointer',fontSize:'1rem',padding:'0 4px',color:'var(--muted)',lineHeight:1,flexShrink:0};
+
+  const simMarcasFil=marcaTexto?marcas.filter(m=>m.nome.toLowerCase().includes(marcaTexto.toLowerCase())):marcas;
+  const simModelosFil=modeloTexto?modelos.filter(m=>m.nome.toLowerCase().includes(modeloTexto.toLowerCase())):modelos;
+
+  const pv=parseFloat(valorVeiculo)||0;
+  const entRS=parseFloat(entradaRS)||0;
+  const tx=parseFloat(taxa)||0;
+  const calcDisabled=pv<=0||tx<=0||entradaRS===''||entRS<0||entRS>=pv;
+
+  const lbl={color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'};
+  const veicNome=`${dadosFipe?.Marca||dadosFipe?.marca||''} ${dadosFipe?.Modelo||dadosFipe?.modelo||''} ${dadosFipe?.AnoModelo||dadosFipe?.anoModelo||anoSel}`.trim();
+
+  return(
+    <div className="page" style={{paddingBottom:120}}>
+      <div style={{padding:'8px 0 4px',textAlign:'center'}}>
+        <span style={{fontSize:'.6rem',fontWeight:900,letterSpacing:'.14em',color:'var(--muted)',textTransform:'uppercase'}}>💰 Simulador de Financiamento</span>
+      </div>
+
+      <div className="nm" style={{padding:'8px 14px',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+        <div style={{flex:1,textAlign:'center',fontSize:'.65rem',fontWeight:800,color:passo==='veiculo'?'var(--black)':'var(--green)',textTransform:'uppercase',letterSpacing:'.06em'}}>
+          {passo==='calculo'?'✔ ':'1. '}Veículo
+        </div>
+        <div style={{height:2,width:24,background:'var(--border,#e5e7eb)',flexShrink:0}}/>
+        <div style={{flex:1,textAlign:'center',fontSize:'.65rem',fontWeight:800,color:passo==='calculo'?'var(--black)':'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em'}}>
+          2. Financiamento
+        </div>
+      </div>
+
+      {passo==='veiculo'&&(
+        <React.Fragment>
+          <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+            <span className="label">Tipo de Veículo</span>
+            <div style={{display:'flex',gap:8}}>
+              {TIPOS.map(({id,l})=>(
+                <button key={id} className={`btn${tipo===id?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>simOnTipo(id)}>{l}</button>
+              ))}
+            </div>
+          </div>
+
+          {tipo&&(
+            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+              <span className="label">Marca</span>
+              {loadingF==='marcas'
+                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+                :<div style={{position:'relative'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <input className="inp" style={{flex:1,margin:0}} placeholder="Clique para ver todas ou digite para filtrar..."
+                      value={marcaTexto}
+                      onChange={e=>{const v=e.target.value;setMarcaTexto(v);setMarcaCodigo('');setMarcaAberta(true);if(!v){setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);setAnos([]);setAnoSel('');setDadosFipe(null);}}}
+                      onFocus={()=>{if(marcas.length>0)setMarcaAberta(true);}}
+                      onBlur={()=>setTimeout(()=>setMarcaAberta(false),200)}
+                    />
+                    {marcaTexto&&<button style={clrBtn} onClick={()=>{setMarcaTexto('');setMarcaCodigo('');setMarcaAberta(false);setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);setAnos([]);setAnoSel('');setDadosFipe(null);}}>✕</button>}
+                  </div>
+                  {marcaAberta&&(
+                    <div style={dropS}>
+                      {simMarcasFil.length===0
+                        ?<div style={{padding:'12px 14px',color:'var(--muted)',fontSize:'.78rem'}}>Nenhuma marca encontrada</div>
+                        :simMarcasFil.map(m=><div key={m.codigo} style={dropI} onMouseDown={()=>simOnMarca(m.codigo,m.nome)}>{m.nome}</div>)
+                      }
+                    </div>
+                  )}
+                </div>
+              }
+            </div>
+          )}
+
+          {marcaCodigo&&(
+            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+              <span className="label">Modelo</span>
+              {loadingF==='modelos'
+                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+                :<div style={{position:'relative'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <input className="inp" style={{flex:1,margin:0}} placeholder="Clique para ver todos ou digite para filtrar..."
+                      value={modeloTexto}
+                      onChange={e=>{const v=e.target.value;setModeloTexto(v);setModeloCodigo('');setModeloAberto(true);if(!v){setAnos([]);setAnoSel('');setDadosFipe(null);}}}
+                      onFocus={()=>{if(modelos.length>0)setModeloAberto(true);}}
+                      onBlur={()=>setTimeout(()=>setModeloAberto(false),200)}
+                    />
+                    {modeloTexto&&<button style={clrBtn} onClick={()=>{setModeloTexto('');setModeloCodigo('');setModeloAberto(false);setAnos([]);setAnoSel('');setDadosFipe(null);}}>✕</button>}
+                  </div>
+                  {modeloAberto&&(
+                    <div style={dropS}>
+                      {simModelosFil.length===0
+                        ?<div style={{padding:'12px 14px',color:'var(--muted)',fontSize:'.78rem'}}>Nenhum modelo encontrado</div>
+                        :simModelosFil.map(m=><div key={m.codigo} style={dropI} onMouseDown={()=>simOnModelo(m.codigo,m.nome)}>{m.nome}</div>)
+                      }
+                    </div>
+                  )}
+                </div>
+              }
+            </div>
+          )}
+
+          {modeloCodigo&&(
+            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+              <span className="label">Ano / Versão</span>
+              {loadingF==='anos'
+                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+                :<select className="inp" value={anoSel} onChange={e=>simOnAno(e.target.value)} disabled={anos.length===0}>
+                  <option value="">Selecione o ano</option>
+                  {anos.map(a=><option key={a.codigo} value={a.codigo}>{a.nome}</option>)}
+                </select>
+              }
+            </div>
+          )}
+
+          {loadingF==='resultado'&&(
+            <div className="nm" style={{padding:24,textAlign:'center',marginBottom:12}}>
+              <div style={{color:'var(--muted)',fontSize:'.85rem'}}>Buscando preço FIPE...</div>
+            </div>
+          )}
+
+          {dadosFipe&&loadingF===''&&(
+            <React.Fragment>
+              <div className="nm" style={{padding:'16px 18px',marginBottom:12,textAlign:'center'}}>
+                <div style={{fontSize:'1.8rem',fontWeight:900,color:'var(--green)'}}>{dadosFipe.Valor||dadosFipe.valor}</div>
+                <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:700,letterSpacing:'.08em',textTransform:'uppercase',marginTop:2}}>Preço Médio FIPE</div>
+                <div style={{fontSize:'.78rem',color:'var(--muted)',marginTop:8,fontWeight:600}}>{veicNome}</div>
+              </div>
+              <button className="btn btn-full btn-dark" style={{padding:14}} onClick={irParaCalculo}>Simular Financiamento →</button>
+            </React.Fragment>
+          )}
+
+          {erroF&&(
+            <div style={{padding:'14px 16px',color:'var(--red)',fontSize:'.8rem',fontWeight:700,background:'rgba(220,38,38,.08)',borderRadius:14,marginBottom:12}}>⚠️ {erroF}</div>
+          )}
+        </React.Fragment>
+      )}
+
+      {passo==='calculo'&&(
+        <React.Fragment>
+          <div className="nm" style={{padding:'12px 18px',marginBottom:12,display:'flex',justifyContent:'space-between',alignItems:'center',gap:8}}>
+            <div>
+              <div style={{fontSize:'.62rem',color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em'}}>Veículo selecionado</div>
+              <div style={{fontWeight:800,fontSize:'.88rem',marginTop:2}}>{veicNome||'—'}</div>
+              <div style={{fontSize:'.7rem',color:'var(--green)',fontWeight:700,marginTop:2}}>{dadosFipe?.Valor||dadosFipe?.valor||''}</div>
+            </div>
+            <button className="btn" style={{fontSize:'.72rem',padding:'6px 10px',flexShrink:0}} onClick={()=>{setPasso('veiculo');setResultado(null);}}>← Trocar</button>
+          </div>
+
+          <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+            <span className="label" style={{display:'block',marginBottom:12}}>Dados do Financiamento</span>
+
+            <div style={{marginBottom:14}}>
+              <span style={lbl}>Valor do Veículo (R$)</span>
+              <input className="inp" type="number" min="0" step="0.01" placeholder="Ex: 45000" value={valorVeiculo}
+                onChange={e=>simOnValor(e.target.value)} onFocus={e=>e.target.select()} style={{marginBottom:0}}/>
+            </div>
+
+            <div style={{marginBottom:14}}>
+              <span style={lbl}>Taxa de Juros Mensal (%)</span>
+              <input className="inp" type="number" min="0.01" max="100" step="0.01" placeholder="Ex: 1.99" value={taxa}
+                onChange={e=>{setTaxa(e.target.value);setResultado(null);}} onFocus={e=>e.target.select()} style={{marginBottom:0}}/>
+            </div>
+
+            <div style={{marginBottom:14}}>
+              <span style={lbl}>Valor da Entrada</span>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <div>
+                  <div style={{fontSize:'.62rem',color:'var(--muted)',fontWeight:700,marginBottom:4}}>Em R$</div>
+                  <input className="inp" type="number" min="0" step="0.01" placeholder="0.00" value={entradaRS}
+                    onChange={e=>simOnEntradaRS(e.target.value)} onFocus={e=>e.target.select()} style={{margin:0}}/>
+                </div>
+                <div>
+                  <div style={{fontSize:'.62rem',color:'var(--muted)',fontWeight:700,marginBottom:4}}>Em %</div>
+                  <input className="inp" type="number" min="0" max="100" step="0.01" placeholder="0.00" value={entradaPct}
+                    onChange={e=>simOnEntradaPct(e.target.value)} onFocus={e=>e.target.select()} style={{margin:0}}/>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <span style={lbl}>Quantidade de Parcelas</span>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                {PARCELAS_OPT.map(n=>(
+                  <button key={n} className={`btn${parcelas===n?' btn-dark':''}`}
+                    style={{flex:1,minWidth:48,padding:'10px 4px',fontSize:'.8rem',fontWeight:700}}
+                    onClick={()=>{setParcelas(n);setResultado(null);}}>{n}x</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <button className="btn btn-full btn-dark" style={{padding:14,marginBottom:12}} onClick={calcular} disabled={calcDisabled}>
+            Calcular Financiamento
+          </button>
+
+          {resultado&&(
+            <React.Fragment>
+              <div className="nm" style={{padding:'20px 18px',marginBottom:12}}>
+                <div style={{fontWeight:900,fontSize:'.82rem',marginBottom:14,textAlign:'center',textTransform:'uppercase',letterSpacing:'.08em',color:'var(--muted)'}}>Resumo da Simulação</div>
+                <div style={{display:'flex',flexDirection:'column',gap:10,fontSize:'.82rem'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',gap:8}}>
+                    <span style={lbl}>Veículo</span>
+                    <span style={{fontWeight:800,textAlign:'right',maxWidth:'65%'}}>{veicNome}</span>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between'}}>
+                    <span style={lbl}>Valor do veículo</span>
+                    <span style={{fontWeight:800}}>{fBRL(resultado.PV)}</span>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between'}}>
+                    <span style={lbl}>Entrada</span>
+                    <span style={{fontWeight:800}}>{fBRL(resultado.entrada)} ({resultado.entPct.toFixed(1)}%)</span>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between'}}>
+                    <span style={lbl}>Valor financiado</span>
+                    <span style={{fontWeight:800}}>{fBRL(resultado.financiado)}</span>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between'}}>
+                    <span style={lbl}>Taxa</span>
+                    <span style={{fontWeight:800}}>{(resultado.i*100).toFixed(2)}% ao mês</span>
+                  </div>
+                  <div style={{height:1,background:'var(--border,#e5e7eb)',margin:'2px 0'}}/>
+                  <div style={{display:'flex',justifyContent:'space-between',fontSize:'.92rem'}}>
+                    <span style={lbl}>Parcelas</span>
+                    <span style={{fontWeight:900,color:'var(--green)'}}>{resultado.n}x de {fBRL(resultado.PMT)}</span>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between'}}>
+                    <span style={lbl}>Total a pagar</span>
+                    <span style={{fontWeight:800}}>{fBRL(resultado.totalPagar)}</span>
+                  </div>
+                  <div style={{display:'flex',justifyContent:'space-between'}}>
+                    <span style={lbl}>Total de juros</span>
+                    <span style={{fontWeight:800,color:'var(--red)'}}>{fBRL(resultado.totalJuros)}</span>
+                  </div>
+                </div>
+              </div>
+              <button className="btn btn-full" style={{padding:14,marginBottom:8,background:'#25D366',color:'#fff',border:'none',borderRadius:14,fontWeight:800,fontSize:'.88rem'}} onClick={enviarWhatsApp}>
+                📲 Enviar pelo WhatsApp
+              </button>
+              <button className="btn btn-full" style={{padding:12,marginBottom:12}} onClick={resetar}>🔄 Nova Simulação</button>
+            </React.Fragment>
+          )}
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    ADM TAB BAR
 ══════════════════════════════════════════════════════════════════ */
 function AdmTabBar({view,setView,onOffers}){
@@ -2614,6 +3016,10 @@ function AdmTabBar({view,setView,onOffers}){
         <button className={`tab${active==='fipe'?' on':''}`} onClick={()=>setView('fipe')}>
           <span style={{fontSize:'1.1rem',lineHeight:1}}>📊</span>
           <span>FIPE</span>
+        </button>
+        <button className={`tab${active==='financiamento'?' on':''}`} onClick={()=>setView('financiamento')}>
+          <span style={{fontSize:'1.1rem',lineHeight:1}}>💰</span>
+          <span>Financ.</span>
         </button>
         <button className="tab" onClick={onOffers}>
           <span style={{fontSize:'1.1rem',lineHeight:1}}>🏷️</span>
@@ -3508,8 +3914,9 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={false} isAdm={true}/>}
       {view==='fipe'&&<FipeConsulta/>}
+      {view==='financiamento'&&<SimuladorFinanciamento/>}
 
-      {!inSubView&&view!=='fipe'&&(
+      {!inSubView&&view!=='fipe'&&view!=='financiamento'&&(
         <div style={{position:'fixed',bottom:74,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 32px)',maxWidth:576,zIndex:19,padding:0}}>
           <button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
         </div>
