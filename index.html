@@ -1524,10 +1524,14 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
   const fil=referrals.filter(r=>r.month===sm&&r.year===sy);
   const jrFil=jrReferrals.filter(r=>r.month===sm&&r.year===sy);
   const totV=([...fil,...jrFil]).reduce((s,r)=>s+r.productValue,0);
-  const spinAP=(spinRewards||[]).filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
-  const spinPaidTotal=(spinRewards||[]).filter(s=>s.paid).reduce((s,r)=>s+r.value,0);
-  const chestAP=(chestRewards||[]).filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
-  const chestPaidTotal=(chestRewards||[]).filter(c=>c.paid).reduce((s,c)=>s+c.valor,0);
+  const _mIds=new Set((members||[]).map(m=>String(m.id)));
+  const _jrIds=new Set((seekJrs||[]).map(j=>String(j.id)));
+  const _scSpins=(spinRewards||[]).filter(s=>(s.seekId&&_mIds.has(s.seekId))||(s.jrId&&_jrIds.has(s.jrId)));
+  const _scChests=(chestRewards||[]).filter(c=>(c.seekId&&_mIds.has(c.seekId))||(c.jrId&&_jrIds.has(c.jrId)));
+  const spinAP=_scSpins.filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
+  const spinPaidTotal=_scSpins.filter(s=>s.paid).reduce((s,r)=>s+r.value,0);
+  const chestAP=_scChests.filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
+  const chestPaidTotal=_scChests.filter(c=>c.paid).reduce((s,c)=>s+c.valor,0);
   const comAP=([...fil,...jrFil]).filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP+chestAP;
   const comP=([...fil,...jrFil]).filter(r=>r.paid).reduce((s,r)=>s+r.commission,0)+spinPaidTotal+chestPaidTotal;
   const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
@@ -1632,7 +1636,12 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
           </button>
         ))}
       </div>
-      {(spinRewards||[]).filter(s=>!s.paid).length>0&&<StatCard label="🎰 Bônus Roleta Pendente" value={fBRL((spinRewards||[]).filter(s=>!s.paid).reduce((s,r)=>s+r.value,0))} color="#8833BB"/>}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+        <StatCard label="🎰 Roleta Pendente" value={fBRL(spinAP)} color={spinAP>0?'#8833BB':'var(--muted)'}/>
+        <StatCard label="🎰 Roleta Paga" value={fBRL(spinPaidTotal)} color="var(--green)"/>
+        <StatCard label="🎁 Cofre Pendente" value={fBRL(chestAP)} color={chestAP>0?'#B8860B':'var(--muted)'}/>
+        <StatCard label="🎁 Cofre Pago" value={fBRL(chestPaidTotal)} color="var(--green)"/>
+      </div>
       {!hideAdmCommission&&<div className="nm" style={{padding:'18px'}}>
         <div className="section-title" style={{marginBottom:12,display:'flex',alignItems:'center',gap:6}}><IcStar s={13}/>💼 Minha Comissão</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
@@ -3247,7 +3256,7 @@ function AdmLedger({title,referrals,members,seekJrs,paid,onBack,onTogglePaid,onT
 /* ══════════════════════════════════════════════════════════════════
    MASTER — DASHBOARD
 ══════════════════════════════════════════════════════════════════ */
-function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,onSelectAdm,spinRewards}){
+function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,onSelectAdm,spinRewards,chestRewards=[]}){
   const curY=new Date().getFullYear();
   const years=Array.from({length:5},(_,i)=>curY-2+i);
   const fil=referrals.filter(r=>r.month===sm&&r.year===sy);
@@ -3255,8 +3264,11 @@ function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy
   const allFil=[...fil,...jrFil];
   const totV=allFil.reduce((s,r)=>s+r.productValue,0);
   const spinAP=(spinRewards||[]).filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
-  const comAP=([...referrals,...jrReferrals]).filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP;
-  const comP=allFil.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+  const spinPaid=(spinRewards||[]).filter(s=>s.paid).reduce((s,r)=>s+r.value,0);
+  const chestAP=(chestRewards||[]).filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
+  const chestPaid=(chestRewards||[]).filter(c=>c.paid).reduce((s,c)=>s+c.valor,0);
+  const comAP=([...referrals,...jrReferrals]).filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP+chestAP;
+  const comP=allFil.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0)+spinPaid+chestPaid;
   const allTotV=[...referrals,...jrReferrals].reduce((s,r)=>s+r.productValue,0);
   const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
   const admStats=adms.map(adm=>{
@@ -3292,7 +3304,12 @@ function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy
         </button>
       ))}
     </div>
-    {(spinRewards||[]).filter(s=>!s.paid).length>0&&<StatCard label="🎰 Bônus Roleta Pendente" value={fBRL((spinRewards||[]).filter(s=>!s.paid).reduce((s,r)=>s+r.value,0))} color="#8833BB"/>}
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <StatCard label="🎰 Roleta Pendente" value={fBRL(spinAP)} color={spinAP>0?'#8833BB':'var(--muted)'}/>
+      <StatCard label="🎰 Roleta Paga" value={fBRL(spinPaid)} color="var(--green)"/>
+      <StatCard label="🎁 Cofre Pendente" value={fBRL(chestAP)} color={chestAP>0?'#B8860B':'var(--muted)'}/>
+      <StatCard label="🎁 Cofre Pago" value={fBRL(chestPaid)} color="var(--green)"/>
+    </div>
     {admStats.length>0&&<>
       <div className="section-title" style={{paddingLeft:4}}>Ranking Vendedores — {MONTHS[sm-1]} {sy}</div>
       <div className="nm" style={{padding:'6px 16px'}}>
@@ -3435,7 +3452,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
         <span style={{fontSize:'0.55rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>MASTER</span>
       </div>
 
-      {view==='dashboard'&&<MasterDashboard adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} onSelectAdm={goAdm} spinRewards={spinRewards}/>}
+      {view==='dashboard'&&<MasterDashboard adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} onSelectAdm={goAdm} spinRewards={spinRewards} chestRewards={chestRewards}/>}
       {view==='vendedores'&&<MasterVendedores adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onAdd={onAddAdm} onDelete={onDeleteAdm} onSelect={goAdm} onUpdatePin={onUpdatePin}/>}
       {view==='vendedorDetail'&&selAdm&&<>
         <div style={{padding:'5px 16px 0',textAlign:'center'}}>
@@ -5011,27 +5028,45 @@ function App(){
   async function payAllForSeek(seekId){
     const now=new Date().toISOString();
     const seekIdStr=String(seekId);
-    setReferrals(u=>u.map(r=>sameId(r.memberId,seekId)&&!r.paid?{...r,paid:true,status:'pago',paidAt:now}:r));
-    setSpinRewards(u=>u.map(s=>sameId(s.seekId,seekId)&&!s.paid?{...s,paid:true}:s));
-    setChestRewards(u=>u.map(c=>sameId(c.seekId,seekId)&&!c.paid?{...c,paid:true}:c));
+    const pendRefs=referrals.filter(r=>sameId(r.memberId,seekId)&&!r.paid);
+    const pendSpins=spinRewards.filter(s=>sameId(s.seekId,seekId)&&!s.paid);
+    const pendChests=chestRewards.filter(c=>sameId(c.seekId,seekId)&&!c.paid);
+    console.log('[payAllForSeek] seekId='+seekIdStr+' | refs='+pendRefs.length+' | spins='+pendSpins.length+' | chests='+pendChests.length);
+    setReferrals(u=>{const next=u.map(r=>sameId(r.memberId,seekId)&&!r.paid?{...r,paid:true,status:'pago',paidAt:now}:r);console.log('[payAllForSeek] estado refs atualizado, pagas agora:',next.filter(r=>sameId(r.memberId,seekId)&&r.paid).length);return next;});
+    setSpinRewards(u=>{const next=u.map(s=>sameId(s.seekId,seekId)&&!s.paid?{...s,paid:true}:s);console.log('[payAllForSeek] estado spins atualizado, pagas agora:',next.filter(s=>sameId(s.seekId,seekId)&&s.paid).length);return next;});
+    setChestRewards(u=>{const next=u.map(c=>sameId(c.seekId,seekId)&&!c.paid?{...c,paid:true}:c);console.log('[payAllForSeek] estado chests atualizado, pagas agora:',next.filter(c=>sameId(c.seekId,seekId)&&c.paid).length);return next;});
     let {error:er}=await db.from('referrals').update({paid:true,status:'pago',paid_at:now}).eq('member_id',seekIdStr);
-    if(er&&er.code==='42703')await db.from('referrals').update({paid:true}).eq('member_id',seekIdStr);
-    else if(er)console.error('[payAllForSeek]:',er);
-    await db.from('spin_rewards').update({paid:true}).eq('seek_id',seekIdStr);
-    await db.from('chest_rewards').update({paid:true}).eq('seek_id',seekIdStr);
+    if(er&&er.code==='42703')({error:er}=await db.from('referrals').update({paid:true}).eq('member_id',seekIdStr));
+    if(er){console.error('[payAllForSeek] ERRO referrals Supabase:',er);return;}
+    else console.log('[payAllForSeek] referrals Supabase OK');
+    const {error:spinErr}=await db.from('spin_rewards').update({paid:true}).eq('seek_id',seekIdStr);
+    if(spinErr)console.error('[payAllForSeek] ERRO spin_rewards Supabase:',spinErr);
+    else console.log('[payAllForSeek] spin_rewards Supabase OK');
+    const {error:chestErr}=await db.from('chest_rewards').update({paid:true}).eq('seek_id',seekIdStr);
+    if(chestErr)console.error('[payAllForSeek] ERRO chest_rewards Supabase:',chestErr);
+    else console.log('[payAllForSeek] chest_rewards Supabase OK');
   }
 
   async function payAllForJr(jrId){
     const now=new Date().toISOString();
     const jrIdStr=String(jrId);
-    setJrReferrals(u=>u.map(r=>sameId(r.jrId,jrId)&&!r.paid?{...r,paid:true,status:'pago',paidAt:now}:r));
-    setSpinRewards(u=>u.map(s=>sameId(s.jrId,jrId)&&!s.paid?{...s,paid:true}:s));
-    setChestRewards(u=>u.map(c=>sameId(c.jrId,jrId)&&!c.paid?{...c,paid:true}:c));
+    const pendRefs=jrReferrals.filter(r=>sameId(r.jrId,jrId)&&!r.paid);
+    const pendSpins=spinRewards.filter(s=>sameId(s.jrId,jrId)&&!s.paid);
+    const pendChests=chestRewards.filter(c=>sameId(c.jrId,jrId)&&!c.paid);
+    console.log('[payAllForJr] jrId='+jrIdStr+' | refs='+pendRefs.length+' | spins='+pendSpins.length+' | chests='+pendChests.length);
+    setJrReferrals(u=>{const next=u.map(r=>sameId(r.jrId,jrId)&&!r.paid?{...r,paid:true,status:'pago',paidAt:now}:r);console.log('[payAllForJr] estado jrRefs atualizado, pagas agora:',next.filter(r=>sameId(r.jrId,jrId)&&r.paid).length);return next;});
+    setSpinRewards(u=>{const next=u.map(s=>sameId(s.jrId,jrId)&&!s.paid?{...s,paid:true}:s);console.log('[payAllForJr] estado spins atualizado, pagas agora:',next.filter(s=>sameId(s.jrId,jrId)&&s.paid).length);return next;});
+    setChestRewards(u=>{const next=u.map(c=>sameId(c.jrId,jrId)&&!c.paid?{...c,paid:true}:c);console.log('[payAllForJr] estado chests atualizado, pagas agora:',next.filter(c=>sameId(c.jrId,jrId)&&c.paid).length);return next;});
     let {error:ej}=await db.from('jr_referrals').update({paid:true,status:'pago',paid_at:now}).eq('jr_id',jrIdStr);
-    if(ej&&ej.code==='42703')await db.from('jr_referrals').update({paid:true}).eq('jr_id',jrIdStr);
-    else if(ej)console.error('[payAllForJr]:',ej);
-    await db.from('spin_rewards').update({paid:true}).eq('jr_id',jrIdStr);
-    await db.from('chest_rewards').update({paid:true}).eq('jr_id',jrIdStr);
+    if(ej&&ej.code==='42703')({error:ej}=await db.from('jr_referrals').update({paid:true}).eq('jr_id',jrIdStr));
+    if(ej){console.error('[payAllForJr] ERRO jr_referrals Supabase:',ej);return;}
+    else console.log('[payAllForJr] jr_referrals Supabase OK');
+    const {error:spinErr}=await db.from('spin_rewards').update({paid:true}).eq('jr_id',jrIdStr);
+    if(spinErr)console.error('[payAllForJr] ERRO spin_rewards Supabase:',spinErr);
+    else console.log('[payAllForJr] spin_rewards Supabase OK');
+    const {error:chestErr}=await db.from('chest_rewards').update({paid:true}).eq('jr_id',jrIdStr);
+    if(chestErr)console.error('[payAllForJr] ERRO chest_rewards Supabase:',chestErr);
+    else console.log('[payAllForJr] chest_rewards Supabase OK');
   }
 
   async function toggleJrPaid(rid){
