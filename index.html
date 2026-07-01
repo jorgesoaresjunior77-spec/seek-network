@@ -2268,19 +2268,33 @@ function FipeResultadoCard({r,onNova}){
   const combustivel=r.Combustivel||r.combustivel;
   const codigoFipe=r.CodigoFipe||r.codigoFipe||r.codigo;
   const mesRef=r.MesReferencia||r.mesReferencia;
+  const cor=r.cor;
+  const situacao=r.situacao;
+  const local=r.municipio&&r.uf?`${r.municipio}/${r.uf}`:null;
   return(
     <div className="nm" style={{padding:'20px 18px',marginBottom:12}}>
-      <div style={{textAlign:'center',marginBottom:16}}>
-        <div style={{fontSize:'2rem',fontWeight:900,color:'var(--green)'}}>{val}</div>
-        <div style={{fontSize:'.65rem',color:'var(--muted)',fontWeight:700,marginTop:2,letterSpacing:'.06em',textTransform:'uppercase'}}>Preço Médio FIPE</div>
-      </div>
+      {val?(
+        <div style={{textAlign:'center',marginBottom:16}}>
+          <div style={{fontSize:'2rem',fontWeight:900,color:'var(--green)'}}>{val}</div>
+          <div style={{fontSize:'.65rem',color:'var(--muted)',fontWeight:700,marginTop:2,letterSpacing:'.06em',textTransform:'uppercase'}}>Preço Médio FIPE</div>
+        </div>
+      ):(
+        <div style={{textAlign:'center',marginBottom:14,padding:'10px 0 4px'}}>
+          <div style={{fontSize:'1.3rem',marginBottom:4}}>🚗</div>
+          <div style={{fontSize:'.72rem',color:'var(--muted)',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase'}}>Dados do Veículo (DETRAN)</div>
+          <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>Para Preço FIPE use a aba Marca/Modelo</div>
+        </div>
+      )}
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 16px',fontSize:'.75rem',marginBottom:16}}>
         {codigoFipe&&<div><span style={lbl}>Código FIPE</span><span style={{fontWeight:800}}>{codigoFipe}</span></div>}
         {combustivel&&<div><span style={lbl}>Combustível</span><span style={{fontWeight:800}}>{combustivel}</span></div>}
         {marca&&<div><span style={lbl}>Marca</span><span style={{fontWeight:800}}>{marca}</span></div>}
         {anoModelo&&<div><span style={lbl}>Ano Modelo</span><span style={{fontWeight:800}}>{anoModelo}</span></div>}
+        {cor&&<div><span style={lbl}>Cor</span><span style={{fontWeight:800}}>{cor}</span></div>}
+        {situacao&&<div><span style={lbl}>Situação</span><span style={{fontWeight:800,color:situacao==='Ativo'?'var(--green)':'var(--red)'}}>{situacao}</span></div>}
         {modelo&&<div style={{gridColumn:'1/-1'}}><span style={lbl}>Modelo</span><span style={{fontWeight:800}}>{modelo}</span></div>}
         {mesRef&&<div style={{gridColumn:'1/-1'}}><span style={lbl}>Referência</span><span style={{fontWeight:800}}>{mesRef}</span></div>}
+        {local&&<div style={{gridColumn:'1/-1'}}><span style={lbl}>Município</span><span style={{fontWeight:800}}>{local}</span></div>}
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={onNova}>🔄 Nova Consulta</button>
     </div>
@@ -2406,15 +2420,15 @@ function FipeConsulta(){
   }
 
   async function consultarPlaca(){
-    const p=placa.replace('-','');
+    const p=placa.replace('-','').toUpperCase();
     if(!p)return;
     setLoadingPlaca(true);setResultadoPlaca(null);setErroPlaca('');
     try{
-      const d=await apiFetch(`https://placa-fipe.vercel.app/api/${p}`);
-      if(d&&(d.Valor||d.valor)){setResultadoPlaca(d);}
+      const d=await apiFetch(`https://brasilapi.com.br/api/vehicles/v1/${p}`);
+      if(d&&(d.modelo||d.marca)){setResultadoPlaca(d);}
       else{setErroPlaca(ERR_PLACA);}
     }catch(e){
-      setErroPlaca(ERR_PLACA);
+      setErroPlaca('Placa não encontrada ou veículo não cadastrado. Verifique a placa e tente novamente.');
     }finally{setLoadingPlaca(false);}
   }
 
@@ -2554,8 +2568,8 @@ function FipeConsulta(){
 
       {modo==='placa'&&(
         <React.Fragment>
-          <div style={{padding:'10px 14px',background:'rgba(245,158,11,.1)',borderRadius:10,marginBottom:10,fontSize:'.75rem',color:'#92400e',fontWeight:600}}>
-            ⚠️ A consulta por placa depende de API externa e pode estar indisponível. Se não funcionar, use a busca por Marca/Modelo.
+          <div style={{padding:'10px 14px',background:'rgba(59,130,246,.08)',borderRadius:10,marginBottom:10,fontSize:'.75rem',color:'#1e40af',fontWeight:600}}>
+            ℹ️ Retorna dados do DETRAN via BrasilAPI (marca, modelo, ano, cor). Para Preço FIPE, use a aba Marca/Modelo.
           </div>
           <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
             <span className="label">Tipo de Placa</span>
@@ -2634,10 +2648,8 @@ function SimuladorFinanciamento(){
 
   async function apiFetch(url){const r=await fetch(url);if(!r.ok)throw new Error();return r.json();}
 
-  function parseFipeValor(str){
-    if(!str)return 0;
-    return parseFloat(str.replace('R$','').replace(/\./g,'').replace(',','.').trim())||0;
-  }
+  function parseBRL(s){if(!s)return 0;return parseFloat(s.replace(/R\$\s*/,'').replace(/\./g,'').replace(',','.'))||0;}
+  function parsePct(s){if(!s)return 0;return parseFloat(s.replace(',','.'))||0;}
 
   async function simOnTipo(t){
     setTipo(t);
@@ -2679,41 +2691,46 @@ function SimuladorFinanciamento(){
   }
 
   function irParaCalculo(){
-    const pv=parseFipeValor(dadosFipe?.Valor||dadosFipe?.valor||'');
-    setValorVeiculo(pv>0?String(pv):'');
+    const pv=parseBRL(dadosFipe?.Valor||dadosFipe?.valor||'');
+    setValorVeiculo(pv>0?fBRL(pv):'');
     setEntradaRS('');setEntradaPct('');setTaxa('');setResultado(null);
     setPasso('calculo');
   }
 
-  function simOnValor(v){
-    setValorVeiculo(v);
-    const pv=parseFloat(v)||0;
-    if(entradaPct&&pv>0)setEntradaRS(Number((pv*parseFloat(entradaPct)/100).toFixed(2)).toString());
+  function simOnValor(raw){
+    const digits=raw.replace(/\D/g,'');
+    if(!digits){setValorVeiculo('');if(parsePct(entradaPct)>0)setEntradaRS('');setResultado(null);return;}
+    const pv=parseInt(digits,10)/100;
+    setValorVeiculo(fBRL(pv));
+    if(parsePct(entradaPct)>0)setEntradaRS(fBRL(pv*parsePct(entradaPct)/100));
     setResultado(null);
   }
 
-  function simOnEntradaRS(v){
-    setEntradaRS(v);
-    const pv=parseFloat(valorVeiculo)||0;
-    const rs=parseFloat(v)||0;
-    if(pv>0)setEntradaPct(Number((rs/pv*100).toFixed(2)).toString());
+  function simOnEntradaRS(raw){
+    const digits=raw.replace(/\D/g,'');
+    if(!digits){setEntradaRS('');setEntradaPct('');setResultado(null);return;}
+    const rs=parseInt(digits,10)/100;
+    setEntradaRS(fBRL(rs));
+    const pv=parseBRL(valorVeiculo);
+    if(pv>0)setEntradaPct((rs/pv*100).toFixed(2).replace('.',','));
     else setEntradaPct('');
     setResultado(null);
   }
 
-  function simOnEntradaPct(v){
-    setEntradaPct(v);
-    const pv=parseFloat(valorVeiculo)||0;
-    const pct=parseFloat(v)||0;
-    if(pv>0)setEntradaRS(Number((pv*pct/100).toFixed(2)).toString());
+  function simOnEntradaPct(raw){
+    const clean=raw.replace(/[^0-9,]/g,'');
+    setEntradaPct(clean);
+    const pct=parsePct(clean);
+    const pv=parseBRL(valorVeiculo);
+    if(pv>0&&pct>0)setEntradaRS(fBRL(pv*pct/100));
     else setEntradaRS('');
     setResultado(null);
   }
 
   function calcular(){
-    const PV=parseFloat(valorVeiculo)||0;
-    const entrada=parseFloat(entradaRS)||0;
-    const i=(parseFloat(taxa)||0)/100;
+    const PV=parseBRL(valorVeiculo);
+    const entrada=parseBRL(entradaRS);
+    const i=parsePct(taxa)/100;
     const n=parcelas;
     if(PV<=0||i<=0||n<=0||entrada<0||entrada>=PV)return;
     const financiado=PV-entrada;
@@ -2733,9 +2750,9 @@ function SimuladorFinanciamento(){
       `*💰 SIMULAÇÃO DE FINANCIAMENTO*`,``,
       `🚗 *Veículo:* ${nm}`,
       `💵 *Valor do veículo:* ${fBRL(PV)}`,
-      `🏦 *Entrada:* ${fBRL(entrada)} (${entPct.toFixed(1)}%)`,
+      `🏦 *Entrada:* ${fBRL(entrada)} (${entPct.toFixed(1).replace('.',',')}%)`,
       `📋 *Valor financiado:* ${fBRL(financiado)}`,
-      `📈 *Taxa:* ${(i*100).toFixed(2)}% ao mês`,
+      `📈 *Taxa:* ${(i*100).toFixed(2).replace('.',',')}% ao mês`,
       `📅 *Parcelas:* ${n}x de ${fBRL(PMT)}`,
       `💳 *Total a pagar:* ${fBRL(totalPagar)}`,
       `💸 *Total de juros:* ${fBRL(totalJuros)}`,
@@ -2759,9 +2776,9 @@ function SimuladorFinanciamento(){
   const simMarcasFil=marcaTexto?marcas.filter(m=>m.nome.toLowerCase().includes(marcaTexto.toLowerCase())):marcas;
   const simModelosFil=modeloTexto?modelos.filter(m=>m.nome.toLowerCase().includes(modeloTexto.toLowerCase())):modelos;
 
-  const pv=parseFloat(valorVeiculo)||0;
-  const entRS=parseFloat(entradaRS)||0;
-  const tx=parseFloat(taxa)||0;
+  const pv=parseBRL(valorVeiculo);
+  const entRS=parseBRL(entradaRS);
+  const tx=parsePct(taxa);
   const calcDisabled=pv<=0||tx<=0||entradaRS===''||entRS<0||entRS>=pv;
 
   const lbl={color:'var(--muted)',fontWeight:700,fontSize:'.63rem',display:'block',marginBottom:2,textTransform:'uppercase',letterSpacing:'.06em'};
@@ -2901,15 +2918,15 @@ function SimuladorFinanciamento(){
             <span className="label" style={{display:'block',marginBottom:12}}>Dados do Financiamento</span>
 
             <div style={{marginBottom:14}}>
-              <span style={lbl}>Valor do Veículo (R$)</span>
-              <input className="inp" type="number" min="0" step="0.01" placeholder="Ex: 45000" value={valorVeiculo}
+              <span style={lbl}>Valor do Veículo</span>
+              <input className="inp" type="text" inputMode="numeric" placeholder="Ex: R$ 45.000,00" value={valorVeiculo}
                 onChange={e=>simOnValor(e.target.value)} onFocus={e=>e.target.select()} style={{marginBottom:0}}/>
             </div>
 
             <div style={{marginBottom:14}}>
               <span style={lbl}>Taxa de Juros Mensal (%)</span>
-              <input className="inp" type="number" min="0.01" max="100" step="0.01" placeholder="Ex: 1.99" value={taxa}
-                onChange={e=>{setTaxa(e.target.value);setResultado(null);}} onFocus={e=>e.target.select()} style={{marginBottom:0}}/>
+              <input className="inp" type="text" inputMode="decimal" placeholder="Ex: 1,99" value={taxa}
+                onChange={e=>{setTaxa(e.target.value.replace(/[^0-9,]/g,''));setResultado(null);}} onFocus={e=>e.target.select()} style={{marginBottom:0}}/>
             </div>
 
             <div style={{marginBottom:14}}>
@@ -2917,12 +2934,12 @@ function SimuladorFinanciamento(){
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                 <div>
                   <div style={{fontSize:'.62rem',color:'var(--muted)',fontWeight:700,marginBottom:4}}>Em R$</div>
-                  <input className="inp" type="number" min="0" step="0.01" placeholder="0.00" value={entradaRS}
+                  <input className="inp" type="text" inputMode="numeric" placeholder="R$ 0,00" value={entradaRS}
                     onChange={e=>simOnEntradaRS(e.target.value)} onFocus={e=>e.target.select()} style={{margin:0}}/>
                 </div>
                 <div>
                   <div style={{fontSize:'.62rem',color:'var(--muted)',fontWeight:700,marginBottom:4}}>Em %</div>
-                  <input className="inp" type="number" min="0" max="100" step="0.01" placeholder="0.00" value={entradaPct}
+                  <input className="inp" type="text" inputMode="decimal" placeholder="0,00" value={entradaPct}
                     onChange={e=>simOnEntradaPct(e.target.value)} onFocus={e=>e.target.select()} style={{margin:0}}/>
                 </div>
               </div>
@@ -2959,7 +2976,7 @@ function SimuladorFinanciamento(){
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between'}}>
                     <span style={lbl}>Entrada</span>
-                    <span style={{fontWeight:800}}>{fBRL(resultado.entrada)} ({resultado.entPct.toFixed(1)}%)</span>
+                    <span style={{fontWeight:800}}>{fBRL(resultado.entrada)} ({resultado.entPct.toFixed(1).replace('.',',')}%)</span>
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between'}}>
                     <span style={lbl}>Valor financiado</span>
@@ -2967,7 +2984,7 @@ function SimuladorFinanciamento(){
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between'}}>
                     <span style={lbl}>Taxa</span>
-                    <span style={{fontWeight:800}}>{(resultado.i*100).toFixed(2)}% ao mês</span>
+                    <span style={{fontWeight:800}}>{(resultado.i*100).toFixed(2).replace('.',',')}% ao mês</span>
                   </div>
                   <div style={{height:1,background:'var(--border,#e5e7eb)',margin:'2px 0'}}/>
                   <div style={{display:'flex',justifyContent:'space-between',fontSize:'.92rem'}}>
