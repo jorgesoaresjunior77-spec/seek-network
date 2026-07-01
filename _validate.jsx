@@ -34,12 +34,15 @@ const CHEST_PRIZES=[
   {value:50, prob:.03},{value:80, prob:.006},{value:100,prob:.004},
 ];
 const SPIN_PRIZES=[
-  {label:'R$ 5',  value:5,  color:'#E63333',prob:.40,span:60},
-  {label:'R$ 10', value:10, color:'#FF7700',prob:.25,span:60},
-  {label:'R$ 15', value:15, color:'#DDAA00',prob:.15,span:60},
-  {label:'R$ 20', value:20, color:'#22AA44',prob:.10,span:60},
-  {label:'R$ 50', value:50, color:'#2277EE',prob:.07,span:60},
-  {label:'R$100', value:100,color:'#8833BB',prob:.03,span:60},
+  {label:'R$ 5',           value:5,   color:'#8B0000',prob:.25,  span:40},
+  {label:'R$ 10',          value:10,  color:'#DAA520',prob:.15,  span:40},
+  {label:'R$ 15',          value:15,  color:'#8B0000',prob:.10,  span:40},
+  {label:'R$ 20',          value:20,  color:'#DAA520',prob:.06,  span:40},
+  {label:'R$ 50',          value:50,  color:'#8B0000',prob:.035, span:40},
+  {label:'R$ 80',          value:80,  color:'#DAA520',prob:.015, span:40},
+  {label:'R$ 100',         value:100, color:'#8B0000',prob:.006, span:40},
+  {label:'🔄 Jogar de Novo',value:0,  type:'replay',  color:'#1A5C2A',prob:.20,  span:40},
+  {label:'😔 Tente de Novo',value:-5, type:'penalty', color:'#7B3400',prob:.184, span:40},
 ];
 (()=>{let c=0;SPIN_PRIZES.forEach(p=>{p.start=c;c+=p.span;});})();
 function buildCreds(rows){const o={};(rows||[]).forEach(r=>{o[r.key]={login:r.login,pin:r.pin};});return o;}
@@ -188,14 +191,14 @@ function SMedal({levelId,size=52,lit}){
   const col=cols[levelId]||cols.start;
   if(!lit){
     return(
-      <div style={{width:size,height:size,borderRadius:'50%',background:'#2A2A2A',boxShadow:'1px 2px 6px rgba(0,0,0,0.3)',display:'flex',alignItems:'center',justifyContent:'center'}}>
-        <img src="icone-app.png" style={{width:'98%',height:'98%',objectFit:'contain',filter:'brightness(0) invert(1)',opacity:0.25}} alt=""/>
+      <div style={{width:size,height:size,borderRadius:'50%',background:'#2A2A2A',boxShadow:'1px 2px 6px rgba(0,0,0,0.3)',display:'flex',alignItems:'center',justifyContent:'center',opacity:0.35,transform:'scale(0.9)'}}>
+        <img src="icone-app.png" style={{width:'90%',height:'90%',objectFit:'contain',filter:'brightness(0) invert(1)',opacity:0.3}} alt=""/>
       </div>
     );
   }
   return(
     <div style={{width:size,height:size,borderRadius:'50%',background:col.bg,boxShadow:`2px 3px 12px ${col.glow},0 0 0 2px ${col.border},inset 0 0 ${Math.round(size*0.4)}px ${col.inset}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
-      <img src="icone-app.png" style={{width:'98%',height:'98%',objectFit:'contain',filter:'drop-shadow(0 1px 4px rgba(0,0,0,0.4))'}} alt=""/>
+      <img src="icone-app.png" style={{width:'90%',height:'90%',objectFit:'contain',filter:'drop-shadow(0 1px 4px rgba(0,0,0,0.4))'}} alt=""/>
     </div>
   );
 }
@@ -314,8 +317,8 @@ function MedalsShowcase({points}){
           const lit=i<=curIdx;
           return(
             <div key={lv.id} style={{textAlign:'center',transition:'opacity .6s'}}>
-              <SMedal levelId={lv.id} size={50} lit={lit}/>
-              <div style={{fontSize:'.54rem',fontWeight:800,letterSpacing:'.04em',textTransform:'uppercase',marginTop:6,color:lit?'var(--black)':'var(--muted)'}}>{lv.name.replace('Seek ','')}</div>
+              <SMedal levelId={lv.id} size={60} lit={lit}/>
+              <div style={{fontSize:'.75rem',fontWeight:900,letterSpacing:'.04em',textTransform:'uppercase',marginTop:6,color:lit?'#111':'var(--muted)'}}>{lv.name.replace('Seek ','')}</div>
               <div style={{fontSize:'.5rem',color:'var(--muted)',marginTop:1}}>{lv.max===Infinity?`${lv.min}+`:`${lv.min}-${lv.max}`} pts</div>
               {lit&&lv.bonus>0&&<div style={{fontSize:'.5rem',fontWeight:800,color:lv.color,marginTop:2}}>+{(lv.bonus*100).toFixed(0)}%</div>}
             </div>
@@ -679,36 +682,44 @@ function RemuneracaoPanel({isMaster,onBack,isAdm=false}){
             A roleta aparece no próximo login do SEEK/SEEK JR, antes do painel principal. Se houver mais de uma chance acumulada, elas são apresentadas uma por vez.
           </div>
           <div style={{fontWeight:700,fontSize:'.78rem',marginBottom:8,color:'var(--black)'}}>{isMaster?'Premiação (resultado ponderado por software):':'Prêmios disponíveis:'}</div>
-          {SPIN_PRIZES.map(p=>(
-            <div key={p.value} className="rem-row" style={{padding:'8px 0'}}>
+          {SPIN_PRIZES.map((p,i)=>(
+            <div key={i} className="rem-row" style={{padding:'8px 0'}}>
               <div style={{display:'flex',alignItems:'center',gap:10}}>
                 <div style={{width:16,height:16,borderRadius:'50%',background:p.color,flexShrink:0}}/>
                 <span style={{fontWeight:700,fontSize:'.84rem'}}>{p.label}</span>
               </div>
-              {isMaster&&<span style={{fontWeight:800,fontSize:'.84rem',color:p.color}}>{(p.prob*100).toFixed(0)}% de chance</span>}
+              {isMaster&&<span style={{fontWeight:800,fontSize:'.84rem',color:p.color}}>{(p.prob*100).toFixed(1)}% de chance</span>}
             </div>
           ))}
-          <div style={{marginTop:12,padding:'10px 12px',borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.73rem',color:'var(--muted)',lineHeight:1.7}}>
-            {isMaster?'💡 A roleta possui 6 fatias iguais visualmente, mas a probabilidade de cada prêmio é controlada por software. O valor ganho é somado ao total a receber do SEEK/JR e aparece no extrato.':'💡 O valor ganho é somado ao total a receber e aparece no extrato. A cada venda confirmada pelo vendedor, você ganha 1 chance de girar.'}
+          <div style={{marginTop:10,padding:'10px 12px',borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.73rem',color:'var(--muted)',lineHeight:1.7}}>
+            {'🔄 '}<strong>{'Jogar de Novo:'}</strong>{' Você ganhou outro giro grátis!'}<br/>
+            {'😔 '}<strong>{'Tente de Novo:'}</strong>{' R$ 5,00 são descontados do seu saldo de bônus.'}
+          </div>
+          <div style={{marginTop:8,padding:'10px 12px',borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.73rem',color:'var(--muted)',lineHeight:1.7}}>
+            {isMaster?'💡 A roleta possui 9 fatias iguais visualmente (40° cada), mas a probabilidade de cada prêmio é controlada por software. O valor ganho é somado ao total a receber do SEEK/JR e aparece no extrato.':'💡 O valor ganho é somado ao total a receber e aparece no extrato. A cada venda confirmada pelo vendedor, você ganha 1 chance de girar.'}
           </div>
         </div>
-        {isMaster&&<div className="nm" style={{padding:'20px 18px'}}>
+        <div className="nm" style={{padding:'20px 18px'}}>
           <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:8,display:'flex',alignItems:'center',gap:8}}>{'🎁 Cofre Misterioso'}</div>
           <div style={{fontSize:'.75rem',color:'var(--muted)',marginBottom:14,lineHeight:1.7}}>
-            {'A cada 2 giros de roleta do mesmo SEEK ou SEEK JR, ele ganha o direito de abrir um Cofre Misterioso.'}<br/>
-            {'O cofre aparece no próximo login, após a roleta. Ao clicar, o cofre é aberto e um valor aleatório é revelado.'}
+            {'A cada 2 giros da roleta, você ganha um Cofre Misterioso!'}<br/>
+            {'O cofre aparece no seu próximo login, após a roleta.'}<br/>
+            {'Clique no cofre para abri-lo e descobrir seu prêmio surpresa!'}<br/>
+            {'O valor ganho é adicionado ao seu saldo a receber.'}
           </div>
-          <div style={{fontWeight:700,fontSize:'.78rem',marginBottom:8,color:'var(--black)'}}>{'Valores e probabilidades:'}</div>
-          {CHEST_PRIZES.map(p=>(
-            <div key={p.value} className="rem-row" style={{padding:'8px 0'}}>
-              <span style={{fontWeight:700,fontSize:'.84rem'}}>{fBRL(p.value)}</span>
-              <span style={{fontWeight:800,fontSize:'.84rem',color:'#B8860B'}}>{(p.prob*100).toFixed(1)}{'% de chance'}</span>
-            </div>
-          ))}
+          {isMaster&&<>
+            <div style={{fontWeight:700,fontSize:'.78rem',marginBottom:8,color:'var(--black)'}}>{'Valores e probabilidades:'}</div>
+            {CHEST_PRIZES.map(p=>(
+              <div key={p.value} className="rem-row" style={{padding:'8px 0'}}>
+                <span style={{fontWeight:700,fontSize:'.84rem'}}>{fBRL(p.value)}</span>
+                <span style={{fontWeight:800,fontSize:'.84rem',color:'#B8860B'}}>{(p.prob*100).toFixed(1)}{'% de chance'}</span>
+              </div>
+            ))}
+          </>}
           <div style={{marginTop:12,padding:'10px 12px',borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.73rem',color:'var(--muted)',lineHeight:1.7}}>
             {'💡 O valor ganho é somado ao total A Receber do SEEK/JR e aparece no extrato. É pago junto com as comissões via PAGAR TUDO.'}
           </div>
-        </div>}
+        </div>
         {(isAdm||isMaster)&&<div className="nm" style={{padding:'20px 18px'}}>
           <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>{'💼 Minha Comissão de Vendedor'}</div>
           {[
@@ -989,19 +1000,19 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
               :<div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c||'var(--black)'}}>{v}</div></div>
           ))}
         </div>
-        {bonusRoleta>0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
+        {bonusRoletaPendente>0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{fontSize:'.72rem',fontWeight:800,color:'#8833BB'}}>{'🎰 Bônus Roleta ▸'}</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:bonusRoletaPendente>0?'var(--red)':'var(--green)'}}>{bonusRoletaPendente>0?'+ '+fBRL(bonusRoletaPendente):'✓ Pago'}</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{'+ '+fBRL(bonusRoletaPendente)}</div>
           </div>
-          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{bonusRoletaPendente>0?'Incluído no total A Receber':'Tudo pago!'}{' · Total: '}{fBRL(bonusRoleta)}</div>
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
-        {chestTotalJr>0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowCofres(true)}>
+        {chestPendente>0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowCofres(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{fontSize:'.72rem',fontWeight:800,color:'#B8860B'}}>{'🎁 Cofre Misterioso ▸'}</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:chestPendente>0?'var(--red)':'var(--green)'}}>{chestPendente>0?'+ '+fBRL(chestPendente):'✓ Pago'}</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{'+ '+fBRL(chestPendente)}</div>
           </div>
-          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{chestPendente>0?'Incluído no total A Receber':'Tudo pago!'}{' · Total: '}{fBRL(chestTotalJr)}</div>
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
 
         {/* Graduation bar */}
@@ -1017,7 +1028,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
           <div style={{display:'flex',gap:5,marginBottom:8}}>
             {JR_LEVELS.map((lv,i)=>(
               <div key={lv.id} style={{flex:1,textAlign:'center'}}>
-                <div style={{height:8,borderRadius:99,background:i<=jrLvIdx?'var(--green)':'var(--gray)',marginBottom:4,transition:'all .5s',boxShadow:i<=jrLvIdx?'0 0 6px rgba(29,122,58,.4)':'none'}}/>
+                <div style={{height:16,borderRadius:8,background:i<=jrLvIdx?'linear-gradient(90deg,#FF0000,#FF8C00,#00C853)':'var(--gray)',marginBottom:4,transition:'all .5s',boxShadow:i<=jrLvIdx?'0 0 6px rgba(0,200,83,.4)':'none'}}/>
                 <div style={{fontSize:'.54rem',fontWeight:800,color:i<=jrLvIdx?'var(--green)':'var(--muted)'}}>{lv.name}</div>
                 <div style={{fontSize:'.5rem',color:'var(--muted)'}}>{(lv.bonus*100).toFixed(0)}%</div>
               </div>
@@ -1269,19 +1280,19 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
               :<div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c}}>{v}</div></div>
           ))}
         </div>
-        {bonusRoleta>0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:10,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
+        {bonusRoletaPendente>0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:10,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{fontSize:'.72rem',fontWeight:800,color:'#8833BB'}}>{'🎰 Bônus Roleta ▸'}</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:bonusRoletaPendente>0?'var(--red)':'var(--green)'}}>{bonusRoletaPendente>0?'+ '+fBRL(bonusRoletaPendente):'✓ Pago'}</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{'+ '+fBRL(bonusRoletaPendente)}</div>
           </div>
-          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{bonusRoletaPendente>0?'Incluído no total A Receber':'Tudo pago!'}{' · Total: '}{fBRL(bonusRoleta)}</div>
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
-        {chestTotalM>0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowCofres(true)}>
+        {chestPendente>0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowCofres(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{fontSize:'.72rem',fontWeight:800,color:'#B8860B'}}>{'🎁 Cofre Misterioso ▸'}</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:chestPendente>0?'var(--red)':'var(--green)'}}>{chestPendente>0?'+ '+fBRL(chestPendente):'✓ Pago'}</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{'+ '+fBRL(chestPendente)}</div>
           </div>
-          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{chestPendente>0?'Incluído no total A Receber':'Tudo pago!'}{' · Total: '}{fBRL(chestTotalM)}</div>
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
       </div>
 
@@ -1499,6 +1510,10 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
           </button>
         ))}
       </div>
+      <button className="nm" style={{padding:'14px 16px',border:'none',cursor:'pointer',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%',textAlign:'left'}} onClick={()=>onNav('prevPending')}>
+        <span style={{fontWeight:700,fontSize:'.82rem'}}>{'📅 Pagamento Mês Anterior'}</span>
+        <span style={{color:'var(--muted)',fontSize:'.76rem',fontWeight:700}}>{'Ver ▸'}</span>
+      </button>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
         <StatCard label="🎰 Roleta Pendente" value={fBRL(spinAP)} color={spinAP>0?'#8833BB':'var(--muted)'}/>
         <StatCard label="🎰 Roleta Paga" value={fBRL(spinPaidTotal)} color="var(--green)"/>
@@ -1746,16 +1761,19 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
           <button className="icon-btn" style={{width:30,height:30,borderRadius:9}} onClick={()=>{setShowCreds(true);setNewPin('');setPinErr('');}}><IcKey s={13}/></button>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginTop:4}}>
+          <div className="nm-in" style={{padding:'10px 8px',textAlign:'center',gridColumn:'span 2'}}>
+            <div style={{fontSize:'.52rem',fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',marginBottom:4}}>Total Gerado</div>
+            <div style={{fontWeight:800,fontSize:'.76rem',color:'var(--black)'}}>{fBRL(totC)}</div>
+          </div>
           {[
-            ['Total Gerado',fBRL(totC),'var(--black)'],
             ['Com. A Pagar',fBRL(comAP),'var(--red)'],
-            ['Com. Pagas',fBRL(totP),'var(--green)'],
+            ['Com. Paga',fBRL(totP),'var(--green)'],
             ['🎰 Roleta Pend.',fBRL(memberUnpaidSpin),'var(--red)'],
             ['🎰 Roleta Paga',fBRL(spinPaid),'var(--green)'],
             ['🎁 Cofre Pend.',fBRL(memberUnpaidChest),'var(--red)'],
             ['🎁 Cofre Pago',fBRL(chestPaidMember),'var(--green)'],
-          ].map(([l,v,c],i,arr)=>(
-            <div key={l} className="nm-in" style={{padding:'10px 8px',textAlign:'center',gridColumn:i===arr.length-1&&arr.length%2!==0?'span 2':undefined}}>
+          ].map(([l,v,c])=>(
+            <div key={l} className="nm-in" style={{padding:'10px 8px',textAlign:'center'}}>
               <div style={{fontSize:'.52rem',fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',marginBottom:4}}>{l}</div>
               <div style={{fontWeight:800,fontSize:'.76rem',color:c}}>{v}</div>
             </div>
@@ -3006,7 +3024,7 @@ function CalendarioAniversarios({referrals,jrReferrals,members,seekJrs,autoOpenD
 ══════════════════════════════════════════════════════════════════ */
 function AdmTabBar({view,setView,onOffers}){
   const tabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'members',l:'SEEK',I:IcUsers},{id:'remuneracao',l:'Regras',I:IcBook}];
-  const active=view==='memberDetail'?'members':['pending','paid'].includes(view)?'dashboard':view;
+  const active=view==='memberDetail'?'members':['pending','paid','prevPending'].includes(view)?'dashboard':view;
   return(
     <div style={{position:'fixed',bottom:0,left:'50%',transform:'translateX(-50%)',width:'100%',maxWidth:640,zIndex:20}}>
       <div className="tab-bar">
@@ -3760,11 +3778,15 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
 /* ══════════════════════════════════════════════════════════════════
    LEDGER POR SEEK — A Pagar e Pagas organizados por SEEK/JR
 ══════════════════════════════════════════════════════════════════ */
-function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false}){
+function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
   const allSpins=spinRewards||[];
   const allChests=chestRewards||[];
-  const filtRefs=paid?referrals.filter(r=>r.paid):referrals.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0));
-  const filtJrRefs=paid?jrReferrals.filter(r=>r.paid):jrReferrals.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0));
+  const filtRefs=paid
+    ?referrals.filter(r=>r.paid&&(!filterMonth||(r.month===filterMonth&&r.year===filterYear)))
+    :referrals.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)&&(!filterMonth||(r.month===filterMonth&&r.year===filterYear)));
+  const filtJrRefs=paid
+    ?jrReferrals.filter(r=>r.paid&&(!filterMonth||(r.month===filterMonth&&r.year===filterYear)))
+    :jrReferrals.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)&&(!filterMonth||(r.month===filterMonth&&r.year===filterYear)));
   const filtSpins=paid?allSpins.filter(s=>s.paid):allSpins.filter(s=>!s.paid);
   const filtChests=paid?allChests.filter(c=>c.paid):allChests.filter(c=>!c.paid);
   const total=filtRefs.reduce((s,r)=>s+r.commission,0)+filtJrRefs.reduce((s,r)=>s+r.commission,0)+filtSpins.reduce((s,r)=>s+r.value,0)+filtChests.reduce((s,c)=>s+c.valor,0);
@@ -3863,7 +3885,7 @@ function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
 
   return(
     <>
-      <TopBar title={paid?'Comissões Pagas':'A Pagar'} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
+      <TopBar title={filterMonth?`${MONTHS[filterMonth-1]} — A Pagar`:paid?'Comissões Pagas':'A Pagar'} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
       <div className="page">
         {entries.length===0&&<Empty text={paid?'Nenhuma comissão paga.':'Tudo em dia!'}/>}
         {entries.map(e=><EntryCard key={e.type==='seek'?'seek_'+e.m.id:'jr_'+e.jr.id} e={e}/>)}
@@ -3897,7 +3919,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
   const badge=pendReqs.length+newRefs.length+newJrs.length;
   const allRefs=[...referrals,...jrReferrals];
   const curMember=selMember?members.find(m=>sameId(m.id,selMember.id))??selMember:null;
-  const inSubView=['memberDetail','pending','paid','editRef'].includes(view);
+  const inSubView=['memberDetail','pending','paid','editRef','prevPending'].includes(view);
   const [calAutoDay,setCalAutoDay]=useState(null);
   const todayBdRefs=[...referrals,...jrReferrals].filter(r=>r.birthdayDay===now.getDate()&&r.birthdayMonth===now.getMonth()+1);
 
@@ -3928,6 +3950,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>}
       {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr}/>}
       {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} onBack={()=>setView('dashboard')}/>}
+      {view==='prevPending'&&(()=>{const _pm=new Date(new Date().getFullYear(),new Date().getMonth()-1,1);return<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={_pm.getMonth()+1} filterYear={_pm.getFullYear()}/>;})()}
       {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={false} isAdm={true}/>}
       {view==='fipe'&&<FipeConsulta/>}
@@ -4239,11 +4262,27 @@ function Confetti(){
 function ChestModal({seekerName,onResult,onClose}){
   const [phase,setPhase]=useState('idle');
   const [valor,setValor]=useState(null);
+  const moneyNotes=React.useMemo(()=>Array.from({length:10},(_,i)=>({id:i,x:20+Math.random()*60,delay:Math.random()*0.5,dur:0.8+Math.random()*0.6})),[]);
 
   function drawPrize(){
     let r=Math.random(),cum=0;
     for(const p of CHEST_PRIZES){cum+=p.prob;if(r<cum)return p.value;}
     return CHEST_PRIZES[CHEST_PRIZES.length-1].value;
+  }
+
+  function playCoinSound(){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      [1047,1319,1047,1568].forEach((f,i)=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.type='sine';o.frequency.value=f;
+        const s=ctx.currentTime+i*0.07;
+        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(.25,s+.02);
+        g.gain.exponentialRampToValueAtTime(.001,s+.25);
+        o.start(s);o.stop(s+.28);
+      });
+    }catch(e){}
   }
 
   function playFanfare(){
@@ -4272,6 +4311,7 @@ function ChestModal({seekerName,onResult,onClose}){
 
   function handleOpen(){
     if(phase!=='idle')return;
+    playCoinSound();
     const v=drawPrize();
     setValor(v);
     setPhase('opening');
@@ -4279,25 +4319,25 @@ function ChestModal({seekerName,onResult,onClose}){
       setPhase('revealed');
       playFanfare();
       onResult(v);
-    },700);
+    },900);
   }
 
   const bgStars=React.useMemo(()=>Array.from({length:26},(_,i)=>({
     id:i,x:Math.random()*100,y:Math.random()*100,
-    size:3+Math.random()*9,
-    color:['#FFD700','#FF6B00','#22AA44','#2277EE','#8833BB','#FF69B4','#E63333','#00CCCC'][i%8],
+    size:3+Math.random()*8,
+    color:['#00E5FF','#0077FF','#00FF88','#FFD700','#00BFFF','#7AF','#00FFCC','#48F'][i%8],
     dur:.8+Math.random()*2,delay:Math.random()*2,
   })),[]);
 
   return(
-    <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at center,#1e0048 0%,#0a0020 55%,#05000e 100%)',zIndex:9998,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
+    <div style={{position:'fixed',inset:0,background:'radial-gradient(ellipse at center,#001A4D 0%,#000D26 55%,#000510 100%)',zIndex:9998,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',overflow:'hidden'}}>
       {bgStars.map(s=>(
-        <div key={s.id} style={{position:'absolute',left:`${s.x}%`,top:`${s.y}%`,width:s.size,height:s.size,borderRadius:'50%',background:s.color,animation:`blink-text ${s.dur}s ${s.delay}s ease-in-out infinite`,boxShadow:`0 0 ${s.size*2}px ${s.color}`,pointerEvents:'none'}}/>
+        <div key={s.id} style={{position:'absolute',left:`${s.x}%`,top:`${s.y}%`,width:s.size,height:s.size,borderRadius:'50%',background:s.color,animation:`blink-text ${s.dur}s ${s.delay}s ease-in-out infinite`,boxShadow:`0 0 ${s.size*2.5}px ${s.color}`,pointerEvents:'none'}}/>
       ))}
 
       {phase!=='revealed'?(
         <React.Fragment>
-          <div style={{fontSize:'1.15rem',fontWeight:900,color:'#FFD700',textAlign:'center',marginBottom:32,animation:'blink-text 1.4s ease-in-out infinite',padding:'0 24px',lineHeight:1.5,textShadow:'0 0 25px rgba(255,215,0,.9)',letterSpacing:'.02em'}}>
+          <div style={{fontSize:'1.15rem',fontWeight:900,color:'#FFD700',textAlign:'center',marginBottom:28,animation:'blink-text 1.4s ease-in-out infinite',padding:'0 24px',lineHeight:1.5,textShadow:'0 0 25px rgba(255,215,0,.9)',letterSpacing:'.02em'}}>
             {'🎁 COFRE MISTERIOSO!'}<br/>
             <span style={{fontSize:'.84rem',letterSpacing:'.06em'}}>{'Clique para abrir!'}</span>
           </div>
@@ -4306,38 +4346,45 @@ function ChestModal({seekerName,onResult,onClose}){
             onClick={handleOpen}
             style={{
               cursor:phase==='idle'?'pointer':'default',
-              animation:phase==='idle'?'chest-wobble 2s ease-in-out infinite, chest-glow 2.5s ease-in-out infinite':'chest-explode .7s ease-out forwards',
-              display:'inline-block',userSelect:'none',
+              animation:phase==='idle'?'chest-wobble 2s ease-in-out infinite, chest-glow 2.5s ease-in-out infinite':'none',
+              display:'inline-block',userSelect:'none',position:'relative',
             }}
           >
-            <div style={{position:'relative',width:150,height:122}}>
-              <div style={{position:'absolute',top:0,left:0,right:0,height:52,background:'linear-gradient(160deg,#A0522D 0%,#6B3A1F 55%,#4A2800 100%)',borderRadius:'14px 14px 0 0',border:'3px solid #FFD700',borderBottom:'none',boxShadow:'0 -3px 16px rgba(255,215,0,.4)',overflow:'hidden'}}>
-                {[14,63,112].map(l=>(
-                  <div key={l} style={{position:'absolute',top:14,left:l,width:13,height:13,borderRadius:'50%',background:'radial-gradient(circle at 40% 35%,#FFE566,#DAA520)',boxShadow:'0 0 8px rgba(255,215,0,.7)'}}/>
+            {phase==='opening'&&moneyNotes.map(n=>(
+              <div key={n.id} style={{position:'absolute',left:`${n.x}%`,bottom:'100%',fontSize:'1.4rem',animation:`money-fly ${n.dur}s ${n.delay}s ease-out forwards`,pointerEvents:'none'}}>{'💵'}</div>
+            ))}
+            <div style={{position:'relative',width:160,height:130,perspectiveOrigin:'50% 50%',perspective:400}}>
+              <div style={{
+                position:'absolute',top:0,left:0,right:0,height:56,
+                background:'linear-gradient(160deg,#C8A200 0%,#A07800 55%,#7A5800 100%)',
+                borderRadius:'14px 14px 0 0',border:'3px solid #FFE566',borderBottom:'none',
+                boxShadow:'0 -3px 20px rgba(0,229,255,.35)',overflow:'hidden',
+                transformOrigin:'50% 100%',
+                animation:phase==='opening'?'chest-lid-open .9s ease-out forwards':'none',
+              }}>
+                <div style={{position:'absolute',top:0,left:0,right:0,height:9,background:'linear-gradient(180deg,#00E5FF,#0077FF)',opacity:.7}}/>
+                {[14,73,122].map(l=>(
+                  <div key={l} style={{position:'absolute',top:18,left:l,width:14,height:14,borderRadius:'50%',background:'radial-gradient(circle at 40% 35%,#00FFEE,#0077BB)',boxShadow:'0 0 10px rgba(0,229,255,.9)'}}/>
                 ))}
-                <div style={{position:'absolute',bottom:0,left:0,right:0,height:7,background:'linear-gradient(180deg,#FFD700,#B8860B)',opacity:.75}}/>
+                <div style={{position:'absolute',bottom:0,left:0,right:0,height:7,background:'linear-gradient(180deg,#FFD700,#B8860B)',opacity:.8}}/>
               </div>
-              <div style={{position:'absolute',bottom:0,left:0,right:0,height:74,background:'linear-gradient(170deg,#7B3500 0%,#4A2000 50%,#3A1800 100%)',borderRadius:'0 0 14px 14px',border:'3px solid #FFD700',borderTop:'none',boxShadow:'0 4px 20px rgba(0,0,0,.55), inset 0 0 20px rgba(255,215,0,.07)'}}>
-                <div style={{position:'absolute',top:0,left:0,right:0,height:8,background:'linear-gradient(180deg,#FFD700,#B8860B)',opacity:.8}}/>
-                {[{l:10,t:18,c:'#E63333'},{l:120,t:18,c:'#22AA44'},{l:10,t:44,c:'#8833BB'},{l:120,t:44,c:'#2277EE'}].map((g,i)=>(
-                  <div key={i} style={{position:'absolute',top:g.t,left:g.l,width:16,height:16,borderRadius:4,background:g.c,boxShadow:`0 0 10px ${g.c}`,border:'1.5px solid rgba(255,255,255,.25)'}}/>
+              <div style={{position:'absolute',bottom:0,left:0,right:0,height:78,background:'linear-gradient(170deg,#B8860B 0%,#8B6400 50%,#5A3F00 100%)',borderRadius:'0 0 14px 14px',border:'3px solid #FFE566',borderTop:'none',boxShadow:'0 4px 24px rgba(0,0,0,.6), inset 0 0 24px rgba(0,229,255,.12)'}}>
+                <div style={{position:'absolute',top:0,left:0,right:0,height:8,background:'linear-gradient(180deg,#FFD700,#B8860B)',opacity:.85}}/>
+                {[{l:8,t:18,c:'#00E5FF'},{l:128,t:18,c:'#00E5FF'},{l:8,t:46,c:'#00E5FF'},{l:128,t:46,c:'#00E5FF'}].map((g,i)=>(
+                  <div key={i} style={{position:'absolute',top:g.t,left:g.l,width:17,height:17,borderRadius:5,background:`radial-gradient(circle at 35% 30%,${g.c},#004488)`,boxShadow:`0 0 12px ${g.c}`,border:'1.5px solid rgba(255,255,255,.30)'}}/>
                 ))}
-                <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:34,height:34,borderRadius:8,background:'linear-gradient(135deg,#FFE566,#DAA520)',border:'2.5px solid #8B4513',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 16px rgba(255,215,0,.7)'}}>
-                  <div style={{width:14,height:15,borderRadius:'7px 7px 0 0',border:'3.5px solid #8B4513',borderBottom:'none',marginTop:-3}}/>
+                <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:36,height:36,borderRadius:9,background:'linear-gradient(135deg,#FFE566,#DAA520)',border:'2.5px solid #7A5800',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 0 20px rgba(255,215,0,.8)'}}>
+                  <div style={{width:14,height:16,borderRadius:'7px 7px 0 0',border:'3.5px solid #7A5800',borderBottom:'none',marginTop:-4}}/>
                 </div>
-                {[14,126].map(l=>(
-                  <div key={l} style={{position:'absolute',top:30,left:l,width:13,height:13,borderRadius:'50%',background:'radial-gradient(circle at 40% 35%,#FFE566,#DAA520)',boxShadow:'0 0 8px rgba(255,215,0,.6)'}}/>
+                {[14,134].map(l=>(
+                  <div key={l} style={{position:'absolute',top:32,left:l,width:13,height:13,borderRadius:'50%',background:'radial-gradient(circle at 40% 35%,#FFE566,#DAA520)',boxShadow:'0 0 8px rgba(255,215,0,.7)'}}/>
                 ))}
+                {phase==='opening'&&<div style={{position:'absolute',inset:0,borderRadius:'0 0 12px 12px',background:'radial-gradient(ellipse at 50% 0%,rgba(0,229,255,.5),transparent 70%)',animation:'chest-glow .5s ease-out'}}/>}
               </div>
-              {['#FFD700','#FF4500','#8833BB','#22AA44','#FF69B4'].map((c,i)=>{
-                const deg=i*72,rad=86;
-                const cx=75+Math.cos(deg*Math.PI/180)*rad,cy=61+Math.sin(deg*Math.PI/180)*rad;
-                return<div key={i} style={{position:'absolute',left:cx-5,top:cy-5,width:11,height:11,borderRadius:'50%',background:c,boxShadow:`0 0 12px ${c}`,animation:`blink-text ${.7+i*.2}s ${i*.1}s ease-in-out infinite`,pointerEvents:'none'}}/>;
-              })}
             </div>
           </div>
 
-          <div style={{marginTop:26,color:'rgba(255,215,0,.55)',fontSize:'.73rem',fontWeight:700,textAlign:'center',letterSpacing:'.04em',padding:'0 24px'}}>
+          <div style={{marginTop:24,color:'rgba(0,229,255,.7)',fontSize:'.73rem',fontWeight:700,textAlign:'center',letterSpacing:'.04em',padding:'0 24px'}}>
             {'Parabéns, '}{seekerName.split(' ')[0]}{'! Um cofre foi desbloqueado! 🔓'}
           </div>
         </React.Fragment>
@@ -4348,14 +4395,14 @@ function ChestModal({seekerName,onResult,onClose}){
             <div style={{fontSize:'1rem',fontWeight:900,color:'#FFD700',marginBottom:10,letterSpacing:'.06em',textShadow:'0 0 22px rgba(255,215,0,.9)'}}>
               {'🎁 PARABÉNS, '}{seekerName.split(' ')[0].toUpperCase()}{'!'}
             </div>
-            <div style={{fontSize:'4rem',fontWeight:900,color:'#FFD700',textShadow:'0 0 50px rgba(255,215,0,1), 0 0 100px rgba(255,140,0,.5)',lineHeight:1,marginBottom:6}}>
+            <div style={{fontSize:'4rem',fontWeight:900,color:'#FFD700',textShadow:'0 0 50px rgba(255,215,0,1), 0 0 100px rgba(0,229,255,.5)',lineHeight:1,marginBottom:6}}>
               {fBRL(valor)}
             </div>
             <div style={{fontSize:'.84rem',color:'rgba(255,255,255,.7)',fontWeight:700}}>{'no Cofre Misterioso!'}</div>
           </div>
           <button
             onClick={onClose}
-            style={{marginTop:44,padding:'14px 42px',borderRadius:50,background:'linear-gradient(135deg,#FFD700,#FF8C00)',border:'none',fontSize:'1rem',fontWeight:900,color:'#1e0048',cursor:'pointer',boxShadow:'0 4px 24px rgba(255,140,0,.6)',fontFamily:'inherit',letterSpacing:'.04em'}}
+            style={{marginTop:44,padding:'14px 42px',borderRadius:50,background:'linear-gradient(135deg,#FFD700,#FF8C00)',border:'none',fontSize:'1rem',fontWeight:900,color:'#001A4D',cursor:'pointer',boxShadow:'0 4px 24px rgba(255,140,0,.6)',fontFamily:'inherit',letterSpacing:'.04em'}}
           >
             {'Incrível! 🎉'}
           </button>
@@ -4427,25 +4474,19 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
   const [spinning,setSpinning]=useState(false);
   const [won,setWon]=useState(null);
   const [pendingWin,setPendingWin]=useState(null);
+  const baseRot=React.useRef(0);
 
-  function playSpinSound(){
+  function playCircusSound(){
     try{
       const ctx=new(window.AudioContext||window.webkitAudioContext)();
-      const times=[];let t=0;
-      while(t<4.0){
-        times.push(t);
-        const bell=Math.sin((t/4.2)*Math.PI);
-        t+=0.5-bell*0.46;
-      }
-      times.forEach(t=>{
-        const osc=ctx.createOscillator(),g=ctx.createGain();
-        osc.connect(g);g.connect(ctx.destination);
-        osc.type='triangle';osc.frequency.value=900;
-        const n=ctx.currentTime;
-        g.gain.setValueAtTime(0,n+t);
-        g.gain.linearRampToValueAtTime(0.28,n+t+0.004);
-        g.gain.linearRampToValueAtTime(0,n+t+0.028);
-        osc.start(n+t);osc.stop(n+t+0.032);
+      [[523,0],[659,.11],[784,.22],[1047,.33],[784,.44],[659,.55],[523,.66],[659,.77],[784,.88],[1047,.99],[1175,1.10],[1047,1.21],[784,1.32],[659,1.43],[523,1.54],[784,1.70],[1047,1.84],[1319,1.98],[1568,2.12],[1319,2.26],[1047,2.40],[784,2.54],[659,2.68],[523,2.82]].forEach(([f,t])=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.type='square';o.frequency.value=f;
+        const s=ctx.currentTime+t;
+        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.1,s+0.01);
+        g.gain.exponentialRampToValueAtTime(0.001,s+0.10);
+        o.start(s);o.stop(s+0.11);
       });
     }catch(e){}
   }
@@ -4453,30 +4494,53 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
   function playCelebrationSound(){
     try{
       const ctx=new(window.AudioContext||window.webkitAudioContext)();
-      [523,659,784,1047,1319].forEach((freq,i)=>{
-        const osc=ctx.createOscillator(),g=ctx.createGain();
-        osc.connect(g);g.connect(ctx.destination);
-        osc.type='sine';osc.frequency.value=freq;
-        const s=ctx.currentTime+i*0.12;
-        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.35,s+0.05);
-        g.gain.exponentialRampToValueAtTime(0.001,s+0.55);
-        osc.start(s);osc.stop(s+0.6);
+      [523,659,784,1047,1319,1047,1319,1568].forEach((f,i)=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.type='sine';o.frequency.value=f;
+        const s=ctx.currentTime+i*0.1;
+        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.3,s+0.05);
+        g.gain.exponentialRampToValueAtTime(0.001,s+0.5);
+        o.start(s);o.stop(s+0.55);
       });
-      [784,1047,1319,1568,1047].forEach((freq,i)=>{
-        const osc=ctx.createOscillator(),g=ctx.createGain();
-        osc.connect(g);g.connect(ctx.destination);
-        osc.type='triangle';osc.frequency.value=freq;
-        const s=ctx.currentTime+i*0.1+0.06;
-        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.18,s+0.04);
-        g.gain.exponentialRampToValueAtTime(0.001,s+0.45);
-        osc.start(s);osc.stop(s+0.5);
+    }catch(e){}
+  }
+
+  function playSadSound(){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      [[440,0],[392,0.28],[349,0.56],[311,0.84]].forEach(([f,t])=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.type='sawtooth';
+        o.frequency.setValueAtTime(f,ctx.currentTime+t);
+        o.frequency.linearRampToValueAtTime(f-30,ctx.currentTime+t+0.25);
+        const s=ctx.currentTime+t;
+        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.22,s+0.06);
+        g.gain.exponentialRampToValueAtTime(0.001,s+0.27);
+        o.start(s);o.stop(s+0.30);
+      });
+    }catch(e){}
+  }
+
+  function playFreeSpinSound(){
+    try{
+      const ctx=new(window.AudioContext||window.webkitAudioContext)();
+      [784,988,1175,1319,1568].forEach((f,i)=>{
+        const o=ctx.createOscillator(),g=ctx.createGain();
+        o.connect(g);g.connect(ctx.destination);
+        o.type='sine';o.frequency.value=f;
+        const s=ctx.currentTime+i*0.08;
+        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.25,s+0.03);
+        g.gain.exponentialRampToValueAtTime(0.001,s+0.38);
+        o.start(s);o.stop(s+0.42);
       });
     }catch(e){}
   }
 
   function handleSpin(){
     if(spinning||won)return;
-    playSpinSound();
+    playCircusSound();
     const rand=Math.random();
     let cum=0,winner=SPIN_PRIZES[0];
     for(const p of SPIN_PRIZES){cum+=p.prob;if(rand<cum){winner=p;break;}}
@@ -4484,64 +4548,145 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
     setSpinning(true);
     const mid=winner.start+winner.span/2;
     const finalDeg=(360-mid%360+360)%360;
-    setTimeout(()=>setRotation(1800+finalDeg),20);
+    const target=baseRot.current+1800+((finalDeg-baseRot.current%360)+360)%360;
+    baseRot.current=target;
+    setRotation(target);
   }
 
   function handleTransitionEnd(e){
     if(e.propertyName!=='transform'||!spinning)return;
     setSpinning(false);
-    if(pendingWin){setWon(pendingWin);onResult(pendingWin.value);playCelebrationSound();}
+    if(pendingWin){
+      setWon(pendingWin);
+      if(pendingWin.type==='replay'){playFreeSpinSound();}
+      else if(pendingWin.type==='penalty'){playSadSound();onResult(pendingWin.value);}
+      else{playCelebrationSound();onResult(pendingWin.value);}
+    }
   }
 
-  const size=270;
-  const R=size/2;
-  const conicGrad='conic-gradient('+SPIN_PRIZES.map(p=>`${p.color} ${p.start}deg ${p.start+p.span}deg`).join(',')+')';
-  const starDeco=[{s:'★',c:'#FFD700'},{s:'✦',c:'#FF6B00'},{s:'★',c:'#E63333'},{s:'✦',c:'#22AA44'},{s:'★',c:'#2277EE'},{s:'✦',c:'#8833BB'},{s:'★',c:'#FF69B4'},{s:'✦',c:'#DDAA00'}];
+  function handleReplay(){
+    setWon(null);
+    setPendingWin(null);
+    setTimeout(()=>handleSpin(),800);
+  }
+
+  const size=270,R=size/2,CX=R,CY=R;
+
+  function p2c(r,deg){
+    const rad=(deg-90)*Math.PI/180;
+    return{x:CX+r*Math.cos(rad),y:CY+r*Math.sin(rad)};
+  }
+
+  function wedge(s,e){
+    const a=p2c(R-3,s),b=p2c(R-3,e);
+    return`M${CX},${CY} L${a.x},${a.y} A${R-3},${R-3} 0 0,1 ${b.x},${b.y} Z`;
+  }
+
+  const lamps=React.useMemo(()=>Array.from({length:28},(_,i)=>{
+    const a=i*(360/28)-90,rad=a*Math.PI/180;
+    return{x:CX+(R-6)*Math.cos(rad),y:CY+(R-6)*Math.sin(rad),on:i%2===0};
+  }),[]);
 
   return(
-    <div className="spin-overlay" style={{flexDirection:'column',gap:0}}>
-      {won&&<Confetti/>}
+    <div className="spin-overlay" style={{flexDirection:'column',gap:0,background:'radial-gradient(ellipse at center,#3D0000 0%,#1A0000 60%,#0A0000 100%)'}}>
+      {won&&won.type!=='penalty'&&won.type!=='replay'&&<Confetti/>}
       {!won?(
         <>
-          <div style={{textAlign:'center',marginBottom:16,zIndex:1}}>
-            <div style={{fontSize:'1.5rem',fontWeight:900,color:'#FFD700',letterSpacing:'.06em',textShadow:'0 2px 16px rgba(255,215,0,.7)'}}>🎰 ROLETA DA SORTE</div>
-            <div style={{fontSize:'.78rem',color:'rgba(255,255,255,.88)',fontWeight:700,marginTop:7}}>Parabéns, {seekerName}! Você tem uma indicação premiada!</div>
-            {pendingCount>1&&<div style={{fontSize:'.68rem',color:'#FF7700',fontWeight:800,marginTop:5}}>{pendingCount} chances pendentes — gire uma por vez</div>}
+          <div style={{textAlign:'center',marginBottom:6,zIndex:1,padding:'0 20px'}}>
+            <div style={{fontSize:'1.3rem',fontWeight:900,color:'#FFD700',letterSpacing:'.06em',textShadow:'0 0 20px rgba(255,215,0,.8)'}}>{'🎰 ROLETA DA SORTE'}</div>
+            <div style={{fontSize:'.76rem',color:'rgba(255,255,255,.88)',fontWeight:700,marginTop:5}}>{'Parabéns, '}{seekerName}{'!'}</div>
+            {pendingCount>1&&<div style={{fontSize:'.66rem',color:'#FF7700',fontWeight:800,marginTop:3}}>{pendingCount}{' chances pendentes'}</div>}
           </div>
 
-          <div style={{position:'relative',width:size+80,height:size+80,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
-            {starDeco.map(({s,c},i)=>(
-              <div key={i} style={{position:'absolute',fontSize:i%2===0?'1.4rem':'1rem',color:c,top:'50%',left:'50%',transform:`rotate(${i*45}deg) translateY(-${size/2+30}px) rotate(-${i*45}deg)`,textShadow:`0 0 10px ${c}`,pointerEvents:'none'}}>{s}</div>
-            ))}
-            <div style={{position:'relative',width:size,height:size,flexShrink:0}}>
-              <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',fontSize:'1.6rem',lineHeight:1,zIndex:3,filter:'drop-shadow(0 2px 4px rgba(0,0,0,.7))'}}>▼</div>
-              <div style={{position:'absolute',inset:-6,borderRadius:'50%',background:'linear-gradient(135deg,#FFD700,#FF8C00,#E63333,#8833BB,#2277EE,#22AA44)',zIndex:0}}/>
-              <div onTransitionEnd={handleTransitionEnd} style={{position:'absolute',inset:0,borderRadius:'50%',background:conicGrad,transform:`rotate(${rotation}deg)`,transition:spinning?'transform 4.2s cubic-bezier(0.17,0.67,0.12,0.99)':'none',zIndex:1}}>
-                {SPIN_PRIZES.map(p=>{
+          <div style={{position:'relative',width:size+50,height:size+60,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <div style={{position:'absolute',top:2,left:'50%',transform:'translateX(-50%)',zIndex:10}}>
+              <svg width={24} height={22} viewBox="0 0 24 22">
+                <defs>
+                  <linearGradient id="ptrG" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#FFD700"/>
+                    <stop offset="100%" stopColor="#B8860B"/>
+                  </linearGradient>
+                </defs>
+                <polygon points="12,2 2,20 22,20" fill="url(#ptrG)" stroke="#7A5C00" strokeWidth="1.5"/>
+              </svg>
+            </div>
+
+            <div
+              onTransitionEnd={handleTransitionEnd}
+              style={{position:'absolute',top:18,width:size,height:size,transform:`rotate(${rotation}deg)`,transition:spinning?'transform 4.5s cubic-bezier(0.17,0.67,0.12,0.99)':'none'}}
+            >
+              <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                <defs>
+                  <radialGradient id="cGrad" cx="50%" cy="35%">
+                    <stop offset="0%" stopColor="#FFE566"/>
+                    <stop offset="100%" stopColor="#B8860B"/>
+                  </radialGradient>
+                  <radialGradient id="shineG" cx="32%" cy="22%">
+                    <stop offset="0%" stopColor="rgba(255,255,255,0.20)"/>
+                    <stop offset="65%" stopColor="transparent"/>
+                  </radialGradient>
+                </defs>
+                <circle cx={CX} cy={CY} r={R} fill="#111" stroke="#2A2A2A" strokeWidth={2}/>
+                {SPIN_PRIZES.map((p,i)=>(
+                  <path key={i} d={wedge(p.start,p.start+p.span)} fill={p.color} stroke="#111" strokeWidth={1.5}/>
+                ))}
+                <circle cx={CX} cy={CY} r={R-3} fill="url(#shineG)"/>
+                {lamps.map((l,i)=>(
+                  <circle key={i} cx={l.x} cy={l.y} r={4} fill={l.on?'#FFD700':'#333'} stroke={l.on?'#B8860B':'#222'} strokeWidth={0.8} opacity={l.on?1:0.35}/>
+                ))}
+                {SPIN_PRIZES.map((p,i)=>{
                   const mid=p.start+p.span/2;
-                  const rad=mid*Math.PI/180;
-                  const r=0.60*R;
-                  const x=R+r*Math.sin(rad);
-                  const y=R-r*Math.cos(rad);
-                  return(<div key={p.value} style={{position:'absolute',left:x,top:y,transform:`translate(-50%,-50%) rotate(${mid}deg)`,color:'#fff',fontWeight:900,fontSize:'.70rem',textShadow:'0 1px 3px rgba(0,0,0,.9)',whiteSpace:'nowrap',pointerEvents:'none',lineHeight:1}}>{p.label}</div>);
+                  const rad=(mid-90)*Math.PI/180;
+                  const lr=R*0.60;
+                  const tx=CX+lr*Math.cos(rad);
+                  const ty=CY+lr*Math.sin(rad);
+                  const wl=p.type==='replay'?'🔄 Grátis':p.type==='penalty'?'😔 -R$5':p.label;
+                  const tc=p.color==='#DAA520'?'#3D0000':'#FFD700';
+                  return(
+                    <text key={i} x={tx} y={ty} textAnchor="middle" dominantBaseline="central"
+                      transform={`rotate(${mid},${tx},${ty})`}
+                      fontSize={10} fontWeight="900" fill={tc}
+                      stroke="#000" strokeWidth={2.5} strokeLinejoin="round" paintOrder="stroke">
+                      {wl}
+                    </text>
+                  );
                 })}
-              </div>
-              <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:28,height:28,borderRadius:'50%',background:'#fff',boxShadow:'0 2px 10px rgba(0,0,0,.5)',zIndex:4}}/>
+                <circle cx={CX} cy={CY} r={24} fill="url(#cGrad)" stroke="#B8860B" strokeWidth={2.5}/>
+                <circle cx={CX} cy={CY} r={13} fill="#FFE566" opacity={0.5}/>
+              </svg>
             </div>
           </div>
 
-          <button onClick={handleSpin} disabled={spinning} style={{marginTop:22,padding:'15px 44px',borderRadius:50,border:'none',cursor:spinning?'not-allowed':'pointer',background:spinning?'#555':'linear-gradient(135deg,#FF6B00,#E63333)',color:'#fff',fontWeight:900,fontSize:'1.15rem',letterSpacing:'.04em',boxShadow:spinning?'none':'0 4px 22px rgba(230,51,51,.65)',transition:'all .2s'}}>{spinning?'Girando...':'🎯  GIRAR!'}</button>
+          <button onClick={handleSpin} disabled={spinning} style={{marginTop:6,padding:'13px 44px',borderRadius:50,border:'none',cursor:spinning?'not-allowed':'pointer',background:spinning?'#444':'linear-gradient(135deg,#FFD700,#B8860B)',color:spinning?'#888':'#1A0000',fontWeight:900,fontSize:'1.1rem',letterSpacing:'.04em',boxShadow:spinning?'none':'0 4px 22px rgba(255,200,0,.5)',transition:'all .2s'}}>
+            {spinning?'Girando...':'🎯  GIRAR!'}
+          </button>
         </>
       ):(
-        <>
-          <div style={{fontSize:'4.5rem',textAlign:'center',animation:'prize-pop .5s ease'}}>🎉</div>
-          <div style={{textAlign:'center',marginTop:10}}>
-            <div style={{fontSize:'.9rem',fontWeight:700,color:'rgba(255,255,255,.8)',marginBottom:10}}>Você ganhou</div>
-            <div style={{fontSize:'3.5rem',fontWeight:900,lineHeight:1.1,background:'linear-gradient(135deg,#FFD700,#FF8C00)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',animation:'prize-pop .5s ease'}}>R$ {won.value}</div>
-            <div style={{fontSize:'.85rem',color:'rgba(255,255,255,.7)',fontWeight:600,marginTop:10}}>de Bônus Roleta! 🎰</div>
-          </div>
-          <button onClick={onClose} style={{marginTop:30,padding:'14px 48px',borderRadius:50,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontWeight:900,fontSize:'1rem',boxShadow:'0 4px 18px rgba(29,122,58,.45)'}}>Fechar</button>
-        </>
+        <div style={{textAlign:'center',padding:'0 24px'}}>
+          {won.type==='replay'?(
+            <>
+              <div style={{fontSize:'4rem',animation:'prize-pop .5s ease'}}>{'🔄'}</div>
+              <div style={{fontSize:'1.4rem',fontWeight:900,color:'#00FF66',marginTop:10,textShadow:'0 0 20px rgba(0,255,100,.6)'}}>{'Giro Grátis!'}</div>
+              <div style={{fontSize:'.88rem',color:'rgba(255,255,255,.8)',fontWeight:600,marginTop:8}}>{'Você ganhou mais uma chance!'}</div>
+              <button onClick={handleReplay} style={{marginTop:26,padding:'14px 40px',borderRadius:50,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#00AA44,#006622)',color:'#fff',fontWeight:900,fontSize:'1rem',boxShadow:'0 4px 18px rgba(0,170,68,.5)'}}>{'🎯 Girar de Novo!'}</button>
+            </>
+          ):won.type==='penalty'?(
+            <>
+              <div style={{fontSize:'4rem',animation:'prize-pop .5s ease'}}>{'😔'}</div>
+              <div style={{fontSize:'1.3rem',fontWeight:900,color:'#FF6633',marginTop:10}}>{'Que pena!'}</div>
+              <div style={{fontSize:'.88rem',color:'rgba(255,255,255,.8)',fontWeight:600,marginTop:8}}>{'R$ 5,00 foram descontados do seu saldo de bônus.'}</div>
+              <button onClick={onClose} style={{marginTop:26,padding:'14px 40px',borderRadius:50,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#555,#333)',color:'#fff',fontWeight:900,fontSize:'1rem'}}>{'Fechar'}</button>
+            </>
+          ):(
+            <>
+              <div style={{fontSize:'4.5rem',animation:'prize-pop .5s ease'}}>{'🎉'}</div>
+              <div style={{fontSize:'.9rem',fontWeight:700,color:'rgba(255,255,255,.8)',marginBottom:10,marginTop:4}}>{'Você ganhou'}</div>
+              <div style={{fontSize:'3.5rem',fontWeight:900,lineHeight:1.1,background:'linear-gradient(135deg,#FFD700,#FF8C00)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',animation:'prize-pop .5s ease'}}>{'R$ '}{won.value}</div>
+              <div style={{fontSize:'.85rem',color:'rgba(255,255,255,.7)',fontWeight:600,marginTop:10}}>{'de Bônus Roleta! 🎰'}</div>
+              <button onClick={onClose} style={{marginTop:30,padding:'14px 48px',borderRadius:50,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontWeight:900,fontSize:'1rem',boxShadow:'0 4px 18px rgba(29,122,58,.45)'}}>{'Fechar'}</button>
+            </>
+          )}
+        </div>
       )}
     </div>
   );
