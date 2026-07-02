@@ -153,8 +153,8 @@ const db=window.supabase.createClient(
 );
 /* DB (snake_case) → app (camelCase) row mappers */
 const mMember  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes,admId:r.adm_id?String(r.adm_id):null});
-const mRef     =r=>({id:r.id,memberId:String(r.member_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null,birthdayDay:r.birthday_day||null,birthdayMonth:r.birthday_month||null});
-const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null,birthdayDay:r.birthday_day||null,birthdayMonth:r.birthday_month||null});
+const mRef     =r=>({id:r.id,memberId:String(r.member_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null,birthdayDay:r.birthday_day||null,birthdayMonth:r.birthday_month||null,birthdayYear:r.birthday_year||null});
+const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null,birthdayDay:r.birthday_day||null,birthdayMonth:r.birthday_month||null,birthdayYear:r.birthday_year||null});
 const mSeekJr  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,seekId:String(r.seek_id),pin:r.pin,isNew:r.is_new,pixKey:r.pix_key||null});
 const mPassReq =r=>({id:r.id,phone:r.phone,type:r.type,resolved:r.resolved});
 const mNotif   =r=>({id:r.id,memberId:String(r.member_id),levelId:r.level_id,dismissed:r.dismissed});
@@ -272,10 +272,12 @@ function maskPhone(raw){
 function calcPoints(total){return Math.floor(total/100000);}
 function getSeekLevel(pts){return SEEK_LEVELS.find(l=>pts>=l.min&&pts<=l.max)||SEEK_LEVELS[0];}
 function getJrLevel(vol){return JR_LEVELS.find(l=>vol>=l.min&&vol<l.max)||JR_LEVELS[0];}
-function levelProgress(pts){
+function levelProgress(totalSales){
+  const pts=calcPoints(totalSales);
   const lv=getSeekLevel(pts);
   if(lv.id==='elite')return 100;
-  return Math.min(100,Math.round(((pts-lv.min)/(lv.max-lv.min+1))*100));
+  const fracPts=totalSales/100000;
+  return Math.min(100,Math.max(0,Math.round(((fracPts-lv.min)/(lv.max-lv.min+1))*100)));
 }
 function calcCommission(val,prodId,level){
   const pt=PRODUCT_TYPES.find(p=>p.id===prodId)||PRODUCT_TYPES[0];
@@ -413,17 +415,39 @@ function CurrencyInput({value,onChange,disabled}){
   function h(e){const d=e.target.value.replace(/\D/g,'');if(!d){setDisp('');onChange(0);return;}const n=parseInt(d,10)/100;setDisp(fCD(n));onChange(n);}
   return<div style={{position:'relative'}}><span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)',fontSize:'.85rem',fontWeight:600,pointerEvents:'none'}}>R$</span><input className="inp" style={{paddingLeft:40}} type="text" inputMode="numeric" value={disp} onChange={h} placeholder="0,00" disabled={disabled}/></div>;
 }
-function BirthdayInput({day,month,onDay,onMonth}){
+function BirthdayInput({day,month,year,onDay,onMonth,onYear}){
   return<div style={{display:'flex',gap:8}}>
+    <input className="inp" type="number" min={1} max={31} placeholder="Dia" value={day} onChange={e=>onDay(e.target.value)} style={{width:66,margin:0}}/>
     <select className="inp" value={month} onChange={e=>onMonth(e.target.value)} style={{flex:1,margin:0}}>
       <option value="">Mês</option>
       {MONTHS.map((m,i)=><option key={i+1} value={i+1}>{m.slice(0,3)}</option>)}
     </select>
-    <select className="inp" value={day} onChange={e=>onDay(e.target.value)} style={{width:90,margin:0}}>
-      <option value="">Dia</option>
-      {Array.from({length:31},(_,i)=><option key={i+1} value={i+1}>{i+1}</option>)}
-    </select>
+    <input className="inp" type="number" min={1900} max={new Date().getFullYear()} placeholder="Ano" value={year} onChange={e=>onYear(e.target.value)} style={{width:84,margin:0}}/>
   </div>;
+}
+function LeadForm({onCancel,onSave}){
+  const [cn,setCn]=useState('');
+  const [wa,setWa]=useState('');
+  const [obs,setObs]=useState('');
+  const [bdDay,setBdDay]=useState('');
+  const [bdMonth,setBdMonth]=useState('');
+  const [bdYear,setBdYear]=useState('');
+  function save(e){
+    e.preventDefault();if(!cn.trim())return;
+    const today=todayISO();
+    const parts=today.split('-').map(Number);
+    onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,observacoes:obs.trim()?obs.trim().toUpperCase():null,birthdayDay:bdDay?parseInt(bdDay):null,birthdayMonth:bdMonth?parseInt(bdMonth):null,birthdayYear:bdYear?parseInt(bdYear):null});
+  }
+  return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
+    <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
+    <Fld label="WhatsApp do Cliente"><PhoneInput value={wa} onChange={setWa}/></Fld>
+    <Fld label="🎂 Data de Aniversário (opcional)"><BirthdayInput day={bdDay} month={bdMonth} year={bdYear} onDay={setBdDay} onMonth={setBdMonth} onYear={setBdYear}/></Fld>
+    <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value.toUpperCase())} placeholder="Informações adicionais para o vendedor..." autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
+    <div className="nm-in" style={{padding:'12px 14px',fontSize:'.76rem',color:'var(--muted)',lineHeight:1.6,fontWeight:600}}>
+      O vendedor preencherá produto e valor ao confirmar a venda.
+    </div>
+    <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onCancel}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Indicar!</button></div>
+  </form>;
 }
 function ProductSelect({value,onChange}){
   return<div className="product-select-grid">
@@ -1066,31 +1090,6 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     window.open(`https://wa.me/?text=${msg}`,'_blank');
   }
 
-  function RefForm({onClose,onSave}){
-    const [cn,setCn]=useState('');
-    const [wa,setWa]=useState('');
-    const [obs,setObs]=useState('');
-    const [bdDay,setBdDay]=useState('');
-    const [bdMonth,setBdMonth]=useState('');
-    const today=todayISO();
-    function save(e){
-      e.preventDefault();if(!cn.trim())return;
-      const parts=today.split('-').map(Number);
-      onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,jrId:jr.id,observacoes:obs.trim()?obs.trim().toUpperCase():null,birthdayDay:bdDay?parseInt(bdDay):null,birthdayMonth:bdMonth?parseInt(bdMonth):null});
-      onClose();
-    }
-    return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
-      <Fld label="WhatsApp do Cliente"><PhoneInput value={wa} onChange={setWa}/></Fld>
-      <Fld label="🎂 Data de Aniversário (opcional)"><BirthdayInput day={bdDay} month={bdMonth} onDay={setBdDay} onMonth={setBdMonth}/></Fld>
-      <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value.toUpperCase())} placeholder="Informações adicionais para o vendedor..." autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
-      <div className="nm-in" style={{padding:'12px 14px',fontSize:'.76rem',color:'var(--muted)',lineHeight:1.6,fontWeight:600}}>
-        O vendedor preencherá produto e valor ao confirmar a venda. Você receberá sua chance na roleta! 🎰
-      </div>
-      <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onClose}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Indicar!</button></div>
-    </form>;
-  }
-
   const sorted=[...monthRefs].sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
 
   return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
@@ -1206,7 +1205,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
       </div>
       <button className="btn btn-dark btn-full" style={{padding:14,marginTop:12}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
     </div>
-    {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><RefForm onClose={()=>setShowAdd(false)} onSave={onAddReferral}/></Sheet>}
+    {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><LeadForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral({...d,jrId:jr.id});setShowAdd(false);}}/></Sheet>}
     {showJrOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowJrOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
     {showExtrato&&<ExtratoModal role="jr" data={{jr,referrals:referrals.filter(r=>sameId(r.jrId,jr.id)),seekMember,spinRewards:(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)),chestRewards:myChests}} onClose={()=>setShowExtrato(false)}/>}
     {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.jrId,jr.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowAPagar(false)}/>}
@@ -1257,7 +1256,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const totalSales=myRefs.reduce((s,r)=>s+r.productValue,0);
   const points=calcPoints(totalSales);
   const level=getSeekLevel(points);
-  const lvPct=levelProgress(points);
+  const lvPct=levelProgress(totalSales);
 
   const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
   const myJrRefs=jrReferrals.filter(r=>myJrs.some(j=>sameId(j.id,r.jrId)));
@@ -1300,30 +1299,6 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     window.open(`https://wa.me/?text=${msg}`,'_blank');
   }
 
-  function RefForm({onClose,onSave}){
-    const [cn,setCn]=useState('');
-    const [wa,setWa]=useState('');
-    const [obs,setObs]=useState('');
-    const [bdDay,setBdDay]=useState('');
-    const [bdMonth,setBdMonth]=useState('');
-    const today=todayISO();
-    function save(e){
-      e.preventDefault();if(!cn.trim())return;
-      const parts=today.split('-').map(Number);
-      onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,observacoes:obs.trim()?obs.trim().toUpperCase():null,birthdayDay:bdDay?parseInt(bdDay):null,birthdayMonth:bdMonth?parseInt(bdMonth):null});
-      onClose();
-    }
-    return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
-      <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
-      <Fld label="WhatsApp do Cliente"><PhoneInput value={wa} onChange={setWa}/></Fld>
-      <Fld label="🎂 Data de Aniversário (opcional)"><BirthdayInput day={bdDay} month={bdMonth} onDay={setBdDay} onMonth={setBdMonth}/></Fld>
-      <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value.toUpperCase())} placeholder="Informações adicionais para o vendedor..." autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
-      <div className="nm-in" style={{padding:'12px 14px',fontSize:'.76rem',color:'var(--muted)',lineHeight:1.6,fontWeight:600}}>
-        O vendedor preencherá produto e valor ao confirmar a venda. Você receberá sua chance na roleta! 🎰
-      </div>
-      <div style={{display:'flex',gap:12}}><button type="button" className="btn btn-full" onClick={onClose}>Cancelar</button><button type="submit" className="btn btn-dark btn-full">Indicar!</button></div>
-    </form>;
-  }
 
   function JrForm({onClose,onSave}){
     const [name,setName]=useState('');
@@ -1500,7 +1475,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.memberId,member.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowAPagar(false)}/>}
     {showCofres&&<CofresModal chestItems={myChests} onClose={()=>setShowCofres(false)}/>}
     {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id))} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowBonusRoleta(false)}/>}
-    {showAdd&&<Sheet title="Encontrei uma Oportunidade" onClose={()=>setShowAdd(false)}><RefForm onClose={()=>setShowAdd(false)} onSave={onAddReferral}/></Sheet>}
+    {showAdd&&<Sheet title="Encontrei uma Oportunidade" onClose={()=>setShowAdd(false)}><LeadForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral(d);setShowAdd(false);}}/></Sheet>}
     {showAddJr&&<Sheet title="Cadastrar SEEK JR" onClose={()=>setShowAddJr(false)}><JrForm onClose={()=>setShowAddJr(false)} onSave={onAddJr}/></Sheet>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
       <form onSubmit={changePin} style={{display:'flex',flexDirection:'column',gap:18}}>
@@ -1530,11 +1505,8 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
   const _scSpins=(spinRewards||[]).filter(s=>((s.seekId&&_mIds.has(s.seekId))||(s.jrId&&_jrIds.has(s.jrId)))&&inMonth(s.createdAt,sm,sy));
   const _scChests=(chestRewards||[]).filter(c=>((c.seekId&&_mIds.has(c.seekId))||(c.jrId&&_jrIds.has(c.jrId)))&&inMonth(c.createdAt,sm,sy));
   const spinAP=_scSpins.filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
-  const spinPaidTotal=_scSpins.filter(s=>s.paid).reduce((s,r)=>s+r.value,0);
   const chestAP=_scChests.filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
-  const chestPaidTotal=_scChests.filter(c=>c.paid).reduce((s,c)=>s+c.valor,0);
   const comAP=([...fil,...jrFil]).filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP+chestAP;
-  const comP=([...fil,...jrFil]).filter(r=>r.paid).reduce((s,r)=>s+r.commission,0)+spinPaidTotal+chestPaidTotal;
   const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
   const newSeekRefs=referrals.filter(r=>r.isNew);
   const newJrRefs=jrReferrals.filter(r=>r.isNew);
@@ -1627,7 +1599,6 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
         <StatCard label="Qtde Vendas" value={fil.length+jrFil.length}/>
         <StatCard label="Valor Total" value={fBRL(totV)}/>
         <StatCard label="A Pagar" value={fBRL(comAP)} color="var(--red)"/>
-        <StatCard label="Pago" value={fBRL(comP)} color="var(--green)"/>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
         {[['A Pagar',[...fil,...jrFil].filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)).length,'var(--red)','pending',IcClock],['Pagas',[...fil,...jrFil].filter(r=>r.paid).length,'var(--green)','paid',IcCheck]].map(([l,v,c,dest,Ico])=>(
@@ -1643,9 +1614,7 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
       </button>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
         <StatCard label="🎰 Roleta Pendente" value={fBRL(spinAP)} color={spinAP>0?'#8833BB':'var(--muted)'}/>
-        <StatCard label="🎰 Roleta Paga" value={fBRL(spinPaidTotal)} color="var(--green)"/>
         <StatCard label="🎁 Cofre Pendente" value={fBRL(chestAP)} color={chestAP>0?'#B8860B':'var(--muted)'}/>
-        <StatCard label="🎁 Cofre Pago" value={fBRL(chestPaidTotal)} color="var(--green)"/>
       </div>
       {!hideAdmCommission&&<div className="nm" style={{padding:'18px'}}>
         <div className="section-title" style={{marginBottom:12,display:'flex',alignItems:'center',gap:6}}><IcStar s={13}/>💼 Minha Comissão</div>
@@ -1808,6 +1777,39 @@ function EditMemberForm({member,onClose,onSave}){
 }
 
 
+function MemberMesAnteriorModal({member,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],onClose}){
+  const now=new Date();
+  const prevM=now.getMonth()===0?12:now.getMonth();
+  const prevY=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+  const [pm,setPm]=useState(prevM);
+  const [py,setPy]=useState(prevY);
+  const years=Array.from({length:5},(_,i)=>now.getFullYear()-3+i);
+  const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
+        <div className="handle"/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <span style={{fontWeight:900,fontSize:'1rem'}}>{'📅 Meses Anteriores — '}{member.name.split(' ')[0]}</span>
+          <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+        </div>
+        <div style={{overflowY:'auto',maxHeight:'78vh'}}>
+          <div className="nm" style={{padding:'14px 16px',marginBottom:14}}>
+            <div style={{display:'flex',gap:10}}>
+              <select className="inp" style={{flex:1}} value={pm} onChange={e=>setPm(Number(e.target.value))}>{MONTHS.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select>
+              <select className="inp" style={{width:90}} value={py} onChange={e=>setPy(Number(e.target.value))}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+            </div>
+          </div>
+          <div className="section-title" style={{paddingLeft:4,marginBottom:8}}>{'💰 A Pagar — '}{MONTHS[pm-1]} {py}</div>
+          <LedgerEntries members={[member]} seekJrs={myJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} readOnly={true} filterMonth={pm} filterYear={py}/>
+          <div className="section-title" style={{paddingLeft:4,margin:'18px 0 8px'}}>{'✅ Pagas — '}{MONTHS[pm-1]} {py}</div>
+          <LedgerEntries members={[member]} seekJrs={myJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} readOnly={true} filterMonth={pm} filterYear={py}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBack,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onDeleteMember,onUpdateMember,onUpdatePin,spinRewards,chestRewards=[],onToggleSpinPaid}){
   const [showAdd,setShowAdd]=useState(false);
   const [editRef,setEditRef]=useState(null);
@@ -1815,6 +1817,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
   const [delMember,setDelMember]=useState(false);
   const [showCreds,setShowCreds]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
+  const [showMesAnterior,setShowMesAnterior]=useState(false);
   const [newPin,setNewPin]=useState('');
   const [pinErr,setPinErr]=useState('');
 
@@ -1823,13 +1826,10 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
   const points=calcPoints(totalSales);
   const level=getSeekLevel(points);
   const totC=myRefs.reduce((s,r)=>s+r.commission,0);
-  const totP=myRefs.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
   const memberUnpaidSpin=(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid).reduce((s,r)=>s+r.value,0);
   const memberUnpaidChest=(chestRewards||[]).filter(c=>sameId(c.seekId,member.id)&&!c.paid).reduce((s,c)=>s+c.valor,0);
   const totAP=myRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+memberUnpaidSpin+memberUnpaidChest;
   const comAP=myRefs.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)).reduce((s,r)=>s+r.commission,0);
-  const spinPaid=(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&s.paid).reduce((s,r)=>s+r.value,0);
-  const chestPaidMember=(chestRewards||[]).filter(c=>sameId(c.seekId,member.id)&&c.paid).reduce((s,c)=>s+c.valor,0);
   const cred=credentials[member.id]||{login:member.whatsapp||'',pin:'0000'};
   const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
   const initials=member.name.trim().slice(0,2).toUpperCase();
@@ -1843,15 +1843,16 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
     const [date,setDate]=useState(()=>initial&&initial.year&&initial.month?`${initial.year}-${String(initial.month).padStart(2,'0')}-${String(initial.day||1).padStart(2,'0')}`:todayISO());
     const [bdDay,setBdDay]=useState((initial&&initial.birthdayDay)||'');
     const [bdMonth,setBdMonth]=useState((initial&&initial.birthdayMonth)||'');
+    const [bdYear,setBdYear]=useState((initial&&initial.birthdayYear)||'');
     const commission=val>0?calcCommission(val,prodType,level):0;
-    function submit(e){e.preventDefault();if(!cn.trim())return;const parts=date.split('-').map(Number);onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2],isNew:false,birthdayDay:bdDay?parseInt(bdDay):null,birthdayMonth:bdMonth?parseInt(bdMonth):null});}
+    function submit(e){e.preventDefault();if(!cn.trim())return;const parts=date.split('-').map(Number);onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:prodType,productValue:val,commission,year:parts[0],month:parts[1],day:parts[2],isNew:false,birthdayDay:bdDay?parseInt(bdDay):null,birthdayMonth:bdMonth?parseInt(bdMonth):null,birthdayYear:bdYear?parseInt(bdYear):null});}
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
       <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
       <Fld label="WhatsApp"><PhoneInput value={wa} onChange={setWa}/></Fld>
       <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
       <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
       <Fld label="Data"><input className="inp" type="date" value={date} onChange={e=>setDate(e.target.value)}/></Fld>
-      <Fld label="🎂 Aniversário (opcional)"><BirthdayInput day={bdDay} month={bdMonth} onDay={setBdDay} onMonth={setBdMonth}/></Fld>
+      <Fld label="🎂 Aniversário (opcional)"><BirthdayInput day={bdDay} month={bdMonth} year={bdYear} onDay={setBdDay} onMonth={setBdMonth} onYear={setBdYear}/></Fld>
       <div className="nm-in" style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div className="section-title">Comissão ({level.name} +{(level.bonus*100).toFixed(0)}%)</div>
         <span style={{fontWeight:800,fontSize:'1.1rem',color:'var(--green)'}}>{fBRL(commission)}</span>
@@ -1873,7 +1874,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
           <LevelBadge points={points} small/>
         </div>
         <div style={{marginBottom:12}}>
-          <ProgressBar pct={levelProgress(points)} className={level.progressClass} label={`${points} pts — ${level.name}`} sub={`${levelProgress(points)}%`}/>
+          <ProgressBar pct={levelProgress(totalSales)} className={level.progressClass} label={`${points} pts — ${level.name}`} sub={`${levelProgress(totalSales)}%`}/>
         </div>
         {(member.whatsapp||member.pixKey)&&<div className="nm-in" style={{padding:'10px 13px',marginBottom:10,display:'flex',flexDirection:'column',gap:5}}>
           {member.whatsapp&&<div style={{fontSize:'.8rem',fontWeight:600,display:'flex',gap:8,alignItems:'center'}}><IcWA s={14} fill="#25D366"/>{maskPhone(member.whatsapp)}</div>}
@@ -1894,11 +1895,8 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
           </div>
           {[
             ['Com. A Pagar',fBRL(comAP),'var(--red)'],
-            ['Com. Paga',fBRL(totP),'var(--green)'],
             ['🎰 Roleta Pend.',fBRL(memberUnpaidSpin),'var(--red)'],
-            ['🎰 Roleta Paga',fBRL(spinPaid),'var(--green)'],
             ['🎁 Cofre Pend.',fBRL(memberUnpaidChest),'var(--red)'],
-            ['🎁 Cofre Pago',fBRL(chestPaidMember),'var(--green)'],
           ].map(([l,v,c])=>(
             <div key={l} className="nm-in" style={{padding:'10px 8px',textAlign:'center'}}>
               <div style={{fontSize:'.52rem',fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',marginBottom:4}}>{l}</div>
@@ -1907,7 +1905,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
           ))}
         </div>
       </div>
-      {onAddReferral&&<button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowAdd(true)}><IcPlus s={16} c="#fff"/>Nova Indicação</button>}
+      {onAddReferral&&<button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowAdd(true)}><IcPlus s={16} c="#fff"/>Cadastrar Indicação</button>}
       {(()=>{
         const confirmedRefs=myRefs.filter(r=>r.paid||r.status==='a_pagar'||r.productValue>0);
         const waitingRefs=myRefs.filter(r=>!r.paid&&r.status==='aguardando'&&!r.productValue);
@@ -1970,13 +1968,15 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
           {confirmedRefs.length===0&&waitingRefs.length===0&&<Empty text="Nenhuma indicação"/>}
         </>;
       })()}
-      <button className="btn btn-dark btn-full" style={{padding:14,marginTop:4}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
+      <button className="btn btn-full" style={{padding:14,marginTop:4}} onClick={()=>setShowMesAnterior(true)}>📅 Meses Anteriores</button>
+      <button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
       <button className="btn btn-full" style={{color:'var(--red)',padding:14}} onClick={()=>setDelMember(true)}><IcTrash s={14}/>Excluir membro</button>
     </div>
-    {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><ReferralForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral(d);setShowAdd(false);}} label="Salvar"/></Sheet>}
+    {showAdd&&<Sheet title="Cadastrar Indicação" onClose={()=>setShowAdd(false)}><LeadForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral(d);setShowAdd(false);}}/></Sheet>}
     {editRef&&<Sheet title="Editar Indicação" onClose={()=>setEditRef(null)}><ReferralForm initial={editRef} onCancel={()=>setEditRef(null)} onSave={d=>{onUpdateReferral(editRef.id,d);setEditRef(null);}} label="Salvar"/></Sheet>}
     {showEdit&&<EditMemberForm member={member} onClose={()=>setShowEdit(false)} onSave={d=>{onUpdateMember(member.id,d);setShowEdit(false);}}/>}
     {showExtrato&&<ExtratoModal role="member" isAdm={true} data={{member,referrals:myRefs,jrReferrals,seekJrs,spinRewards:(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)),chestRewards:(chestRewards||[]).filter(c=>sameId(c.seekId,member.id))}} onClose={()=>setShowExtrato(false)} onTogglePaid={onTogglePaid}/>}
+    {showMesAnterior&&<MemberMesAnteriorModal member={member} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} onClose={()=>setShowMesAnterior(false)}/>}
     {showCreds&&(()=>{
       const phone=cred.login?(cred.login.startsWith('55')&&cred.login.length>=12?cred.login:`55${cred.login}`):'';
       function saveP(){if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}onUpdatePin(member.id,newPin);setPinErr('');setNewPin('');setShowCreds(false);}
@@ -2003,10 +2003,14 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
    BELL NOTIFICATIONS PANEL
 ══════════════════════════════════════════════════════════════════ */
 function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onEditRef,onDeleteRef,onDeleteJrRef,onMarkRead,passReqs}){
+  const [tab,setTab]=useState('new');
   const allRefs=[...referrals.filter(r=>r.isNew),...jrReferrals.filter(r=>r.isNew)];
+  const readRefs=[...referrals.filter(r=>!r.isNew),...jrReferrals.filter(r=>!r.isNew)];
   const newJrs=seekJrs.filter(j=>j.isNew);
   const forgotReqs=(passReqs||[]).filter(r=>r.type==='forgot'&&!r.resolved);
-  const total=allRefs.length+newJrs.length+forgotReqs.length;
+  const unread=allRefs.length+newJrs.length+forgotReqs.length;
+  const total=tab==='new'?unread:readRefs.length;
+  const shownRefs=tab==='new'?allRefs:readRefs;
   const [expanded,setExpanded]=useState(null);
 
   function RefCard({r,isJr,idx}){
@@ -2059,10 +2063,10 @@ function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onEditRef,onDe
                 onClick={e=>{e.stopPropagation();if(window.confirm(`Apagar "${r.clientName}"?`)){isJr?onDeleteJrRef(r.id):onDeleteRef(r.id);}}}>
                 <IcTrash s={13}/>Apagar
               </button>}
-              <button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',color:'var(--muted)'}}
+              {r.isNew&&<button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',color:'var(--muted)'}}
                 onClick={e=>{e.stopPropagation();onMarkRead(r.id,isJr);}}>
                 ✓ Lido
-              </button>
+              </button>}
             </div>
           </div>
         )}
@@ -2083,10 +2087,15 @@ function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onEditRef,onDe
           <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
         </div>
 
-        {total===0&&<Empty text="Nenhuma notificação nova"/>}
+        <div style={{display:'flex',gap:8,marginBottom:14}}>
+          <button className="btn" style={{flex:1,padding:'8px',fontSize:'.74rem',fontWeight:800,background:tab==='new'?'var(--black)':'var(--bg)',color:tab==='new'?'#fff':'var(--muted)'}} onClick={()=>setTab('new')}>🔴 Novas{unread>0?` (${unread})`:''}</button>
+          <button className="btn" style={{flex:1,padding:'8px',fontSize:'.74rem',fontWeight:800,background:tab==='read'?'var(--black)':'var(--bg)',color:tab==='read'?'#fff':'var(--muted)'}} onClick={()=>setTab('read')}>✓ Lidas{readRefs.length>0?` (${readRefs.length})`:''}</button>
+        </div>
+
+        {total===0&&<Empty text={tab==='new'?'Nenhuma notificação nova':'Nenhuma notificação lida ainda'}/>}
 
         {/* Forgot password requests */}
-        {forgotReqs.length>0&&<div style={{marginBottom:14}}>
+        {tab==='new'&&forgotReqs.length>0&&<div style={{marginBottom:14}}>
           <div className="label" style={{marginBottom:8}}>🔐 Solicitações de Nova Senha</div>
           {forgotReqs.map((req,i)=>{
             const digits=req.phone;
@@ -2106,7 +2115,7 @@ function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onEditRef,onDe
         </div>}
 
         {/* New JRs */}
-        {newJrs.length>0&&<div style={{marginBottom:14}}>
+        {tab==='new'&&newJrs.length>0&&<div style={{marginBottom:14}}>
           <div className="label" style={{marginBottom:8}}>Novos SEEK JR</div>
           {newJrs.map((jr,i)=>{
             const seek=members.find(m=>sameId(m.id,jr.seekId));
@@ -2124,10 +2133,10 @@ function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onEditRef,onDe
           })}
         </div>}
 
-        {/* All referrals */}
-        {allRefs.length>0&&<div>
-          <div className="label" style={{marginBottom:8}}>Indicações ({allRefs.length})</div>
-          {allRefs.map((r,i)=>{
+        {/* Referrals (novas ou lidas conforme aba) */}
+        {shownRefs.length>0&&<div>
+          <div className="label" style={{marginBottom:8}}>Indicações ({shownRefs.length})</div>
+          {shownRefs.map((r,i)=>{
             const isJr=!!r.jrId;
             return<RefCard key={r.id} r={r} isJr={isJr} idx={i}/>;
           })}
@@ -3054,6 +3063,46 @@ function SimuladorFinanciamento(){
 /* ══════════════════════════════════════════════════════════════════
    CALENDÁRIO DE ANIVERSÁRIOS
 ══════════════════════════════════════════════════════════════════ */
+function AniversarianteModal({refs,day,month,seekJrs,members,onClose}){
+  const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  return(
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'82vh'}}>
+        <div className="handle"/>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+          <span style={{fontWeight:900,fontSize:'1rem'}}>{'🎂 '}{day}{' de '}{MESES[month-1]}</span>
+          <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
+        </div>
+        <div style={{overflowY:'auto',maxHeight:'66vh',display:'flex',flexDirection:'column',gap:10}}>
+          {refs.map(r=>{
+            const isJr=!!r.jrId;
+            const referrer=isJr?seekJrs.find(j=>sameId(j.id,r.jrId)):members.find(m=>sameId(m.id,r.memberId));
+            const digits=(r.whatsapp||'').replace(/\D/g,'');
+            const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
+            const msg=`Feliz Aniversário ${(r.clientName||'').split(' ')[0]}! 🎂`;
+            return(
+              <div key={r.id} className="nm-in" style={{padding:'14px'}}>
+                <div style={{fontWeight:900,fontSize:'.9rem',marginBottom:6}}>{r.clientName}</div>
+                <div style={{fontSize:'.72rem',color:'var(--muted)',fontWeight:600,marginBottom:8}}>{'🎂 '}{String(day).padStart(2,'0')}{'/'}{String(month).padStart(2,'0')}</div>
+                {phone&&<a href={`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`} target="_blank" style={{display:'inline-flex',alignItems:'center',gap:6,color:'#25D366',fontWeight:700,fontSize:'.78rem',textDecoration:'none',marginBottom:8}}>
+                  <IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}
+                </a>}
+                <div style={{fontSize:'.72rem',color:'var(--muted)',fontWeight:600,marginBottom:4}}>
+                  {'Indicado por: '}<strong>{referrer?.name||'—'}</strong>
+                  {isJr&&<span className="tag-jr" style={{marginLeft:4,fontSize:'.6rem'}}>JR</span>}
+                </div>
+                <div style={{fontSize:'.72rem',fontWeight:700,color:r.productValue>0?'var(--green)':'var(--muted)'}}>
+                  {r.productValue>0?`✅ Virou comprador — ${fBRL(r.productValue)}`:'⏳ Ainda não comprou'}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CalendarioAniversarios({referrals,jrReferrals,members,seekJrs,autoOpenDay}){
   const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const DIAS_SEM=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -3109,34 +3158,7 @@ function CalendarioAniversarios({referrals,jrReferrals,members,seekJrs,autoOpenD
           );
         })}
       </div>
-      {selDay&&selRefs.length>0&&(
-        <div style={{marginTop:14,borderTop:'1px solid var(--border,#e5e7eb)',paddingTop:12}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
-            <span style={{fontWeight:800,fontSize:'.78rem'}}>🎂 Dia {selDay} — {selRefs.length} aniversariante(s)</span>
-            <button className="icon-btn" style={{width:24,height:24,borderRadius:8,fontSize:'.8rem'}} onClick={()=>setSelDay(null)}>✕</button>
-          </div>
-          {selRefs.map(r=>{
-            const isJr=!!r.jrId;
-            const referrer=isJr?seekJrs.find(j=>sameId(j.id,r.jrId)):members.find(m=>sameId(m.id,r.memberId));
-            return(
-              <div key={r.id} className="nm-in" style={{padding:'10px 12px',marginBottom:8}}>
-                <div style={{fontWeight:800,fontSize:'.82rem',marginBottom:4}}>{r.clientName}</div>
-                {r.whatsapp&&(
-                  <a href={`https://wa.me/55${r.whatsapp.replace(/\D/g,'')}`} target="_blank"
-                    style={{display:'inline-flex',alignItems:'center',gap:4,color:'#25D366',fontWeight:700,fontSize:'.75rem',textDecoration:'none',marginBottom:4}}>
-                    <IcWA s={13} fill="#25D366"/> {maskPhone(r.whatsapp)}
-                  </a>
-                )}
-                <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600}}>
-                  {'Indicado por: '}<strong>{referrer?.name||'—'}</strong>
-                  {isJr&&<span className="tag-jr" style={{marginLeft:4,fontSize:'.6rem'}}>{r.jrId}</span>}
-                </div>
-                {r.productValue>0&&<div style={{fontSize:'.7rem',color:'var(--green)',fontWeight:700,marginTop:2}}>✅ Comprador — {fBRL(r.productValue)}</div>}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {selDay&&selRefs.length>0&&<AniversarianteModal refs={selRefs} day={selDay} month={calMonth} seekJrs={seekJrs} members={members} onClose={()=>setSelDay(null)}/>}
       {Object.keys(byDay).length===0&&(
         <div style={{textAlign:'center',padding:'20px 0',color:'var(--muted)',fontSize:'.78rem',fontWeight:600}}>
           Nenhum aniversariante em {MESES[calMonth-1]}
@@ -3749,9 +3771,14 @@ function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onB
 ══════════════════════════════════════════════════════════════════ */
 function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClose,onMarkRead,onMarkSold,onUpdateRef,onTogglePaid,onToggleJrPaid}){
   const [editItem,setEditItem]=useState(null);
+  const [tab,setTab]=useState('new');
   const allCombined=[
     ...referrals.filter(r=>r.isNew).map(r=>({...r,_isJr:false})),
     ...jrReferrals.filter(r=>r.isNew).map(r=>({...r,_isJr:true})),
+  ].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+  const readCombined=[
+    ...referrals.filter(r=>!r.isNew).map(r=>({...r,_isJr:false})),
+    ...jrReferrals.filter(r=>!r.isNew).map(r=>({...r,_isJr:true})),
   ].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
   const forgotReqs=(passReqs||[]).filter(r=>r.type==='forgot'&&!r.resolved);
   const newJrs=seekJrs.filter(j=>j.isNew);
@@ -3759,7 +3786,8 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
   const stColors={aguardando:'var(--yellow)',a_pagar:'var(--red)',pago:'var(--green)'};
   const stLabels={aguardando:'Aguardando',a_pagar:'A Pagar',pago:'Pago'};
   const unread=allCombined.length+newJrs.length+forgotReqs.length;
-  const total=unread;
+  const total=tab==='new'?unread:readCombined.length;
+  const shownCombined=tab==='new'?allCombined:readCombined;
 
   function SaleForm({r,isJr,onCancel,onSave}){
     const [prodType,setProdType]=useState('auto');
@@ -3831,8 +3859,12 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
           </div>
           <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
         </div>
-        {total===0&&<Empty text="Nenhuma notificação"/>}
-        {forgotReqs.length>0&&<div style={{marginBottom:14}}>
+        <div style={{display:'flex',gap:8,marginBottom:14}}>
+          <button className="btn" style={{flex:1,padding:'8px',fontSize:'.74rem',fontWeight:800,background:tab==='new'?'var(--black)':'var(--bg)',color:tab==='new'?'#fff':'var(--muted)'}} onClick={()=>setTab('new')}>🔴 Novas{unread>0?` (${unread})`:''}</button>
+          <button className="btn" style={{flex:1,padding:'8px',fontSize:'.74rem',fontWeight:800,background:tab==='read'?'var(--black)':'var(--bg)',color:tab==='read'?'#fff':'var(--muted)'}} onClick={()=>setTab('read')}>✓ Lidas{readCombined.length>0?` (${readCombined.length})`:''}</button>
+        </div>
+        {total===0&&<Empty text={tab==='new'?'Nenhuma notificação nova':'Nenhuma notificação lida ainda'}/>}
+        {tab==='new'&&forgotReqs.length>0&&<div style={{marginBottom:14}}>
           <div className="label" style={{marginBottom:8}}>🔐 Senhas esquecidas</div>
           {forgotReqs.map(req=>{
             const mb=members.find(m=>(m.whatsapp||'').replace(/\D/g,'')===req.phone);
@@ -3849,7 +3881,7 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
             </div>;
           })}
         </div>}
-        {newJrs.length>0&&<div style={{marginBottom:14}}>
+        {tab==='new'&&newJrs.length>0&&<div style={{marginBottom:14}}>
           <div className="label" style={{marginBottom:8}}>Novos SEEK JR</div>
           {newJrs.map(jr=>{
             const seek=members.find(m=>sameId(m.id,jr.seekId));
@@ -3865,9 +3897,9 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
             </div>;
           })}
         </div>}
-        {allCombined.length>0&&<div>
-          <div className="label" style={{marginBottom:8}}>Indicações ({allCombined.length})</div>
-          {allCombined.map(r=>{
+        {shownCombined.length>0&&<div>
+          <div className="label" style={{marginBottom:8}}>Indicações ({shownCombined.length})</div>
+          {shownCombined.map(r=>{
             const isJr=r._isJr;
             const seek=isJr?seekJrs.find(j=>sameId(j.id,r.jrId)):members.find(m=>sameId(m.id,r.memberId));
             const st=getStatus(r);
@@ -3910,9 +3942,10 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   LEDGER POR SEEK — A Pagar e Pagas organizados por SEEK/JR
+   LEDGER ENTRIES — lista de comissões/roleta/cofre organizada por SEEK/JR
+   (conteúdo reutilizável entre LedgerPorSeek e o painel Mês Anterior)
 ══════════════════════════════════════════════════════════════════ */
-function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
+function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],paid,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
   const allSpins=spinRewards||[];
   const allChests=chestRewards||[];
   const filtRefs=paid
@@ -4005,14 +4038,127 @@ function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
 
   return(
     <>
-      <TopBar title={filterMonth?`${MONTHS[filterMonth-1]} — A Pagar`:paid?'Comissões Pagas':'A Pagar'} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
+      {entries.length===0&&<Empty text={paid?'Nenhuma comissão paga.':'Tudo em dia!'}/>}
+      {entries.map(e=><EntryCard key={e.type==='seek'?'seek_'+e.m.id:'jr_'+e.jr.id} e={e}/>)}
+      {entries.length>0&&<div style={{padding:'14px 16px',background:'var(--black)',borderRadius:14,color:'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
+        <span style={{fontSize:'.7rem',fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',opacity:.75}}>{paid?'Total Pago':'💰 Total Geral a Pagar'}</span>
+        <span style={{fontWeight:900,fontSize:'.95rem'}}>{fBRL(total)}</span>
+      </div>}
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LEDGER POR SEEK — tela de A Pagar / Pagas organizados por SEEK/JR
+══════════════════════════════════════════════════════════════════ */
+function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
+  const title=filterMonth?`${MONTHS[filterMonth-1]} — ${paid?'Pagas':'A Pagar'}`:paid?'Comissões Pagas':'A Pagar';
+  return(
+    <>
+      <TopBar title={title} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
       <div className="page">
-        {entries.length===0&&<Empty text={paid?'Nenhuma comissão paga.':'Tudo em dia!'}/>}
-        {entries.map(e=><EntryCard key={e.type==='seek'?'seek_'+e.m.id:'jr_'+e.jr.id} e={e}/>)}
-        {entries.length>0&&<div style={{padding:'14px 16px',background:'var(--black)',borderRadius:14,color:'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
-          <span style={{fontSize:'.7rem',fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',opacity:.75}}>{paid?'Total Pago':'💰 Total Geral a Pagar'}</span>
-          <span style={{fontWeight:900,fontSize:'.95rem'}}>{fBRL(total)}</span>
-        </div>}
+        <LedgerEntries members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={paid} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} readOnly={readOnly} filterMonth={filterMonth} filterYear={filterYear}/>
+      </div>
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   PAGAMENTO MÊS ANTERIOR — extrato mensal por SEEK/JR + WhatsApp/Impressão
+══════════════════════════════════════════════════════════════════ */
+function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],onBack,onPayAllForSeek,onPayAllForJr}){
+  const now=new Date();
+  const prevM=now.getMonth()===0?12:now.getMonth();
+  const prevY=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+  const [pm,setPm]=useState(prevM);
+  const [py,setPy]=useState(prevY);
+  const years=Array.from({length:5},(_,i)=>now.getFullYear()-3+i);
+
+  const monthRefs=referrals.filter(r=>r.month===pm&&r.year===py);
+  const monthJrRefs=jrReferrals.filter(r=>r.month===pm&&r.year===py);
+  const monthSpins=(spinRewards||[]).filter(s=>inMonth(s.createdAt,pm,py));
+
+  function buildText(){
+    const allRefs=[...monthRefs,...monthJrRefs];
+    const totCom=allRefs.reduce((s,r)=>s+r.commission,0);
+    const bonusRTotal=monthSpins.reduce((s,r)=>s+r.value,0);
+    const totalGeral=totCom+bonusRTotal;
+    const SEP='━━━━━━━━━━━━━━━━━━━━━━━━━';
+    function refLine(r){
+      const spin=monthSpins.find(s=>sameId(s.referralId,r.id));
+      const spinV=spin?spin.value:0;
+      const total=r.commission+spinV;
+      const st=r.paid?'Pago':'A Pagar';
+      let line=`  Cliente: ${r.clientName} | Comissão: ${fBRL(r.commission)}`;
+      if(spinV>0)line+=` | Roleta: ${fBRL(spinV)}`;
+      line+=` | Total: ${fBRL(total)} | ${st}`;
+      return line;
+    }
+    const seekLines=[];
+    members.forEach(m=>{
+      const mRefs=monthRefs.filter(r=>sameId(r.memberId,m.id));
+      const mJrs=seekJrs.filter(j=>sameId(j.seekId,m.id));
+      const mJrRefs=monthJrRefs.filter(r=>mJrs.some(j=>sameId(j.id,r.jrId)));
+      if(mRefs.length===0&&mJrRefs.length===0)return;
+      seekLines.push(``,`${SEP}`,`👤 ${m.name}`,`${SEP}`);
+      mRefs.forEach(r=>seekLines.push(refLine(r)));
+      const mSpin=monthSpins.filter(s=>sameId(s.seekId,m.id)).reduce((s,r)=>s+r.value,0);
+      const mSub=mRefs.reduce((s,r)=>s+r.commission,0)+mSpin;
+      if(mRefs.length>0)seekLines.push(`  Subtotal SEEK: ${fBRL(mSub)}`);
+      mJrs.forEach(jr=>{
+        const jRefs=monthJrRefs.filter(r=>sameId(r.jrId,jr.id));
+        if(jRefs.length===0)return;
+        seekLines.push(``,`👤 ${jr.name} — JR de ${m.name}`);
+        jRefs.forEach(r=>seekLines.push(refLine(r)));
+        const jSpin=monthSpins.filter(s=>sameId(s.jrId,jr.id)).reduce((s,r)=>s+r.value,0);
+        const jSub=jRefs.reduce((s,r)=>s+r.commission,0)+jSpin;
+        seekLines.push(`  Subtotal SEEK JR: ${fBRL(jSub)}`);
+      });
+    });
+    const dateStr=`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
+    return [
+      `*SEEK NETWORK — PAGAMENTO ${MONTHS[pm-1].toUpperCase()} ${py}*`,
+      `${adm.name}  |  Gerado em: ${dateStr}`,``,
+      `📊 RESUMO DO MÊS`,
+      `Indicações: ${allRefs.length}`,
+      seekLines.length===0?'Nenhuma movimentação neste mês.':null,
+      ...seekLines,
+      ``,SEP,
+      `TOTAL GERAL: ${fBRL(totalGeral)}`,
+    ].filter(l=>l!=null).join('\n');
+  }
+
+  function sendWhatsApp(){
+    window.open(`https://wa.me/?text=${encodeURIComponent(buildText())}`,'_blank');
+  }
+  function handlePrint(){
+    const div=document.createElement('div');
+    div.className='print-only';
+    div.style.cssText='font-family:monospace;white-space:pre-wrap;font-size:13px;padding:28px;color:#111;line-height:1.8;';
+    div.textContent=buildText();
+    document.body.appendChild(div);
+    window.print();
+    document.body.removeChild(div);
+  }
+
+  return(
+    <>
+      <TopBar title="📅 Pagamento Mês Anterior" left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
+      <div className="page">
+        <div className="nm" style={{padding:'14px 16px'}}>
+          <div style={{display:'flex',gap:10}}>
+            <select className="inp" style={{flex:1}} value={pm} onChange={e=>setPm(Number(e.target.value))}>{MONTHS.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select>
+            <select className="inp" style={{width:90}} value={py} onChange={e=>setPy(Number(e.target.value))}>{years.map(y=><option key={y} value={y}>{y}</option>)}</select>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:10,marginBottom:16}}>
+          <button className="btn btn-full" style={{gap:6,color:'#25D366'}} onClick={sendWhatsApp}><IcWA s={15} fill="#25D366"/>Compartilhar</button>
+          <button className="btn btn-full" style={{gap:6}} onClick={handlePrint}>🖨️ Imprimir</button>
+        </div>
+        <div className="section-title" style={{paddingLeft:4,marginBottom:8}}>{'💰 A Pagar — '}{MONTHS[pm-1]} {py}</div>
+        <LedgerEntries members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={pm} filterYear={py}/>
+        <div className="section-title" style={{paddingLeft:4,margin:'18px 0 8px'}}>{'✅ Pagas — '}{MONTHS[pm-1]} {py}</div>
+        <LedgerEntries members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} readOnly={true} filterMonth={pm} filterYear={py}/>
       </div>
     </>
   );
@@ -4026,7 +4172,6 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
   const [selMember,setSelMember]=useState(null);
   const [editRefDirect,setEditRefDirect]=useState(null);
   const [showOffers,setShowOffers]=useState(false);
-  const [showExtrato,setShowExtrato]=useState(false);
   const [showBell,setShowBell]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const now=new Date();
@@ -4067,10 +4212,10 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
 
       {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} chestRewards={chestRewards} showPaymentReminder={true}/>}
       {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={d=>onAddMember(d,adm.id)} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
-      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>}
       {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={sm} filterYear={sy}/>}
       {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} onBack={()=>setView('dashboard')} filterMonth={sm} filterYear={sy}/>}
-      {view==='prevPending'&&(()=>{const _pm=new Date(new Date().getFullYear(),new Date().getMonth()-1,1);return<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={_pm.getMonth()+1} filterYear={_pm.getFullYear()}/>;})()}
+      {view==='prevPending'&&<MesAnteriorPanel adm={adm} members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr}/>}
       {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={false} isAdm={true}/>}
       {view==='fipe'&&<FipeConsulta/>}
@@ -4088,15 +4233,9 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       )}
       {view==='dashboard'&&<div className="page" style={{paddingTop:0,paddingBottom:0}}><CalendarioAniversarios referrals={referrals} jrReferrals={jrReferrals} members={members} seekJrs={seekJrs} autoOpenDay={calAutoDay}/></div>}
 
-      {!inSubView&&view!=='fipe'&&view!=='financiamento'&&(
-        <div style={{position:'fixed',bottom:74,left:'50%',transform:'translateX(-50%)',width:'calc(100% - 32px)',maxWidth:576,zIndex:19,padding:0}}>
-          <button className="btn btn-dark btn-full" style={{padding:14}} onClick={()=>setShowExtrato(true)}>📋 Extrato</button>
-        </div>
-      )}
       {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)}/>}
       {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onMarkSold={onMarkSold} onUpdateRef={updateRef} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
-      {showExtrato&&<ExtratoModal role="adm" data={{adm,members,referrals,jrReferrals,seekJrs,spinRewards}} onClose={()=>setShowExtrato(false)}/>}
       {showHelp&&<HelpModal role="adm" onClose={()=>setShowHelp(false)}/>}
     </div>
   );
@@ -5051,11 +5190,14 @@ function App(){
     const refStatus=hasProduct?'a_pagar':'aguardando';
     // Otimista: insere na UI antes de esperar o DB
     const tmpId=`__tmp_${Date.now()}`;
-    const tmpRef={id:tmpId,memberId:mid,clientName:data.clientName,whatsapp:data.whatsapp||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null};
+    const tmpRef={id:tmpId,memberId:mid,clientName:data.clientName,whatsapp:data.whatsapp||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null,birthdayYear:data.birthdayYear||null};
     const withTmp=[...referrals,tmpRef];
     setReferrals(withTmp);
     checkLevelUp(mid,old,withTmp);
-    let {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single();
+    let {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single();
+    if(error&&error.code==='42703'){
+      ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
+    }
     if(error&&error.code==='42703'){
       ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
     }
@@ -5065,7 +5207,7 @@ function App(){
 
   async function updateReferral(rid,data){
     setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data}:r));
-    db.from('referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null}).eq('id',rid);
+    db.from('referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null,birthday_year:data.birthdayYear??null}).eq('id',rid);
   }
 
   async function togglePaid(rid){
@@ -5103,9 +5245,12 @@ function App(){
     const hasProduct=(data.productValue||0)>0;
     const refStatus=hasProduct?'a_pagar':'aguardando';
     const tmpId=`__tmp_${Date.now()}`;
-    const tmpRef={id:tmpId,jrId:String(data.jrId),clientName:data.clientName,whatsapp:data.whatsapp||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:true,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null};
+    const tmpRef={id:tmpId,jrId:String(data.jrId),clientName:data.clientName,whatsapp:data.whatsapp||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:true,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null,birthdayYear:data.birthdayYear||null};
     setJrReferrals(u=>[...u,tmpRef]);
-    let {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single();
+    let {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single();
+    if(error&&error.code==='42703'){
+      ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
+    }
     if(error&&error.code==='42703'){
       ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
     }
@@ -5138,7 +5283,7 @@ function App(){
 
   async function updateJrReferral(rid,data){
     setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data}:r));
-    db.from('jr_referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null}).eq('id',rid);
+    db.from('jr_referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null,birthday_year:data.birthdayYear??null}).eq('id',rid);
   }
 
   async function addSpinPending(seekId,jrId,referralId){
