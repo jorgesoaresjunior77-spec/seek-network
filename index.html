@@ -3322,9 +3322,9 @@ function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
       <StatCard label="Vendas no Mês" value={fil.length+jrFil.length}/>
       <StatCard label="Volume" value={fBRL(totV)}/>
-      <StatCard label="A Pagar" value={fBRL(comAP)} color="var(--red)"/>
     </div>
-    <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+      <StatCard label="A Pagar" value={fBRL(comAP)} color="var(--red)"/>
       {[['A Pagar',allFil.filter(r=>!r.paid).length+spinFil.filter(s=>!s.paid).length,'var(--red)','pending',IcClock]].map(([l,v,c,dest,Ico])=>(
         <button key={l} className="nm" style={{padding:'16px 14px',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>onNav(dest)}>
           <div className="section-title" style={{marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Ico s={11} c={c}/>{l}</div>
