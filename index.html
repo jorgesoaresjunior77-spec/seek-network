@@ -3296,11 +3296,8 @@ function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy
   const spinFil=(spinRewards||[]).filter(s=>inMonth(s.createdAt,sm,sy));
   const chestFil=(chestRewards||[]).filter(c=>inMonth(c.createdAt,sm,sy));
   const spinAP=spinFil.filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
-  const spinPaid=spinFil.filter(s=>s.paid).reduce((s,r)=>s+r.value,0);
   const chestAP=chestFil.filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
-  const chestPaid=chestFil.filter(c=>c.paid).reduce((s,c)=>s+c.valor,0);
   const comAP=allFil.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP+chestAP;
-  const comP=allFil.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0)+spinPaid+chestPaid;
   const allTotV=[...referrals,...jrReferrals].reduce((s,r)=>s+r.productValue,0);
   const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
   const admStats=adms.map(adm=>{
@@ -3326,10 +3323,9 @@ function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy
       <StatCard label="Vendas no Mês" value={fil.length+jrFil.length}/>
       <StatCard label="Volume" value={fBRL(totV)}/>
       <StatCard label="A Pagar" value={fBRL(comAP)} color="var(--red)"/>
-      <StatCard label="Pago" value={fBRL(comP)} color="var(--green)"/>
     </div>
-    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-      {[['A Pagar',allFil.filter(r=>!r.paid).length+spinFil.filter(s=>!s.paid).length,'var(--red)','pending',IcClock],['Pagas',allFil.filter(r=>r.paid).length,'var(--green)','paid',IcCheck]].map(([l,v,c,dest,Ico])=>(
+    <div style={{display:'grid',gridTemplateColumns:'1fr',gap:12}}>
+      {[['A Pagar',allFil.filter(r=>!r.paid).length+spinFil.filter(s=>!s.paid).length,'var(--red)','pending',IcClock]].map(([l,v,c,dest,Ico])=>(
         <button key={l} className="nm" style={{padding:'16px 14px',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>onNav(dest)}>
           <div className="section-title" style={{marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Ico s={11} c={c}/>{l}</div>
           <div className="stat-n" style={{fontSize:'1.1rem',color:c}}>{v}</div>
@@ -3338,9 +3334,7 @@ function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy
     </div>
     <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
       <StatCard label="🎰 Roleta Pendente" value={fBRL(spinAP)} color={spinAP>0?'#8833BB':'var(--muted)'}/>
-      <StatCard label="🎰 Roleta Paga" value={fBRL(spinPaid)} color="var(--green)"/>
       <StatCard label="🎁 Cofre Pendente" value={fBRL(chestAP)} color={chestAP>0?'#B8860B':'var(--muted)'}/>
-      <StatCard label="🎁 Cofre Pago" value={fBRL(chestPaid)} color="var(--green)"/>
     </div>
     {admStats.length>0&&<>
       <div className="section-title" style={{paddingLeft:4}}>Ranking Vendedores — {MONTHS[sm-1]} {sy}</div>
