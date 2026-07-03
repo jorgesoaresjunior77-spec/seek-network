@@ -3462,7 +3462,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
 
   const masterTabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'vendedores',l:'Vendedores',I:IcUsers},{id:'membros',l:'SEEK',I:IcBook},{id:'remuneracao',l:'Regras',I:IcStar}];
   const activeTab=view==='memberDetail'?'membros':view==='vendedorDetail'?'vendedores':['pending','paid'].includes(view)?'dashboard':view;
-  const inSubView=['memberDetail','pending','paid','editRef','vendedorDetail'].includes(view);
+  const inSubView=['memberDetail','pending','paid','editRef','vendedorDetail','prevPending'].includes(view);
 
   return(
     <div style={{'--bg':'var(--bg-master)',background:'var(--bg-master)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
@@ -3491,6 +3491,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
         </div>
         <AdmDashboard members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} chestRewards={chestRewards} hideAdmCommission={true}/>
       </>}
+      {view==='prevPending'&&selAdm&&<MesAnteriorPanel adm={selAdm} members={scopeMembers} seekJrs={scopeJrs} referrals={scopeRefs} jrReferrals={scopeJrRefs} spinRewards={spinRewards} chestRewards={chestRewards} onBack={()=>setView('vendedorDetail')}/>}
       {view==='membros'&&<AdmMembers members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={selAdm?d=>onAddMember(d,selAdm.id):null} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards}/>}
       {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
@@ -4060,7 +4061,7 @@ function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
 /* ══════════════════════════════════════════════════════════════════
    PAGAMENTO MÊS ANTERIOR — extrato mensal por SEEK/JR + WhatsApp/Impressão
 ══════════════════════════════════════════════════════════════════ */
-function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],onBack,onPayAllForSeek,onPayAllForJr}){
+function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],onBack}){
   const now=new Date();
   const prevM=now.getMonth()===0?12:now.getMonth();
   const prevY=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
@@ -4071,55 +4072,57 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
   const monthRefs=referrals.filter(r=>r.month===pm&&r.year===py);
   const monthJrRefs=jrReferrals.filter(r=>r.month===pm&&r.year===py);
   const monthSpins=(spinRewards||[]).filter(s=>inMonth(s.createdAt,pm,py));
+  const monthChests=(chestRewards||[]).filter(c=>inMonth(c.createdAt,pm,py));
+
+  const sections=[];
+  members.forEach(m=>{
+    const mRefs=monthRefs.filter(r=>sameId(r.memberId,m.id));
+    const mSpin=monthSpins.filter(s=>sameId(s.seekId,m.id)).reduce((s,r)=>s+r.value,0);
+    const mChest=monthChests.filter(c=>sameId(c.seekId,m.id)).reduce((s,c)=>s+c.valor,0);
+    const mJrs=seekJrs.filter(j=>sameId(j.seekId,m.id));
+    const jrSecs=[];
+    mJrs.forEach(jr=>{
+      const jRefs=monthJrRefs.filter(r=>sameId(r.jrId,jr.id));
+      const jSpin=monthSpins.filter(s=>sameId(s.jrId,jr.id)).reduce((s,r)=>s+r.value,0);
+      const jChest=monthChests.filter(c=>sameId(c.jrId,jr.id)).reduce((s,c)=>s+c.valor,0);
+      if(jRefs.length===0&&jSpin===0&&jChest===0)return;
+      jrSecs.push({name:jr.name,parentName:m.name,refs:jRefs,spin:jSpin,chest:jChest,subtotal:jRefs.reduce((s,r)=>s+r.commission,0)+jSpin+jChest});
+    });
+    if(mRefs.length===0&&mSpin===0&&mChest===0&&jrSecs.length===0)return;
+    sections.push({name:m.name,refs:mRefs,spin:mSpin,chest:mChest,subtotal:mRefs.reduce((s,r)=>s+r.commission,0)+mSpin+mChest,jrSecs});
+  });
+  const totalGeral=sections.reduce((s,sec)=>s+sec.subtotal+sec.jrSecs.reduce((s2,j)=>s2+j.subtotal,0),0);
 
   function buildText(){
-    const allRefs=[...monthRefs,...monthJrRefs];
-    const totCom=allRefs.reduce((s,r)=>s+r.commission,0);
-    const bonusRTotal=monthSpins.reduce((s,r)=>s+r.value,0);
-    const totalGeral=totCom+bonusRTotal;
     const SEP='━━━━━━━━━━━━━━━━━━━━━━━━━';
     function refLine(r){
-      const spin=monthSpins.find(s=>sameId(s.referralId,r.id));
-      const spinV=spin?spin.value:0;
-      const total=r.commission+spinV;
+      const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
       const st=r.paid?'Pago':'A Pagar';
-      let line=`  Cliente: ${r.clientName} | Comissão: ${fBRL(r.commission)}`;
-      if(spinV>0)line+=` | Roleta: ${fBRL(spinV)}`;
-      line+=` | Total: ${fBRL(total)} | ${st}`;
-      return line;
+      return `  Cliente: ${r.clientName} — ${pt.name} — Comissão: ${fBRL(r.commission)} — ${st}`;
     }
-    const seekLines=[];
-    members.forEach(m=>{
-      const mRefs=monthRefs.filter(r=>sameId(r.memberId,m.id));
-      const mJrs=seekJrs.filter(j=>sameId(j.seekId,m.id));
-      const mJrRefs=monthJrRefs.filter(r=>mJrs.some(j=>sameId(j.id,r.jrId)));
-      if(mRefs.length===0&&mJrRefs.length===0)return;
-      seekLines.push(``,`${SEP}`,`👤 ${m.name}`,`${SEP}`);
-      mRefs.forEach(r=>seekLines.push(refLine(r)));
-      const mSpin=monthSpins.filter(s=>sameId(s.seekId,m.id)).reduce((s,r)=>s+r.value,0);
-      const mSub=mRefs.reduce((s,r)=>s+r.commission,0)+mSpin;
-      if(mRefs.length>0)seekLines.push(`  Subtotal SEEK: ${fBRL(mSub)}`);
-      mJrs.forEach(jr=>{
-        const jRefs=monthJrRefs.filter(r=>sameId(r.jrId,jr.id));
-        if(jRefs.length===0)return;
-        seekLines.push(``,`👤 ${jr.name} — JR de ${m.name}`);
-        jRefs.forEach(r=>seekLines.push(refLine(r)));
-        const jSpin=monthSpins.filter(s=>sameId(s.jrId,jr.id)).reduce((s,r)=>s+r.value,0);
-        const jSub=jRefs.reduce((s,r)=>s+r.commission,0)+jSpin;
-        seekLines.push(`  Subtotal SEEK JR: ${fBRL(jSub)}`);
-      });
-    });
+    function secLines(sec,label){
+      const lines=[``,SEP,`👤 ${label}`,SEP];
+      sec.refs.forEach(r=>lines.push(refLine(r)));
+      if(sec.spin>0)lines.push(`  🎰 Roleta: ${fBRL(sec.spin)}`);
+      if(sec.chest>0)lines.push(`  🎁 Cofre: ${fBRL(sec.chest)}`);
+      lines.push(`  Subtotal: ${fBRL(sec.subtotal)}`);
+      return lines;
+    }
     const dateStr=`${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
-    return [
+    const lines=[
       `*SEEK NETWORK — PAGAMENTO ${MONTHS[pm-1].toUpperCase()} ${py}*`,
-      `${adm.name}  |  Gerado em: ${dateStr}`,``,
-      `📊 RESUMO DO MÊS`,
-      `Indicações: ${allRefs.length}`,
-      seekLines.length===0?'Nenhuma movimentação neste mês.':null,
-      ...seekLines,
-      ``,SEP,
-      `TOTAL GERAL: ${fBRL(totalGeral)}`,
-    ].filter(l=>l!=null).join('\n');
+      `${adm.name}  |  Gerado em: ${dateStr}`,
+    ];
+    if(sections.length===0){
+      lines.push(``,'Nenhuma movimentação neste mês.');
+    }else{
+      sections.forEach(sec=>{
+        lines.push(...secLines(sec,sec.name));
+        sec.jrSecs.forEach(j=>lines.push(...secLines(j,`${j.name} — JR de ${j.parentName}`)));
+      });
+    }
+    lines.push(``,SEP,`TOTAL GERAL: ${fBRL(totalGeral)}`);
+    return lines.join('\n');
   }
 
   function sendWhatsApp(){
@@ -4135,6 +4138,40 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
     document.body.removeChild(div);
   }
 
+  function SectionCard({sec,label}){
+    return(
+      <div style={{marginBottom:12}}>
+        <div style={{background:'rgba(0,0,0,.04)',borderRadius:'12px 12px 0 0',padding:'10px 14px'}}>
+          <span style={{fontWeight:900,fontSize:'.88rem'}}>{'👤 '}{label}</span>
+        </div>
+        <div className="nm" style={{borderRadius:'0 0 12px 12px',padding:'0 14px'}}>
+          {sec.refs.map((r,i)=>{
+            const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
+            const stColor=r.paid?'var(--green)':'var(--red)';
+            return(
+              <React.Fragment key={r.id}>
+                <div style={{padding:'11px 0'}}>
+                  <div style={{fontWeight:800,fontSize:'.8rem',marginBottom:3}}>{'Cliente: '}{r.clientName}</div>
+                  <div style={{fontSize:'.68rem',color:'var(--muted)',lineHeight:1.6,display:'flex',alignItems:'center',gap:6,flexWrap:'wrap'}}>
+                    <span>{pt.icon}{' '}{pt.name}</span>
+                    <span>{'· Comissão: '}<span style={{color:stColor,fontWeight:800}}>{fBRL(r.commission)}</span></span>
+                    <span style={{marginLeft:'auto',fontWeight:800,color:stColor}}>{r.paid?'Pago':'A Pagar'}</span>
+                  </div>
+                </div>
+                {i<sec.refs.length-1&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
+              </React.Fragment>
+            );
+          })}
+          <div style={{borderTop:sec.refs.length?'2px solid rgba(0,0,0,.06)':'none',padding:'10px 0 12px'}}>
+            {sec.spin>0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎰 Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(sec.spin)}</span></div>}
+            {sec.chest>0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎁 Cofre: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(sec.chest)}</span></div>}
+            <div style={{fontSize:'.75rem',fontWeight:900,marginTop:2}}>{'Subtotal: '}<span>{fBRL(sec.subtotal)}</span></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return(
     <>
       <TopBar title="📅 Pagamento Mês Anterior" left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
@@ -4146,13 +4183,19 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
           </div>
         </div>
         <div style={{display:'flex',gap:10,marginBottom:16}}>
-          <button className="btn btn-full" style={{gap:6,color:'#25D366'}} onClick={sendWhatsApp}><IcWA s={15} fill="#25D366"/>Compartilhar</button>
-          <button className="btn btn-full" style={{gap:6}} onClick={handlePrint}>🖨️ Imprimir</button>
+          <button className="btn btn-full" style={{gap:6,color:'#25D366'}} onClick={sendWhatsApp}>{'📲 WhatsApp'}</button>
+          <button className="btn btn-full" style={{gap:6}} onClick={handlePrint}>{'🖨️ Imprimir'}</button>
         </div>
-        <div className="section-title" style={{paddingLeft:4,marginBottom:8}}>{'💰 A Pagar — '}{MONTHS[pm-1]} {py}</div>
-        <LedgerEntries members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={pm} filterYear={py}/>
-        <div className="section-title" style={{paddingLeft:4,margin:'18px 0 8px'}}>{'✅ Pagas — '}{MONTHS[pm-1]} {py}</div>
-        <LedgerEntries members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} readOnly={true} filterMonth={pm} filterYear={py}/>
+        {sections.length===0?<Empty text="Nenhuma movimentação neste mês."/>:sections.map(sec=>(
+          <React.Fragment key={sec.name}>
+            <SectionCard sec={sec} label={sec.name}/>
+            {sec.jrSecs.map(j=><SectionCard key={j.name} sec={j} label={`${j.name} — JR de ${j.parentName}`}/>)}
+          </React.Fragment>
+        ))}
+        {sections.length>0&&<div style={{padding:'14px 16px',background:'var(--black)',borderRadius:14,color:'#fff',display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
+          <span style={{fontSize:'.7rem',fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',opacity:.75}}>{'TOTAL GERAL'}</span>
+          <span style={{fontWeight:900,fontSize:'.95rem'}}>{fBRL(totalGeral)}</span>
+        </div>}
       </div>
     </>
   );
@@ -4209,7 +4252,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>}
       {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={sm} filterYear={sy}/>}
       {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} onBack={()=>setView('dashboard')} filterMonth={sm} filterYear={sy}/>}
-      {view==='prevPending'&&<MesAnteriorPanel adm={adm} members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr}/>}
+      {view==='prevPending'&&<MesAnteriorPanel adm={adm} members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} onBack={()=>setView('dashboard')}/>}
       {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={false} isAdm={true}/>}
       {view==='fipe'&&<FipeConsulta/>}
