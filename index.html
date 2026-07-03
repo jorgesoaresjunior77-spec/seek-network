@@ -4249,7 +4249,6 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       const totVol=allRefs.reduce((s,r)=>s+r.productValue,0);
       const totCom=allRefs.reduce((s,r)=>s+r.commission,0);
       const pago=allRefs.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
-      const apagar=allRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0);
       const admRank=adms.map(adm=>{
         const mids=members.filter(m=>sameId(m.admId,adm.id)).map(m=>String(m.id));
         const jids=seekJrs.filter(j=>mids.some(id=>sameId(j.seekId,id))).map(j=>String(j.id));
@@ -4265,8 +4264,8 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
         `💰 COMISSÕES`,
         `Volume Total: ${fBRL(totVol)}`,
         `Comissão Total: ${fBRL(totCom)}`,
-        `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(apagar)}`,
-        `Comissão Master (0,5%): ${fBRL(totVol*0.005)}`,
+        `Pago: ${fBRL(pago)}`,
+        `Comissão Master: ${fBRL(admComm(allRefs))}`,
         spinRewards.length>0?`🎰 Bônus Roleta Total - ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:'',``,
         `🏆 RANKING VENDEDORES`,
         ...admRank.map((a,i)=>`${i+1}. ${a.name} — ${fBRL(a.vol)} (${a.seeks} SEEK${a.seeks!==1?'s':''})`),
