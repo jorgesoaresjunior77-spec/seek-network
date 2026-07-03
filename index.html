@@ -1598,10 +1598,10 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
         <StatCard label="Qtde Vendas" value={fil.length+jrFil.length}/>
         <StatCard label="Valor Total" value={fBRL(totV)}/>
-        <StatCard label="A Pagar" value={fBRL(comAP)} color="var(--red)"/>
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-        {[['A Pagar',[...fil,...jrFil].filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)).length,'var(--red)','pending',IcClock],['Pagas',[...fil,...jrFil].filter(r=>r.paid).length,'var(--green)','paid',IcCheck]].map(([l,v,c,dest,Ico])=>(
+        <StatCard label="A Pagar" value={fBRL(comAP)} color="var(--red)"/>
+        {[['A Pagar',[...fil,...jrFil].filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)).length,'var(--red)','pending',IcClock]].map(([l,v,c,dest,Ico])=>(
           <button key={l} className="nm" style={{padding:'16px 14px',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>onNav(dest)}>
             <div className="section-title" style={{marginBottom:8,display:'flex',alignItems:'center',gap:4}}><Ico s={11} c={c}/>{l}</div>
             <div className="stat-n" style={{fontSize:'1.1rem',color:c}}>{v}</div>
