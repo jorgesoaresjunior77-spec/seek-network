@@ -1932,7 +1932,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                     <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
                     <div style={{display:'flex',gap:7,alignItems:'center'}}>
                       {(r.status==='pago'||r.paid)?<span style={{fontSize:'.72rem',fontWeight:800,color:'var(--green)',display:'inline-flex',alignItems:'center',gap:4}}><IcCheck s={11}/>Pago</span>:onTogglePaid?<button className="pill" style={{background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',boxShadow:'2px 2px 8px rgba(29,122,58,.3)'}} onClick={()=>onTogglePaid(r.id)}>PAGAR</button>:<span style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>A Pagar</span>}
-                      <button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>
+                      {onUpdateReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>}
                       <button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>
                     </div>
                   </div>
@@ -1957,7 +1957,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <span style={{fontSize:'.72rem',fontWeight:700,color:'var(--yellow)',display:'inline-flex',alignItems:'center',gap:4}}><IcClock s={11}/>Aguardando</span>
                     <div style={{display:'flex',gap:7,alignItems:'center'}}>
-                      <button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>
+                      {onUpdateReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>}
                       <button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>
                     </div>
                   </div>
@@ -2002,7 +2002,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
 /* ══════════════════════════════════════════════════════════════════
    BELL NOTIFICATIONS PANEL
 ══════════════════════════════════════════════════════════════════ */
-function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onEditRef,onDeleteRef,onDeleteJrRef,onMarkRead,passReqs}){
+function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onMarkRead,passReqs}){
   const [tab,setTab]=useState('new');
   const allRefs=[...referrals.filter(r=>r.isNew),...jrReferrals.filter(r=>r.isNew)];
   const readRefs=[...referrals.filter(r=>!r.isNew),...jrReferrals.filter(r=>!r.isNew)];
@@ -2055,14 +2055,6 @@ function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onEditRef,onDe
                   <IcWA s={14} fill="#25D366"/>WhatsApp
                 </button>
               </a>}
-              <button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',color:'var(--yellow)'}}
-                onClick={e=>{e.stopPropagation();onEditRef(r);onClose();}}>
-                <IcEdit s={13}/>Editar
-              </button>
-              {!r.paid&&<button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',color:'var(--red)'}}
-                onClick={e=>{e.stopPropagation();if(window.confirm(`Apagar "${r.clientName}"?`)){isJr?onDeleteJrRef(r.id):onDeleteRef(r.id);}}}>
-                <IcTrash s={13}/>Apagar
-              </button>}
               {r.isNew&&<button className="btn" style={{padding:'7px 12px',fontSize:'.75rem',color:'var(--muted)'}}
                 onClick={e=>{e.stopPropagation();onMarkRead(r.id,isJr);}}>
                 ✓ Lido
@@ -3437,7 +3429,6 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
   useEffect(()=>{onRefresh&&onRefresh();},[]);
   const [selAdm,setSelAdm]=useState(null);
   const [selMember,setSelMember]=useState(null);
-  const [editRefDirect,setEditRefDirect]=useState(null);
   const [showBell,setShowBell]=useState(false);
   const [showOffers,setShowOffers]=useState(false);
   const [showExtrato,setShowExtrato]=useState(false);
@@ -3457,12 +3448,12 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
   const scopeJrRefs=selAdm?jrReferrals.filter(r=>scopeJrs.some(j=>sameId(j.id,r.jrId))):jrReferrals;
   const curMember=selMember?scopeMembers.find(m=>sameId(m.id,selMember.id))??selMember:null;
 
-  function nav(dest,payload){if(dest==='editRef'){setEditRefDirect(payload);setView('editRef');}else setView(dest);}
+  function nav(dest){setView(dest);}
   function goAdm(adm){setSelAdm(adm);setView('vendedorDetail');}
 
   const masterTabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'vendedores',l:'Vendedores',I:IcUsers},{id:'membros',l:'SEEK',I:IcBook},{id:'remuneracao',l:'Regras',I:IcStar}];
   const activeTab=view==='memberDetail'?'membros':view==='vendedorDetail'?'vendedores':['pending','paid'].includes(view)?'dashboard':view;
-  const inSubView=['memberDetail','pending','paid','editRef','vendedorDetail','prevPending'].includes(view);
+  const inSubView=['memberDetail','pending','paid','vendedorDetail','prevPending'].includes(view);
 
   return(
     <div style={{'--bg':'var(--bg-master)',background:'var(--bg-master)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
@@ -3493,10 +3484,9 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
       </>}
       {view==='prevPending'&&selAdm&&<MesAnteriorPanel adm={selAdm} members={scopeMembers} seekJrs={scopeJrs} referrals={scopeRefs} jrReferrals={scopeJrRefs} spinRewards={spinRewards} chestRewards={chestRewards} onBack={()=>setView('vendedorDetail')}/>}
       {view==='membros'&&<AdmMembers members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={selAdm?d=>onAddMember(d,selAdm.id):null} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
-      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards}/>}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards}/>}
       {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
       {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
-      {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onAddReferral={d=>onAddReferral(d,_m.id)} onUpdateReferral={onUpdateReferral} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={true}/>}
       {view==='dashboard'&&<div className="page" style={{paddingTop:0,paddingBottom:0}}><CalendarioAniversarios referrals={referrals} jrReferrals={jrReferrals} members={members} seekJrs={seekJrs}/></div>}
 
@@ -3527,7 +3517,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
         </div>
       )}
 
-      {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} onClose={()=>setShowBell(false)} onEditRef={r=>{setEditRefDirect(r);setView('editRef');}} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} passReqs={passReqs} onMarkRead={onMarkRead}/>}
+      {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} onClose={()=>setShowBell(false)} passReqs={passReqs} onMarkRead={onMarkRead}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
       {showExtrato&&<ExtratoModal role="master" data={{adms,members,referrals,jrReferrals,seekJrs,spinRewards}} onClose={()=>setShowExtrato(false)}/>}
     </div>
@@ -3788,12 +3778,13 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
     const [prodType,setProdType]=useState('auto');
     const [val,setVal]=useState(0);
     const [date,setDate]=useState(todayISO());
+    const [obs,setObs]=useState(r.observacoes||'');
     const commission=val>0?(val*(PRODUCT_TYPES.find(p=>p.id===prodType)||PRODUCT_TYPES[0]).rate):0;
     function submit(e){
       e.preventDefault();if(val<=0)return;
       const pt=PRODUCT_TYPES.find(p=>p.id===prodType)||PRODUCT_TYPES[0];
       const parts=date.split('-').map(Number);
-      onSave({productType:prodType,productValue:val,commission:val*pt.rate,year:parts[0],month:parts[1],day:parts[2]});
+      onSave({productType:prodType,productValue:val,commission:val*pt.rate,year:parts[0],month:parts[1],day:parts[2],observacoes:obs.trim()?obs.trim().toUpperCase():null});
     }
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
       <div className="nm-in" style={{padding:'12px 14px',marginBottom:4}}>
@@ -3801,11 +3792,11 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
         <div style={{fontSize:'.72rem',color:'var(--muted)',marginTop:4}}>
           {isJr?(seekJrs.find(j=>sameId(j.id,r.jrId))||{name:'JR'}).name+' JR':(members.find(m=>sameId(m.id,r.memberId))||{name:'SEEK'}).name}
         </div>
-        {r.observacoes&&<div style={{fontSize:'.72rem',color:'var(--muted)',fontStyle:'italic',marginTop:4}}>💬 {r.observacoes}</div>}
       </div>
       <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
       <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
       <Fld label="Data da Venda"><input className="inp" type="date" value={date} onChange={e=>setDate(e.target.value)}/></Fld>
+      <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value.toUpperCase())} placeholder="Informações adicionais..." autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
       <div className="nm-in" style={{padding:'12px 14px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <span style={{fontSize:'.8rem',color:'var(--muted)',fontWeight:600}}>Comissão do SEEK</span>
         <span style={{fontWeight:800,fontSize:'1rem',color:'var(--green)'}}>{fBRL(commission)}</span>
@@ -3823,11 +3814,12 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
     const [prodType,setProdType]=useState(r.productType||'auto');
     const [val,setVal]=useState(r.productValue||0);
     const [date,setDate]=useState(r.year&&r.month?`${r.year}-${String(r.month).padStart(2,'0')}-${String(r.day||1).padStart(2,'0')}`:todayISO());
+    const [obs,setObs]=useState(r.observacoes||'');
     function submit(e){
       e.preventDefault();if(!cn.trim())return;
       const pt=PRODUCT_TYPES.find(p=>p.id===prodType)||PRODUCT_TYPES[0];
       const parts=date.split('-').map(Number);
-      onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:prodType,productValue:val,commission:val>0?val*pt.rate:0,year:parts[0],month:parts[1],day:parts[2]});
+      onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:prodType,productValue:val,commission:val>0?val*pt.rate:0,year:parts[0],month:parts[1],day:parts[2],observacoes:obs.trim()?obs.trim().toUpperCase():null});
     }
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
       <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
@@ -3835,6 +3827,7 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
       <Fld label="Tipo de Produto"><ProductSelect value={prodType} onChange={setProdType}/></Fld>
       <Fld label="Valor do Negócio"><CurrencyInput value={val} onChange={setVal}/></Fld>
       <Fld label="Data"><input className="inp" type="date" value={date} onChange={e=>setDate(e.target.value)}/></Fld>
+      <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value.toUpperCase())} placeholder="Informações adicionais..." autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
       <div style={{display:'flex',gap:12}}>
         <button type="button" className="btn btn-full" onClick={onCancel}>Cancelar</button>
         <button type="submit" className="btn btn-dark btn-full">Salvar</button>
@@ -5243,7 +5236,9 @@ function App(){
 
   async function updateReferral(rid,data){
     setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data}:r));
-    db.from('referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null,birthday_year:data.birthdayYear??null}).eq('id',rid);
+    const upd={client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null,birthday_year:data.birthdayYear??null};
+    if('observacoes'in data)upd.observacoes=data.observacoes??null;
+    db.from('referrals').update(upd).eq('id',rid);
   }
 
   async function togglePaid(rid){
@@ -5299,7 +5294,7 @@ function App(){
       const ref=jrReferrals.find(r=>sameId(r.id,rid));
       if(!ref)return;
       setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r));
-      let {error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
+      let {error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,observacoes:data.observacoes??ref.observacoes??null,paid:false,status:'a_pagar'}).eq('id',rid);
       if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
       if(error)console.error('[markReferralSold jr]',error);
       addSpinPending(null,String(ref.jrId),String(rid));
@@ -5310,7 +5305,7 @@ function App(){
       const newRefs=referrals.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r);
       setReferrals(newRefs);
       checkLevelUp(ref.memberId,oldRefs,newRefs);
-      let {error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false,status:'a_pagar'}).eq('id',rid);
+      let {error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,observacoes:data.observacoes??ref.observacoes??null,paid:false,status:'a_pagar'}).eq('id',rid);
       if(error&&error.code==='42703')({error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
       if(error)console.error('[markReferralSold]',error);
       addSpinPending(String(ref.memberId),null,String(rid));
@@ -5319,7 +5314,9 @@ function App(){
 
   async function updateJrReferral(rid,data){
     setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data}:r));
-    db.from('jr_referrals').update({client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null,birthday_year:data.birthdayYear??null}).eq('id',rid);
+    const upd={client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null,birthday_year:data.birthdayYear??null};
+    if('observacoes'in data)upd.observacoes=data.observacoes??null;
+    db.from('jr_referrals').update(upd).eq('id',rid);
   }
 
   async function addSpinPending(seekId,jrId,referralId){
