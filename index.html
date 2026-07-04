@@ -164,6 +164,7 @@ const mSpin          =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:
 const mSpinPending   =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,referralId:r.referral_id?String(r.referral_id):null,createdAt:r.created_at});
 const mChestPending  =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,used:r.used||false,createdAt:r.created_at});
 const mChestReward   =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,valor:Number(r.valor),paid:r.paid||false,createdAt:r.created_at});
+const mMinigameScore =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,highScore:Number(r.high_score)||0,totalXp:Number(r.total_xp)||0,playsCount:Number(r.plays_count)||0});
 const CHEST_PRIZES=[
   {value:2,  prob:.30},{value:5,  prob:.25},{value:10, prob:.18},
   {value:15, prob:.12},{value:20, prob:.07},{value:25, prob:.04},
@@ -224,6 +225,17 @@ function inMonth(iso,month,year){
   if(!iso)return false;
   const d=new Date(iso);
   return d.getMonth()+1===month&&d.getFullYear()===year;
+}
+
+/* Roleta: cada linha de spin_rewards é OU um bônus ganho (value>0) OU um débito
+   pago para girar de novo (value<0, sempre -5). São registros distintos —
+   nunca somar/exibir como se fossem a mesma coisa. */
+function isSpinBonus(s){return s.value>0;}
+function isSpinDebit(s){return s.value<0;}
+function splitSpins(spins){
+  const bonus=(spins||[]).filter(isSpinBonus);
+  const debit=(spins||[]).filter(isSpinDebit);
+  return{bonus,debit,bonusSum:bonus.reduce((s,x)=>s+x.value,0),debitSum:debit.reduce((s,x)=>s+x.value,0)};
 }
 
 /* ── LEGACY STORAGE CLEANUP ────────────────────────────────────────────────
@@ -867,7 +879,7 @@ function RemuneracaoPanel({isMaster,onBack,isAdm=false}){
         <div className="nm" style={{padding:'20px 18px'}}>
           <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:8,display:'flex',alignItems:'center',gap:8}}>{'🎁 Cofre Misterioso'}</div>
           <div style={{fontSize:'.75rem',color:'var(--muted)',marginBottom:14,lineHeight:1.7}}>
-            {'A cada 5 giros da roleta, você ganha um Cofre Misterioso!'}<br/>
+            {'A cada 5 indicações com venda confirmada, você ganha um Cofre Misterioso!'}<br/>
             {'O cofre aparece no seu próximo login, após a roleta.'}<br/>
             {'Clique no cofre para abri-lo e descobrir seu prêmio surpresa!'}<br/>
             {'O valor ganho é adicionado ao seu saldo a receber.'}
@@ -885,7 +897,7 @@ function RemuneracaoPanel({isMaster,onBack,isAdm=false}){
             {'💡 O valor ganho é somado ao total A Receber do SEEK/JR e aparece no extrato. É pago junto com as comissões via PAGAR TUDO.'}
           </div>
         </div>
-        {(isAdm||isMaster)&&<div className="nm" style={{padding:'20px 18px'}}>
+        {isAdm&&<div className="nm" style={{padding:'20px 18px'}}>
           <div style={{fontWeight:800,fontSize:'.88rem',marginBottom:14,display:'flex',alignItems:'center',gap:8}}>{'💼 Minha Comissão de Vendedor'}</div>
           {[
             {id:'auto',name:'Automóveis Zero KM', pct:'0,5%'},
@@ -909,11 +921,13 @@ function RemuneracaoPanel({isMaster,onBack,isAdm=false}){
    A PAGAR MODAL — somente visualização (SEEK / SEEK JR)
 ══════════════════════════════════════════════════════════════════ */
 function APagarModal({commissions,spinItems,chestItems=[],allRefs=[],onClose}){
-  spinItems=spinItems.filter(s=>s.referralId);
   const comTotal=commissions.reduce((s,r)=>s+r.commission,0);
-  const spinTotal=spinItems.reduce((s,r)=>s+r.value,0);
+  const{bonusSum:spinBonusTotal,debitSum:spinDebitTotal}=splitSpins(spinItems);
   const chestTotal=(chestItems||[]).reduce((s,c)=>s+c.valor,0);
-  const total=comTotal+spinTotal+chestTotal;
+  const total=comTotal+spinBonusTotal+spinDebitTotal+chestTotal;
+  const refIds=new Set(commissions.map(r=>String(r.id)));
+  const otherSpins=spinItems.filter(s=>!refIds.has(String(s.referralId)));
+  const hasOther=otherSpins.length>0||(chestItems||[]).length>0;
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
@@ -927,7 +941,7 @@ function APagarModal({commissions,spinItems,chestItems=[],allRefs=[],onClose}){
           <div className="nm" style={{padding:'0 14px'}}>
             {commissions.map((r,i)=>{
               const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
-              const linked=spinItems.find(s=>sameId(s.referralId,r.id));
+              const{bonusSum:linkedBonus,debitSum:linkedDebit}=splitSpins(spinItems.filter(s=>sameId(s.referralId,r.id)));
               return(
                 <React.Fragment key={r.id}>
                   <div style={{padding:'11px 0'}}>
@@ -935,30 +949,38 @@ function APagarModal({commissions,spinItems,chestItems=[],allRefs=[],onClose}){
                     <div style={{fontSize:'.68rem',color:'var(--muted)',lineHeight:1.6}}>
                       {pt.icon}{' '}{pt.name}{'·'}{' Venda: '}{fBRL(r.productValue)}{'·'}{' Comissão: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(r.commission)}</span>
                     </div>
-                    {linked&&<div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:700,marginTop:3}}>{'🎰 Bônus Roleta desta indicação: '}{fBRL(linked.value)}</div>}
+                    {linkedBonus>0&&<div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:700,marginTop:3}}>{'🎰 Bônus Roleta desta indicação: '}{fBRL(linkedBonus)}</div>}
+                    {linkedDebit<0&&<div style={{fontSize:'.68rem',color:'var(--red)',fontWeight:700,marginTop:3}}>{'🎲 Débito Roleta (girar de novo): '}{fBRL(linkedDebit)}</div>}
                   </div>
                   {i<commissions.length-1&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
                 </React.Fragment>
               );
             })}
-            {(chestItems||[]).map((c,i)=>{
-              const dt=c.createdAt?new Date(c.createdAt):null;
-              const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
-              return(
-                <React.Fragment key={'ch_'+c.id}>
-                  <div style={{padding:'10px 0'}}>
-                    <div style={{fontSize:'.68rem',color:'#B8860B',fontWeight:800}}>{'🎁 Cofre Misterioso'}</div>
-                    <div style={{fontSize:'.67rem',color:'var(--muted)',marginTop:2}}>{fBRL(c.valor)}{dtStr?` · ${dtStr}`:''}</div>
+            {hasOther&&(
+              <div style={{padding:'11px 0',borderTop:commissions.length>0?'1px solid rgba(0,0,0,.06)':'none'}}>
+                <div style={{fontSize:'.61rem',fontWeight:900,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>{'Outros lançamentos'}</div>
+                {otherSpins.map(s=>(
+                  <div key={'os_'+s.id} style={{fontSize:'.68rem',fontWeight:700,marginBottom:4,color:s.value>0?'#8833BB':'var(--red)'}}>
+                    {s.value>0?'🎰 Bônus Roleta (avulso): ':'🎲 Débito Roleta (girar de novo): '}{fBRL(s.value)}
                   </div>
-                  {i<(chestItems.length-1)&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
-                </React.Fragment>
-              );
-            })}
+                ))}
+                {(chestItems||[]).map(c=>{
+                  const dt=c.createdAt?new Date(c.createdAt):null;
+                  const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
+                  return(
+                    <div key={'ch_'+c.id} style={{fontSize:'.68rem',fontWeight:700,marginBottom:4,color:'#B8860B'}}>
+                      {'🎁 Cofre Misterioso: '}{fBRL(c.valor)}{dtStr?` · ${dtStr}`:''}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {(commissions.length>0||spinItems.length>0||(chestItems||[]).length>0)&&<div style={{borderTop:'2px solid rgba(0,0,0,.06)',padding:'10px 0 12px'}}>
               <div style={{display:'flex',flexDirection:'column',gap:3}}>
                 {comTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Comissões: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(comTotal)}</span></div>}
-                {spinTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Bônus Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(spinTotal)}</span></div>}
+                {spinBonusTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Bônus Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(spinBonusTotal)}</span></div>}
                 {chestTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Cofre Misterioso: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(chestTotal)}</span></div>}
+                {spinDebitTotal<0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Débito Roleta: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(spinDebitTotal)}</span></div>}
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
                   <span style={{fontSize:'.62rem',fontWeight:800,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em'}}>{'💰 Total a Receber'}</span>
                   <span style={{fontWeight:900,fontSize:'1rem',color:'var(--red)'}}>{fBRL(total)}</span>
@@ -978,30 +1000,32 @@ function BonusRoletaModal({spinItems,allRefs=[],onClose}){
     if(!a.createdAt||!b.createdAt)return 0;
     return new Date(b.createdAt)-new Date(a.createdAt);
   });
-  const totalPendente=spinItems.filter(s=>!s.paid).reduce((t,s)=>t+s.value,0);
-  const totalGeral=spinItems.reduce((t,s)=>t+s.value,0);
+  const{bonusSum:bonusPendente,debitSum:debitPendente}=splitSpins(spinItems.filter(s=>!s.paid));
+  const{bonusSum:bonusGeral,debitSum:debitGeral}=splitSpins(spinItems);
+  const totalGeral=bonusGeral+debitGeral;
   return(
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:'90vh'}}>
         <div className="handle"/>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
-          <span style={{fontWeight:900,fontSize:'1rem'}}>🎰 Bônus Roleta</span>
+          <span style={{fontWeight:900,fontSize:'1rem'}}>🎰 Roleta — Bônus e Débitos</span>
           <button className="icon-btn" onClick={onClose}><IcX s={17} c="var(--muted)"/></button>
         </div>
         <div style={{overflowY:'auto',maxHeight:'64vh'}}>
-          {spinItems.length===0&&<Empty text="Nenhum bônus roleta ainda!"/>}
+          {spinItems.length===0&&<Empty text="Nenhum lançamento de roleta ainda!"/>}
           <div className="nm" style={{padding:'0 14px'}}>
             {sorted.map((s,i)=>{
               const ref=allRefs.find(r=>sameId(r.id,s.referralId));
               const clientName=ref?ref.clientName:'Avulso';
               const dt=s.createdAt?new Date(s.createdAt):null;
               const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
+              const isDebit=s.value<0;
               return(
                 <React.Fragment key={s.id}>
                   <div style={{padding:'11px 0'}}>
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
                       <div>
-                        <div style={{fontWeight:800,fontSize:'.8rem',color:'#8833BB',marginBottom:3}}>🎰 Roleta — ref. {clientName}</div>
+                        <div style={{fontWeight:800,fontSize:'.8rem',color:isDebit?'var(--red)':'#8833BB',marginBottom:3}}>{isDebit?'🎲 Débito':'🎰 Bônus'} — ref. {clientName}</div>
                         <div style={{fontSize:'.68rem',color:'var(--muted)',lineHeight:1.6}}>
                           {fBRL(s.value)}{dtStr?` · ${dtStr}`:''}
                         </div>
@@ -1018,9 +1042,10 @@ function BonusRoletaModal({spinItems,allRefs=[],onClose}){
             {spinItems.length>0&&(
               <div style={{borderTop:'2px solid rgba(0,0,0,.06)',padding:'10px 0 12px'}}>
                 <div style={{display:'flex',flexDirection:'column',gap:3}}>
-                  {totalPendente>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>A Pagar: <span style={{color:'var(--red)',fontWeight:800}}>{fBRL(totalPendente)}</span></div>}
+                  {bonusPendente>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>Bônus A Pagar: <span style={{color:'#8833BB',fontWeight:800}}>{fBRL(bonusPendente)}</span></div>}
+                  {debitPendente<0&&<div style={{fontSize:'.69rem',fontWeight:600}}>Débito A Pagar: <span style={{color:'var(--red)',fontWeight:800}}>{fBRL(debitPendente)}</span></div>}
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
-                    <span style={{fontSize:'.62rem',fontWeight:800,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em'}}>🎰 Total Geral</span>
+                    <span style={{fontSize:'.62rem',fontWeight:800,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em'}}>🎰 Total Geral (líquido)</span>
                     <span style={{fontWeight:900,fontSize:'1rem',color:'#8833BB'}}>{fBRL(totalGeral)}</span>
                   </div>
                 </div>
@@ -1036,7 +1061,7 @@ function BonusRoletaModal({spinItems,allRefs=[],onClose}){
 /* ══════════════════════════════════════════════════════════════════
    SEEK JR PANEL
 ══════════════════════════════════════════════════════════════════ */
-function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral,onChangePin,offers,spinRewards,chestRewards=[]}){
+function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral,onChangePin,offers,spinRewards,chestRewards=[],minigameScores,onSaveMinigameScore}){
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -1049,6 +1074,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const [showAPagar,setShowAPagar]=useState(false);
   const [showBonusRoleta,setShowBonusRoleta]=useState(false);
   const [showCofres,setShowCofres]=useState(false);
+  const [showMinigame,setShowMinigame]=useState(false);
 
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
@@ -1126,10 +1152,10 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
               :<div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c||'var(--black)'}}>{v}</div></div>
           ))}
         </div>
-        {bonusRoletaPendente>0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
+        {bonusRoletaPendente!==0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontSize:'.72rem',fontWeight:800,color:'#8833BB'}}>{'🎰 Bônus Roleta ▸'}</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{'+ '+fBRL(bonusRoletaPendente)}</div>
+            <div style={{fontSize:'.72rem',fontWeight:800,color:bonusRoletaPendente>0?'#8833BB':'var(--red)'}}>{bonusRoletaPendente>0?'🎰 Bônus Roleta ▸':'🎲 Débito Roleta ▸'}</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{(bonusRoletaPendente>0?'+ ':'')+fBRL(bonusRoletaPendente)}</div>
           </div>
           <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
@@ -1179,6 +1205,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMinigame(true)}>🌀 Minigame</button>
 
       {/* Referrals */}
       <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
@@ -1211,6 +1238,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.jrId,jr.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowAPagar(false)}/>}
     {showCofres&&<CofresModal chestItems={myChests} onClose={()=>setShowCofres(false)}/>}
     {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id))} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowBonusRoleta(false)}/>}
+    {showMinigame&&<MinigameModal seekId={null} jrId={jr.id} scoreRow={(minigameScores||[]).find(s=>sameId(s.jrId,jr.id))} onSaveScore={onSaveMinigameScore} onClose={()=>setShowMinigame(false)}/>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
       <form onSubmit={changePin} style={{display:'flex',flexDirection:'column',gap:18}}>
         <Fld label="Senha Atual"><PinInput value={oldPin} onChange={setOldPin} autoFocus/></Fld>
@@ -1228,7 +1256,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
 /* ══════════════════════════════════════════════════════════════════
    SEEK MEMBER PANEL
 ══════════════════════════════════════════════════════════════════ */
-function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,onAddReferral,onAddJr,onChangePin,levelNotifs,onDismissNotif,offers,spinRewards,chestRewards=[]}){
+function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,onAddReferral,onAddJr,onChangePin,levelNotifs,onDismissNotif,offers,spinRewards,chestRewards=[],minigameScores,onSaveMinigameScore}){
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -1243,6 +1271,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const [showAPagar,setShowAPagar]=useState(false);
   const [showBonusRoleta,setShowBonusRoleta]=useState(false);
   const [showCofres,setShowCofres]=useState(false);
+  const [showMinigame,setShowMinigame]=useState(false);
   const [oldPin,setOldPin]=useState('');
   const [newPin,setNewPin]=useState('');
   const [cfPin,setCfPin]=useState('');
@@ -1382,10 +1411,10 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
               :<div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c}}>{v}</div></div>
           ))}
         </div>
-        {bonusRoletaPendente>0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:10,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
+        {bonusRoletaPendente!==0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:10,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowBonusRoleta(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontSize:'.72rem',fontWeight:800,color:'#8833BB'}}>{'🎰 Bônus Roleta ▸'}</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{'+ '+fBRL(bonusRoletaPendente)}</div>
+            <div style={{fontSize:'.72rem',fontWeight:800,color:bonusRoletaPendente>0?'#8833BB':'var(--red)'}}>{bonusRoletaPendente>0?'🎰 Bônus Roleta ▸':'🎲 Débito Roleta ▸'}</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{(bonusRoletaPendente>0?'+ ':'')+fBRL(bonusRoletaPendente)}</div>
           </div>
           <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
@@ -1417,6 +1446,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMinigame(true)}>🌀 Minigame</button>
 
       {/* My JRs */}
       {myJrs.length>0&&<div>
@@ -1475,6 +1505,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.memberId,member.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowAPagar(false)}/>}
     {showCofres&&<CofresModal chestItems={myChests} onClose={()=>setShowCofres(false)}/>}
     {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id))} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowBonusRoleta(false)}/>}
+    {showMinigame&&<MinigameModal seekId={member.id} jrId={null} scoreRow={(minigameScores||[]).find(s=>sameId(s.seekId,member.id))} onSaveScore={onSaveMinigameScore} onClose={()=>setShowMinigame(false)}/>}
     {showAdd&&<Sheet title="Encontrei uma Oportunidade" onClose={()=>setShowAdd(false)}><LeadForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral(d);setShowAdd(false);}}/></Sheet>}
     {showAddJr&&<Sheet title="Cadastrar SEEK JR" onClose={()=>setShowAddJr(false)}><JrForm onClose={()=>setShowAddJr(false)} onSave={onAddJr}/></Sheet>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
@@ -1917,7 +1948,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                 const digits=(r.whatsapp||'').replace(/\D/g,'');
                 const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
                 const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
-                const linkedSpin=(spinRewards||[]).find(s=>sameId(s.referralId,r.id));
+                const{bonusSum:linkedBonus,debitSum:linkedDebit}=splitSpins((spinRewards||[]).filter(s=>sameId(s.referralId,r.id)));
                 return<div key={r.id}><div style={{padding:'12px 0'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
                     <div style={{fontWeight:700,fontSize:'.86rem'}}>{r.clientName}</div>
@@ -1927,13 +1958,14 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                     {phone?<a href={`https://wa.me/${phone}`} target="_blank" style={{display:'flex',alignItems:'center',gap:5,color:'#25D366',textDecoration:'none'}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</a>:<span style={{display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</span>}
                   </div>}
                   <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:4}}>{pt.icon} {pt.name} · {fBRL(r.productValue)}</div>
-                  {linkedSpin&&<div style={{fontSize:'.7rem',fontWeight:700,color:'#8833BB',marginBottom:4}}>🎰 Bônus roleta: {fBRL(linkedSpin.value)}{linkedSpin.paid?' ✓':''}</div>}
+                  {linkedBonus>0&&<div style={{fontSize:'.7rem',fontWeight:700,color:'#8833BB',marginBottom:4}}>🎰 Bônus roleta: {fBRL(linkedBonus)}</div>}
+                  {linkedDebit<0&&<div style={{fontSize:'.7rem',fontWeight:700,color:'var(--red)',marginBottom:4}}>🎲 Débito roleta (girar de novo): {fBRL(linkedDebit)}</div>}
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
                     <div style={{display:'flex',gap:7,alignItems:'center'}}>
                       {(r.status==='pago'||r.paid)?<span style={{fontSize:'.72rem',fontWeight:800,color:'var(--green)',display:'inline-flex',alignItems:'center',gap:4}}><IcCheck s={11}/>Pago</span>:onTogglePaid?<button className="pill" style={{background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',boxShadow:'2px 2px 8px rgba(29,122,58,.3)'}} onClick={()=>onTogglePaid(r.id)}>PAGAR</button>:<span style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>A Pagar</span>}
                       {onUpdateReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>}
-                      <button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>
+                      {onDeleteReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>}
                     </div>
                   </div>
                 </div>{i<confirmedRefs.length-1&&<Div/>}</div>;
@@ -1958,7 +1990,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                     <span style={{fontSize:'.72rem',fontWeight:700,color:'var(--yellow)',display:'inline-flex',alignItems:'center',gap:4}}><IcClock s={11}/>Aguardando</span>
                     <div style={{display:'flex',gap:7,alignItems:'center'}}>
                       {onUpdateReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>}
-                      <button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>
+                      {onDeleteReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>}
                     </div>
                   </div>
                 </div>{i<waitingRefs.length-1&&<Div/>}</div>;
@@ -2002,7 +2034,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
 /* ══════════════════════════════════════════════════════════════════
    BELL NOTIFICATIONS PANEL
 ══════════════════════════════════════════════════════════════════ */
-function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onMarkRead,passReqs}){
+function BellPanel({members,referrals,jrReferrals,seekJrs,adms,onClose,onMarkRead,passReqs}){
   const [tab,setTab]=useState('new');
   const allRefs=[...referrals.filter(r=>r.isNew),...jrReferrals.filter(r=>r.isNew)];
   const readRefs=[...referrals.filter(r=>!r.isNew),...jrReferrals.filter(r=>!r.isNew)];
@@ -2016,6 +2048,8 @@ function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onMarkRead,pas
   function RefCard({r,isJr,idx}){
     const seek=isJr?seekJrs.find(j=>j.id===r.jrId):members.find(m=>sameId(m.id,r.memberId));
     const seekParent=isJr&&seek?members.find(m=>sameId(m.id,seek.seekId)):null;
+    const admMember=isJr?seekParent:seek;
+    const adm=(adms||[]).find(a=>admMember&&sameId(a.id,admMember.admId));
     const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
     const digits=(r.whatsapp||'').replace(/\D/g,'');
     const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
@@ -2025,6 +2059,10 @@ function BellPanel({members,referrals,jrReferrals,seekJrs,onClose,onMarkRead,pas
       <div style={{background:bg,borderRadius:12,marginBottom:4,padding:'10px 12px',cursor:'pointer'}} onClick={()=>setExpanded(isExp?null:r.id)}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8,marginBottom:4}}>
           <div style={{flex:1}}>
+            {r.isNew&&<div style={{fontSize:'.64rem',color:'var(--green)',fontWeight:800,marginBottom:2,textTransform:'uppercase',letterSpacing:'.04em'}}>🆕 Nova indicação cadastrada</div>}
+            {adm&&<div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginBottom:2}}>
+              💼 Vendedor: <b style={{color:'var(--black)'}}>{adm.name}</b>
+            </div>}
             {isJr?(
               <div style={{display:'flex',alignItems:'baseline',gap:5,marginBottom:2}}>
                 <span style={{fontWeight:900,fontSize:'.95rem'}}>{seek?seek.name:'?'}</span>
@@ -2307,33 +2345,19 @@ function FipeResultadoCard({r,onNova}){
   const combustivel=r.Combustivel||r.combustivel;
   const codigoFipe=r.CodigoFipe||r.codigoFipe||r.codigo;
   const mesRef=r.MesReferencia||r.mesReferencia;
-  const cor=r.cor;
-  const situacao=r.situacao;
-  const local=r.municipio&&r.uf?`${r.municipio}/${r.uf}`:null;
   return(
     <div className="nm" style={{padding:'20px 18px',marginBottom:12}}>
-      {val?(
-        <div style={{textAlign:'center',marginBottom:16}}>
-          <div style={{fontSize:'2rem',fontWeight:900,color:'var(--green)'}}>{val}</div>
-          <div style={{fontSize:'.65rem',color:'var(--muted)',fontWeight:700,marginTop:2,letterSpacing:'.06em',textTransform:'uppercase'}}>Preço Médio FIPE</div>
-        </div>
-      ):(
-        <div style={{textAlign:'center',marginBottom:14,padding:'10px 0 4px'}}>
-          <div style={{fontSize:'1.3rem',marginBottom:4}}>🚗</div>
-          <div style={{fontSize:'.72rem',color:'var(--muted)',fontWeight:700,letterSpacing:'.05em',textTransform:'uppercase'}}>Dados do Veículo (DETRAN)</div>
-          <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>Para Preço FIPE use a aba Marca/Modelo</div>
-        </div>
-      )}
+      <div style={{textAlign:'center',marginBottom:16}}>
+        <div style={{fontSize:'2rem',fontWeight:900,color:'var(--green)'}}>{val}</div>
+        <div style={{fontSize:'.65rem',color:'var(--muted)',fontWeight:700,marginTop:2,letterSpacing:'.06em',textTransform:'uppercase'}}>Preço Médio FIPE</div>
+      </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px 16px',fontSize:'.75rem',marginBottom:16}}>
         {codigoFipe&&<div><span style={lbl}>Código FIPE</span><span style={{fontWeight:800}}>{codigoFipe}</span></div>}
         {combustivel&&<div><span style={lbl}>Combustível</span><span style={{fontWeight:800}}>{combustivel}</span></div>}
         {marca&&<div><span style={lbl}>Marca</span><span style={{fontWeight:800}}>{marca}</span></div>}
         {anoModelo&&<div><span style={lbl}>Ano Modelo</span><span style={{fontWeight:800}}>{anoModelo}</span></div>}
-        {cor&&<div><span style={lbl}>Cor</span><span style={{fontWeight:800}}>{cor}</span></div>}
-        {situacao&&<div><span style={lbl}>Situação</span><span style={{fontWeight:800,color:situacao==='Ativo'?'var(--green)':'var(--red)'}}>{situacao}</span></div>}
         {modelo&&<div style={{gridColumn:'1/-1'}}><span style={lbl}>Modelo</span><span style={{fontWeight:800}}>{modelo}</span></div>}
         {mesRef&&<div style={{gridColumn:'1/-1'}}><span style={lbl}>Referência</span><span style={{fontWeight:800}}>{mesRef}</span></div>}
-        {local&&<div style={{gridColumn:'1/-1'}}><span style={lbl}>Município</span><span style={{fontWeight:800}}>{local}</span></div>}
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={onNova}>🔄 Nova Consulta</button>
     </div>
@@ -2344,9 +2368,6 @@ function FipeConsulta(){
   const FIPE_BASE='https://parallelum.com.br/fipe/api/v1';
   const TIPOS=[{id:'carros',l:'🚗 Carro'},{id:'motos',l:'🏍️ Moto'},{id:'caminhoes',l:'🚛 Caminhão'}];
   const ERR='Não foi possível carregar os dados FIPE. Verifique sua conexão.';
-  const ERR_PLACA='Consulta por placa indisponível no momento. Use a busca por Marca/Modelo.';
-
-  const [modo,setModo]=React.useState('marca');
 
   // ── Marca/Modelo ──
   const [tipo,setTipo]=React.useState(null);
@@ -2363,13 +2384,6 @@ function FipeConsulta(){
   const [resultado,setResultado]=React.useState(null);
   const [loading,setLoading]=React.useState('');
   const [erro,setErro]=React.useState('');
-
-  // ── Placa ──
-  const [tipoPlaca,setTipoPlaca]=React.useState('mercosul');
-  const [placa,setPlaca]=React.useState('');
-  const [resultadoPlaca,setResultadoPlaca]=React.useState(null);
-  const [loadingPlaca,setLoadingPlaca]=React.useState(false);
-  const [erroPlaca,setErroPlaca]=React.useState('');
 
   async function apiFetch(url){
     const r=await fetch(url);
@@ -2442,35 +2456,6 @@ function FipeConsulta(){
     ?modelos.filter(m=>m.nome.toLowerCase().includes(modeloTexto.toLowerCase()))
     :modelos;
 
-  function mascaraPlaca(val,tp){
-    const s=val.replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
-    if(tp==='mercosul') return s.slice(0,7);
-    const r=s.slice(0,7);
-    return r.length>3?r.slice(0,3)+'-'+r.slice(3):r;
-  }
-
-  function onPlacaChange(e){
-    setPlaca(mascaraPlaca(e.target.value,tipoPlaca));
-    setResultadoPlaca(null);setErroPlaca('');
-  }
-
-  function onTipoPlacaChange(t){
-    setTipoPlaca(t);setPlaca('');setResultadoPlaca(null);setErroPlaca('');
-  }
-
-  async function consultarPlaca(){
-    const p=placa.replace('-','').toUpperCase();
-    if(!p)return;
-    setLoadingPlaca(true);setResultadoPlaca(null);setErroPlaca('');
-    try{
-      const d=await apiFetch(`https://brasilapi.com.br/api/vehicles/v1/${p}`);
-      if(d&&(d.modelo||d.marca)){setResultadoPlaca(d);}
-      else{setErroPlaca(ERR_PLACA);}
-    }catch(e){
-      setErroPlaca('Placa não encontrada ou veículo não cadastrado. Verifique a placa e tente novamente.');
-    }finally{setLoadingPlaca(false);}
-  }
-
   const dropStyle={position:'absolute',top:'100%',left:0,right:0,background:'var(--card,#fff)',border:'1.5px solid var(--border,#e5e7eb)',borderRadius:10,zIndex:200,maxHeight:200,overflowY:'auto',boxShadow:'0 4px 16px rgba(0,0,0,.13)',marginTop:2};
   const dropItemStyle={padding:'10px 14px',cursor:'pointer',fontSize:'.82rem',borderBottom:'1px solid var(--border,#f3f4f6)'};
   const dropEmptyStyle={padding:'12px 14px',color:'var(--muted)',fontSize:'.78rem'};
@@ -2482,169 +2467,116 @@ function FipeConsulta(){
         <span style={{fontSize:'.6rem',fontWeight:900,letterSpacing:'.14em',color:'var(--muted)',textTransform:'uppercase'}}>Tabela FIPE</span>
       </div>
 
-      <div className="nm" style={{padding:'10px 12px',marginBottom:12}}>
-        <div style={{display:'flex',gap:6}}>
-          <button className={`btn${modo==='marca'?' btn-dark':''}`} style={{flex:1,padding:'9px 4px',fontSize:'.73rem'}} onClick={()=>setModo('marca')}>🔍 Por Marca/Modelo</button>
-          <button className={`btn${modo==='placa'?' btn-dark':''}`} style={{flex:1,padding:'9px 4px',fontSize:'.73rem'}} onClick={()=>setModo('placa')}>🚗 Por Placa</button>
+      <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+        <span className="label">Tipo de Veículo</span>
+        <div style={{display:'flex',gap:8}}>
+          {TIPOS.map(({id,l})=>(
+            <button key={id} className={`btn${tipo===id?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>onTipo(id)}>{l}</button>
+          ))}
         </div>
       </div>
 
-      {modo==='marca'&&(
-        <React.Fragment>
-          <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-            <span className="label">Tipo de Veículo</span>
-            <div style={{display:'flex',gap:8}}>
-              {TIPOS.map(({id,l})=>(
-                <button key={id} className={`btn${tipo===id?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>onTipo(id)}>{l}</button>
-              ))}
-            </div>
-          </div>
-
-          {tipo&&(
-            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-              <span className="label">Marca</span>
-              {loading==='marcas'
-                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
-                :<div style={{position:'relative'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:6}}>
-                    <input
-                      className="inp"
-                      style={{flex:1,margin:0}}
-                      placeholder="Digite a marca..."
-                      value={marcaTexto}
-                      onChange={e=>{
-                        const v=e.target.value;
-                        setMarcaTexto(v);setMarcaCodigo('');
-                        setMarcaAberta(true);
-                        if(!v){setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);setAnos([]);setAno('');setResultado(null);}
-                      }}
-                      onFocus={()=>{if(marcas.length>0)setMarcaAberta(true);}}
-                      onBlur={()=>setTimeout(()=>setMarcaAberta(false),200)}
-                    />
-                    {marcaTexto&&<button style={clearBtnStyle} onClick={clearMarca}>✕</button>}
-                  </div>
-                  {marcaAberta&&(
-                    <div style={dropStyle}>
-                      {marcasFiltradas.length===0
-                        ?<div style={dropEmptyStyle}>Nenhuma marca encontrada para "{marcaTexto}"</div>
-                        :marcasFiltradas.map(m=>(
-                          <div key={m.codigo} style={dropItemStyle} onMouseDown={()=>onMarcaSelect(m.codigo,m.nome)}>{m.nome}</div>
-                        ))
-                      }
-                    </div>
-                  )}
+      {tipo&&(
+        <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+          <span className="label">Marca</span>
+          {loading==='marcas'
+            ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+            :<div style={{position:'relative'}}>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <input
+                  className="inp"
+                  style={{flex:1,margin:0}}
+                  placeholder="Digite a marca..."
+                  value={marcaTexto}
+                  onChange={e=>{
+                    const v=e.target.value;
+                    setMarcaTexto(v);setMarcaCodigo('');
+                    setMarcaAberta(true);
+                    if(!v){setModelos([]);setModeloTexto('');setModeloCodigo('');setModeloAberto(false);setAnos([]);setAno('');setResultado(null);}
+                  }}
+                  onFocus={()=>{if(marcas.length>0)setMarcaAberta(true);}}
+                  onBlur={()=>setTimeout(()=>setMarcaAberta(false),200)}
+                />
+                {marcaTexto&&<button style={clearBtnStyle} onClick={clearMarca}>✕</button>}
+              </div>
+              {marcaAberta&&(
+                <div style={dropStyle}>
+                  {marcasFiltradas.length===0
+                    ?<div style={dropEmptyStyle}>Nenhuma marca encontrada para "{marcaTexto}"</div>
+                    :marcasFiltradas.map(m=>(
+                      <div key={m.codigo} style={dropItemStyle} onMouseDown={()=>onMarcaSelect(m.codigo,m.nome)}>{m.nome}</div>
+                    ))
+                  }
                 </div>
-              }
+              )}
             </div>
-          )}
-
-          {marcaCodigo&&(
-            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-              <span className="label">Modelo</span>
-              {loading==='modelos'
-                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
-                :<div style={{position:'relative'}}>
-                  <div style={{display:'flex',alignItems:'center',gap:6}}>
-                    <input
-                      className="inp"
-                      style={{flex:1,margin:0}}
-                      placeholder="Digite o modelo..."
-                      value={modeloTexto}
-                      onChange={e=>{
-                        const v=e.target.value;
-                        setModeloTexto(v);setModeloCodigo('');
-                        setModeloAberto(true);
-                        if(!v){setAnos([]);setAno('');setResultado(null);}
-                      }}
-                      onFocus={()=>{if(modelos.length>0)setModeloAberto(true);}}
-                      onBlur={()=>setTimeout(()=>setModeloAberto(false),200)}
-                    />
-                    {modeloTexto&&<button style={clearBtnStyle} onClick={clearModelo}>✕</button>}
-                  </div>
-                  {modeloAberto&&(
-                    <div style={dropStyle}>
-                      {modelosFiltrados.length===0
-                        ?<div style={dropEmptyStyle}>Nenhum modelo encontrado para "{modeloTexto}"</div>
-                        :modelosFiltrados.map(m=>(
-                          <div key={m.codigo} style={dropItemStyle} onMouseDown={()=>onModeloSelect(m.codigo,m.nome)}>{m.nome}</div>
-                        ))
-                      }
-                    </div>
-                  )}
-                </div>
-              }
-            </div>
-          )}
-
-          {modeloCodigo&&(
-            <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-              <span className="label">Ano</span>
-              {loading==='anos'
-                ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
-                :<select className="inp" value={ano} onChange={e=>onAno(e.target.value)} disabled={anos.length===0}>
-                  <option value="">Selecione o ano</option>
-                  {anos.map(a=><option key={a.codigo} value={a.codigo}>{a.nome}</option>)}
-                </select>
-              }
-            </div>
-          )}
-
-          {loading==='resultado'&&(
-            <div className="nm" style={{padding:24,textAlign:'center',marginBottom:12}}>
-              <div style={{color:'var(--muted)',fontSize:'.85rem'}}>Buscando dados FIPE...</div>
-            </div>
-          )}
-
-          {resultado&&loading===''&&<FipeResultadoCard r={resultado} onNova={reset}/>}
-
-          {erro&&(
-            <div style={{padding:'14px 16px',color:'var(--red)',fontSize:'.8rem',fontWeight:700,background:'rgba(220,38,38,.08)',borderRadius:14,marginBottom:12}}>
-              ⚠️ {erro}
-            </div>
-          )}
-        </React.Fragment>
+          }
+        </div>
       )}
 
-      {modo==='placa'&&(
-        <React.Fragment>
-          <div style={{padding:'10px 14px',background:'rgba(59,130,246,.08)',borderRadius:10,marginBottom:10,fontSize:'.75rem',color:'#1e40af',fontWeight:600}}>
-            ℹ️ Retorna dados do DETRAN via BrasilAPI (marca, modelo, ano, cor). Para Preço FIPE, use a aba Marca/Modelo.
-          </div>
-          <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
-            <span className="label">Tipo de Placa</span>
-            <div style={{display:'flex',gap:8,marginBottom:16}}>
-              <button className={`btn${tipoPlaca==='mercosul'?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>onTipoPlacaChange('mercosul')}>🔵 Mercosul (ABC1D23)</button>
-              <button className={`btn${tipoPlaca==='antiga'?' btn-dark':''}`} style={{flex:1,padding:'10px 4px',fontSize:'.73rem'}} onClick={()=>onTipoPlacaChange('antiga')}>⬜ Antiga (ABC-1234)</button>
+      {marcaCodigo&&(
+        <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+          <span className="label">Modelo</span>
+          {loading==='modelos'
+            ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+            :<div style={{position:'relative'}}>
+              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                <input
+                  className="inp"
+                  style={{flex:1,margin:0}}
+                  placeholder="Digite o modelo..."
+                  value={modeloTexto}
+                  onChange={e=>{
+                    const v=e.target.value;
+                    setModeloTexto(v);setModeloCodigo('');
+                    setModeloAberto(true);
+                    if(!v){setAnos([]);setAno('');setResultado(null);}
+                  }}
+                  onFocus={()=>{if(modelos.length>0)setModeloAberto(true);}}
+                  onBlur={()=>setTimeout(()=>setModeloAberto(false),200)}
+                />
+                {modeloTexto&&<button style={clearBtnStyle} onClick={clearModelo}>✕</button>}
+              </div>
+              {modeloAberto&&(
+                <div style={dropStyle}>
+                  {modelosFiltrados.length===0
+                    ?<div style={dropEmptyStyle}>Nenhum modelo encontrado para "{modeloTexto}"</div>
+                    :modelosFiltrados.map(m=>(
+                      <div key={m.codigo} style={dropItemStyle} onMouseDown={()=>onModeloSelect(m.codigo,m.nome)}>{m.nome}</div>
+                    ))
+                  }
+                </div>
+              )}
             </div>
-            <span className="label">Placa</span>
-            <input
-              className="inp"
-              placeholder={tipoPlaca==='mercosul'?'Ex: ABC1D23':'Ex: ABC-1234'}
-              value={placa}
-              onChange={onPlacaChange}
-              maxLength={tipoPlaca==='mercosul'?7:8}
-              style={{textTransform:'uppercase',letterSpacing:'.1em',fontWeight:700,fontSize:'1.1rem'}}
-            />
-            <button
-              className="btn btn-full btn-dark"
-              style={{marginTop:10,padding:12,fontSize:'.85rem'}}
-              onClick={consultarPlaca}
-              disabled={loadingPlaca||(tipoPlaca==='mercosul'?placa.length!==7:placa.length!==8)}
-            >
-              {loadingPlaca?'Consultando...':'🔍 Consultar'}
-            </button>
-          </div>
+          }
+        </div>
+      )}
 
-          {resultadoPlaca&&!loadingPlaca&&(
-            <FipeResultadoCard r={resultadoPlaca} onNova={()=>{setPlaca('');setResultadoPlaca(null);setErroPlaca('');}}/>
-          )}
+      {modeloCodigo&&(
+        <div className="nm" style={{padding:'16px 18px',marginBottom:12}}>
+          <span className="label">Ano</span>
+          {loading==='anos'
+            ?<div style={{color:'var(--muted)',fontSize:'.8rem',padding:'8px 0'}}>Carregando...</div>
+            :<select className="inp" value={ano} onChange={e=>onAno(e.target.value)} disabled={anos.length===0}>
+              <option value="">Selecione o ano</option>
+              {anos.map(a=><option key={a.codigo} value={a.codigo}>{a.nome}</option>)}
+            </select>
+          }
+        </div>
+      )}
 
-          {erroPlaca&&(
-            <div style={{padding:'14px 16px',color:'var(--red)',fontSize:'.8rem',fontWeight:700,background:'rgba(220,38,38,.08)',borderRadius:14,marginBottom:12}}>
-              ⚠️ {erroPlaca}
-            </div>
-          )}
-        </React.Fragment>
+      {loading==='resultado'&&(
+        <div className="nm" style={{padding:24,textAlign:'center',marginBottom:12}}>
+          <div style={{color:'var(--muted)',fontSize:'.85rem'}}>Buscando dados FIPE...</div>
+        </div>
+      )}
+
+      {resultado&&loading===''&&<FipeResultadoCard r={resultado} onNova={reset}/>}
+
+      {erro&&(
+        <div style={{padding:'14px 16px',color:'var(--red)',fontSize:'.8rem',fontWeight:700,background:'rgba(220,38,38,.08)',borderRadius:14,marginBottom:12}}>
+          ⚠️ {erro}
+        </div>
       )}
     </div>
   );
@@ -3424,7 +3356,7 @@ function MasterVendedores({adms,members,referrals,jrReferrals,seekJrs,credential
 /* ══════════════════════════════════════════════════════════════════
    MASTER PANEL
 ══════════════════════════════════════════════════════════════════ */
-function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddAdm,onDeleteAdm,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onMarkSold,onUpdateJrReferral,onToggleSpinPaid,onRefresh,refreshing=false}){
+function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddAdm,onDeleteAdm,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onRefresh,refreshing=false}){
   const [view,setView]=useState('dashboard');
   useEffect(()=>{onRefresh&&onRefresh();},[]);
   const [selAdm,setSelAdm]=useState(null);
@@ -3484,7 +3416,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
       </>}
       {view==='prevPending'&&selAdm&&<MesAnteriorPanel adm={selAdm} members={scopeMembers} seekJrs={scopeJrs} referrals={scopeRefs} jrReferrals={scopeJrRefs} spinRewards={spinRewards} chestRewards={chestRewards} onBack={()=>setView('vendedorDetail')}/>}
       {view==='membros'&&<AdmMembers members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={selAdm?d=>onAddMember(d,selAdm.id):null} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
-      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards}/>}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards}/>}
       {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
       {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={true}/>}
@@ -3517,7 +3449,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
         </div>
       )}
 
-      {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} onClose={()=>setShowBell(false)} passReqs={passReqs} onMarkRead={onMarkRead}/>}
+      {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} adms={adms} onClose={()=>setShowBell(false)} passReqs={passReqs} onMarkRead={onMarkRead}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
       {showExtrato&&<ExtratoModal role="master" data={{adms,members,referrals,jrReferrals,seekJrs,spinRewards}} onClose={()=>setShowExtrato(false)}/>}
     </div>
@@ -3942,7 +3874,7 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
   const filtJrRefs=paid
     ?jrReferrals.filter(r=>r.paid&&(!filterMonth||(r.month===filterMonth&&r.year===filterYear)))
     :jrReferrals.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)&&(!filterMonth||(r.month===filterMonth&&r.year===filterYear)));
-  const filtSpins=(paid?allSpins.filter(s=>s.paid):allSpins.filter(s=>!s.paid)).filter(s=>s.referralId).filter(s=>!filterMonth||inMonth(s.createdAt,filterMonth,filterYear));
+  const filtSpins=(paid?allSpins.filter(s=>s.paid):allSpins.filter(s=>!s.paid)).filter(s=>!filterMonth||inMonth(s.createdAt,filterMonth,filterYear));
   const filtChests=(paid?allChests.filter(c=>c.paid):allChests.filter(c=>!c.paid)).filter(c=>!filterMonth||inMonth(c.createdAt,filterMonth,filterYear));
   const total=filtRefs.reduce((s,r)=>s+r.commission,0)+filtJrRefs.reduce((s,r)=>s+r.commission,0)+filtSpins.reduce((s,r)=>s+r.value,0)+filtChests.reduce((s,c)=>s+c.valor,0);
   const comColor=paid?'var(--green)':'var(--red)';
@@ -3968,9 +3900,13 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
     const isSeek=e.type==='seek';
     const name=isSeek?e.m.name:e.jr.name;
     const comTotal=e.refs.reduce((s,r)=>s+r.commission,0);
-    const spinTotal=e.spins.reduce((s,r)=>s+r.value,0);
+    const{bonusSum:spinBonusTotal,debitSum:spinDebitTotal}=splitSpins(e.spins);
     const chestTotal=(e.chests||[]).reduce((s,c)=>s+c.valor,0);
     const showPay=!paid&&!readOnly;
+    const refIds=new Set(e.refs.map(r=>String(r.id)));
+    const otherSpins=e.spins.filter(s=>!refIds.has(String(s.referralId)));
+    const otherChests=e.chests||[]; // cofre nunca é vinculado a uma indicação específica (sem referralId no schema)
+    const hasOther=otherSpins.length>0||otherChests.length>0;
     return(
       <div style={{marginBottom:12}}>
         <div style={{background:'rgba(0,0,0,.04)',borderRadius:'12px 12px 0 0',padding:'10px 14px',display:'flex',alignItems:'center',gap:7}}>
@@ -3981,7 +3917,7 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
         <div className="nm" style={{borderRadius:showPay?'0':'0 0 12px 12px',padding:'0 14px'}}>
           {e.refs.map((r,i)=>{
             const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
-            const linked=e.spins.find(s=>sameId(s.referralId,r.id));
+            const{bonusSum:linkedBonus,debitSum:linkedDebit}=splitSpins(e.spins.filter(s=>sameId(s.referralId,r.id)));
             return(
               <React.Fragment key={r.id}>
                 <div style={{padding:'11px 0'}}>
@@ -3989,31 +3925,39 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
                   <div style={{fontSize:'.68rem',color:'var(--muted)',lineHeight:1.6}}>
                     {pt.icon}{' '}{pt.name}{'·'}{' Venda: '}{fBRL(r.productValue)}{'·'}{' Comissão: '}<span style={{color:comColor,fontWeight:800}}>{fBRL(r.commission)}</span>
                   </div>
-                  {linked&&<div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:700,marginTop:3}}>{'🎰 Bônus Roleta desta indicação: '}{fBRL(linked.value)}</div>}
+                  {linkedBonus>0&&<div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:700,marginTop:3}}>{'🎰 Bônus Roleta desta indicação: '}{fBRL(linkedBonus)}</div>}
+                  {linkedDebit<0&&<div style={{fontSize:'.68rem',color:'var(--red)',fontWeight:700,marginTop:3}}>{'🎲 Débito Roleta (girar de novo): '}{fBRL(linkedDebit)}</div>}
                 </div>
                 {i<e.refs.length-1&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
               </React.Fragment>
             );
           })}
-          {(e.chests||[]).map((c,i)=>{
-            const dt=c.createdAt?new Date(c.createdAt):null;
-            const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
-            return(
-              <React.Fragment key={'ch_'+c.id}>
-                <div style={{padding:'10px 0'}}>
-                  <div style={{fontSize:'.68rem',color:'#B8860B',fontWeight:800}}>{'🎁 Cofre Misterioso'}</div>
-                  <div style={{fontSize:'.67rem',color:'var(--muted)',marginTop:2}}>{fBRL(c.valor)}{dtStr?` · ${dtStr}`:''}</div>
+          {hasOther&&(
+            <div style={{padding:'11px 0',borderTop:e.refs.length>0?'1px solid rgba(0,0,0,.06)':'none'}}>
+              <div style={{fontSize:'.61rem',fontWeight:900,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:6}}>{'Outros lançamentos'}</div>
+              {otherSpins.map(s=>(
+                <div key={'os_'+s.id} style={{fontSize:'.68rem',fontWeight:700,marginBottom:4,color:s.value>0?'#8833BB':'var(--red)'}}>
+                  {s.value>0?'🎰 Bônus Roleta (avulso): ':'🎲 Débito Roleta (girar de novo): '}{fBRL(s.value)}
                 </div>
-                {i<(e.chests.length-1)&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
-              </React.Fragment>
-            );
-          })}
+              ))}
+              {otherChests.map(c=>{
+                const dt=c.createdAt?new Date(c.createdAt):null;
+                const dtStr=dt?`${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`:'';
+                return(
+                  <div key={'ch_'+c.id} style={{fontSize:'.68rem',fontWeight:700,marginBottom:4,color:'#B8860B'}}>
+                    {'🎁 Cofre Misterioso: '}{fBRL(c.valor)}{dtStr?` · ${dtStr}`:''}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div style={{borderTop:'2px solid rgba(0,0,0,.06)',padding:'10px 0'+(showPay?'':' 12px')}}>
             <div style={{fontSize:'.61rem',fontWeight:900,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:5}}>{'📊 Subtotal '}{name}</div>
             <div style={{display:'flex',flexDirection:'column',gap:3,paddingLeft:4}}>
               {comTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Comissões: '}<span style={{color:comColor,fontWeight:800}}>{fBRL(comTotal)}</span></div>}
-              {spinTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Bônus Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(spinTotal)}</span></div>}
+              {spinBonusTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Bônus Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(spinBonusTotal)}</span></div>}
               {chestTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Cofre Misterioso: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(chestTotal)}</span></div>}
+              {spinDebitTotal<0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Débito Roleta: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(spinDebitTotal)}</span></div>}
               <div style={{fontSize:'.75rem',fontWeight:900,marginTop:2}}>{'TOTAL: '}<span style={{color:comColor}}>{fBRL(e.sub)}</span></div>
             </div>
           </div>
@@ -4070,19 +4014,19 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
   const sections=[];
   members.forEach(m=>{
     const mRefs=monthRefs.filter(r=>sameId(r.memberId,m.id));
-    const mSpin=monthSpins.filter(s=>sameId(s.seekId,m.id)).reduce((s,r)=>s+r.value,0);
+    const{bonusSum:mBonus,debitSum:mDebit}=splitSpins(monthSpins.filter(s=>sameId(s.seekId,m.id)));
     const mChest=monthChests.filter(c=>sameId(c.seekId,m.id)).reduce((s,c)=>s+c.valor,0);
     const mJrs=seekJrs.filter(j=>sameId(j.seekId,m.id));
     const jrSecs=[];
     mJrs.forEach(jr=>{
       const jRefs=monthJrRefs.filter(r=>sameId(r.jrId,jr.id));
-      const jSpin=monthSpins.filter(s=>sameId(s.jrId,jr.id)).reduce((s,r)=>s+r.value,0);
+      const{bonusSum:jBonus,debitSum:jDebit}=splitSpins(monthSpins.filter(s=>sameId(s.jrId,jr.id)));
       const jChest=monthChests.filter(c=>sameId(c.jrId,jr.id)).reduce((s,c)=>s+c.valor,0);
-      if(jRefs.length===0&&jSpin===0&&jChest===0)return;
-      jrSecs.push({name:jr.name,parentName:m.name,refs:jRefs,spin:jSpin,chest:jChest,subtotal:jRefs.reduce((s,r)=>s+r.commission,0)+jSpin+jChest});
+      if(jRefs.length===0&&jBonus===0&&jDebit===0&&jChest===0)return;
+      jrSecs.push({name:jr.name,parentName:m.name,refs:jRefs,bonus:jBonus,debit:jDebit,chest:jChest,subtotal:jRefs.reduce((s,r)=>s+r.commission,0)+jBonus+jDebit+jChest});
     });
-    if(mRefs.length===0&&mSpin===0&&mChest===0&&jrSecs.length===0)return;
-    sections.push({name:m.name,refs:mRefs,spin:mSpin,chest:mChest,subtotal:mRefs.reduce((s,r)=>s+r.commission,0)+mSpin+mChest,jrSecs});
+    if(mRefs.length===0&&mBonus===0&&mDebit===0&&mChest===0&&jrSecs.length===0)return;
+    sections.push({name:m.name,refs:mRefs,bonus:mBonus,debit:mDebit,chest:mChest,subtotal:mRefs.reduce((s,r)=>s+r.commission,0)+mBonus+mDebit+mChest,jrSecs});
   });
   const totalGeral=sections.reduce((s,sec)=>s+sec.subtotal+sec.jrSecs.reduce((s2,j)=>s2+j.subtotal,0),0);
 
@@ -4096,7 +4040,8 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
     function secLines(sec,label){
       const lines=[``,SEP,`👤 ${label}`,SEP];
       sec.refs.forEach(r=>lines.push(refLine(r)));
-      if(sec.spin>0)lines.push(`  🎰 Roleta: ${fBRL(sec.spin)}`);
+      if(sec.bonus>0)lines.push(`  🎰 Bônus Roleta: ${fBRL(sec.bonus)}`);
+      if(sec.debit<0)lines.push(`  🎲 Débito Roleta: ${fBRL(sec.debit)}`);
       if(sec.chest>0)lines.push(`  🎁 Cofre: ${fBRL(sec.chest)}`);
       lines.push(`  Subtotal: ${fBRL(sec.subtotal)}`);
       return lines;
@@ -4156,7 +4101,8 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
             );
           })}
           <div style={{borderTop:sec.refs.length?'2px solid rgba(0,0,0,.06)':'none',padding:'10px 0 12px'}}>
-            {sec.spin>0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎰 Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(sec.spin)}</span></div>}
+            {sec.bonus>0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎰 Bônus Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(sec.bonus)}</span></div>}
+            {sec.debit<0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎲 Débito Roleta: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(sec.debit)}</span></div>}
             {sec.chest>0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎁 Cofre: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(sec.chest)}</span></div>}
             <div style={{fontSize:'.75rem',fontWeight:900,marginTop:2}}>{'Subtotal: '}<span>{fBRL(sec.subtotal)}</span></div>
           </div>
@@ -4301,8 +4247,10 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
         `Volume Total: ${fBRL(totVol)}`,
         `Comissão Total: ${fBRL(totCom)}`,
         `Pago: ${fBRL(pago)}`,
-        `Comissão Master: ${fBRL(admComm(allRefs))}`,
-        spinRewards.length>0?`🎰 Bônus Roleta Total - ${fBRL(spinRewards.reduce((s,r)=>s+r.value,0))}`:'',``,
+        (()=>{const{bonusSum,debitSum}=splitSpins(spinRewards);return[
+          bonusSum>0?`🎰 Bônus Roleta Total - ${fBRL(bonusSum)}`:'',
+          debitSum<0?`🎲 Débito Roleta Total - ${fBRL(debitSum)}`:'',
+        ].filter(Boolean).join('\n');})(),``,
         `🏆 RANKING VENDEDORES`,
         ...admRank.map((a,i)=>`${i+1}. ${a.name} — ${fBRL(a.vol)} (${a.seeks} SEEK${a.seeks!==1?'s':''})`),
       ].join('\n');
@@ -4311,16 +4259,16 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       const {adm,members,referrals,jrReferrals,seekJrs,spinRewards=[]}=data;
       const allRefs=[...referrals,...jrReferrals];
       const totCom=allRefs.reduce((s,r)=>s+r.commission,0);
-      const bonusRTotal=spinRewards.reduce((s,r)=>s+r.value,0);
-      const totalGeral=totCom+bonusRTotal;
+      const{bonusSum:bonusRTotal,debitSum:debitRTotal}=splitSpins(spinRewards);
+      const totalGeral=totCom+bonusRTotal+debitRTotal;
       const SEP='━━━━━━━━━━━━━━━━━━━━━━━━━';
       function refLine(r){
-        const spin=spinRewards.find(s=>sameId(s.referralId,r.id));
-        const spinV=spin?spin.value:0;
-        const total=r.commission+spinV;
+        const{bonusSum:spinBonus,debitSum:spinDebit}=splitSpins(spinRewards.filter(s=>sameId(s.referralId,r.id)));
+        const total=r.commission+spinBonus+spinDebit;
         const st=r.paid?'Pago':'A Pagar';
         let line=`  Cliente: ${r.clientName} | Comissão: ${fBRL(r.commission)}`;
-        if(spinV>0)line+=` | Roleta: ${fBRL(spinV)}`;
+        if(spinBonus>0)line+=` | Bônus Roleta: ${fBRL(spinBonus)}`;
+        if(spinDebit<0)line+=` | Débito Roleta: ${fBRL(spinDebit)}`;
         line+=` | Total: ${fBRL(total)} | ${st}`;
         return line;
       }
@@ -4373,13 +4321,13 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       const confRefs=referrals.filter(r=>r.paid||r.status==='a_pagar'||r.productValue>0);
       const refLines=[];
       confRefs.forEach((r,i)=>{
-        const spin=spinRewards.find(s=>sameId(s.referralId,r.id));
-        const spinV=spin?spin.value:0;
-        const total=r.commission+spinV;
+        const{bonusSum:spinBonus,debitSum:spinDebit}=splitSpins(spinRewards.filter(s=>sameId(s.referralId,r.id)));
+        const total=r.commission+spinBonus+spinDebit;
         const st=r.paid?'Pago':'A Pagar';
         refLines.push(`👤 ${r.clientName}`);
         refLines.push(`   Comissão: ${fBRL(r.commission)}`);
-        if(spinV>0)refLines.push(`   🎰 Bônus Roleta: ${fBRL(spinV)}`);
+        if(spinBonus>0)refLines.push(`   🎰 Bônus Roleta: ${fBRL(spinBonus)}`);
+        if(spinDebit<0)refLines.push(`   🎲 Débito Roleta: ${fBRL(spinDebit)}`);
         refLines.push(`   Total: ${fBRL(total)}`);
         refLines.push(`   Status: ${st}`);
         if(i<confRefs.length-1)refLines.push(SEP);
@@ -4424,13 +4372,13 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       const confRefs=referrals.filter(r=>r.paid||r.status==='a_pagar'||r.productValue>0);
       const refLines=[];
       confRefs.forEach((r,i)=>{
-        const spin=spinRewards.find(s=>sameId(s.referralId,r.id));
-        const spinV=spin?spin.value:0;
-        const total=r.commission+spinV;
+        const{bonusSum:spinBonus,debitSum:spinDebit}=splitSpins(spinRewards.filter(s=>sameId(s.referralId,r.id)));
+        const total=r.commission+spinBonus+spinDebit;
         const st=r.paid?'Pago':'A Pagar';
         refLines.push(`👤 ${r.clientName}`);
         refLines.push(`   Comissão: ${fBRL(r.commission)}`);
-        if(spinV>0)refLines.push(`   🎰 Bônus Roleta: ${fBRL(spinV)}`);
+        if(spinBonus>0)refLines.push(`   🎰 Bônus Roleta: ${fBRL(spinBonus)}`);
+        if(spinDebit<0)refLines.push(`   🎲 Débito Roleta: ${fBRL(spinDebit)}`);
         refLines.push(`   Total: ${fBRL(total)}`);
         refLines.push(`   Status: ${st}`);
         if(i<confRefs.length-1)refLines.push(SEP);
@@ -4802,19 +4750,17 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
     }catch(e){}
   }
 
-  function playSadSound(){
+  function playRetrySound(){
     try{
       const ctx=new(window.AudioContext||window.webkitAudioContext)();
-      [[440,0],[392,0.28],[349,0.56],[311,0.84]].forEach(([f,t])=>{
+      [[660,0],[880,0.08]].forEach(([f,t])=>{
         const o=ctx.createOscillator(),g=ctx.createGain();
         o.connect(g);g.connect(ctx.destination);
-        o.type='sawtooth';
-        o.frequency.setValueAtTime(f,ctx.currentTime+t);
-        o.frequency.linearRampToValueAtTime(f-30,ctx.currentTime+t+0.25);
+        o.type='sine';o.frequency.value=f;
         const s=ctx.currentTime+t;
-        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.22,s+0.06);
-        g.gain.exponentialRampToValueAtTime(0.001,s+0.27);
-        o.start(s);o.stop(s+0.30);
+        g.gain.setValueAtTime(0,s);g.gain.linearRampToValueAtTime(0.18,s+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001,s+0.18);
+        o.start(s);o.stop(s+0.2);
       });
     }catch(e){}
   }
@@ -4866,7 +4812,7 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
   }
 
   function handleRetryPaid(){
-    playSadSound();
+    playRetrySound();
     onResult(-5);
     setWon(null);
     setPendingWin(null);
@@ -4948,6 +4894,7 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
                   return(
                     <text key={i} x={tx} y={ty} textAnchor="middle" dominantBaseline="central"
                       transform={`rotate(${mid},${tx},${ty})`}
+                      fontFamily="'Inter',-apple-system,'SF Pro Display',sans-serif"
                       fontSize={10} fontWeight="900" fill={tc}
                       stroke="#000" strokeWidth={2.5} strokeLinejoin="round" paintOrder="stroke">
                       {wl}
@@ -4991,6 +4938,400 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
   );
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   MINIGAME — LABIRINTO DO SEEKER
+   Original: Seeker (jogador) coleta Fragmentos de Insight, foge de
+   Distrações (perseguidoras) e pode pegar o power-up Foco (invencibilidade
+   temporária). Layout de labirinto único e fixo (gerado uma vez, sem
+   geração aleatória em runtime).
+══════════════════════════════════════════════════════════════════ */
+const MAZE_COLS=15, MAZE_ROWS=19;
+const MAZE_GRID=[
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
+  [1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
+  [1,0,0,0,1,0,1,0,0,0,0,0,0,0,1],
+  [1,0,1,1,1,1,1,1,1,1,1,1,1,0,1],
+  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,1,0,1,1,1,1,1,1,1,0,1],
+  [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
+  [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
+  [1,0,0,0,1,0,0,0,0,0,1,0,1,0,1],
+  [1,0,1,1,1,0,1,0,1,1,1,1,1,0,1],
+  [1,0,1,0,0,0,1,0,0,0,0,0,1,0,1],
+  [1,1,1,0,1,1,1,0,1,1,1,0,1,0,1],
+  [1,0,0,0,1,0,0,0,1,0,1,0,1,0,1],
+  [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
+  [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+  [1,0,1,0,1,1,1,1,1,0,1,0,1,1,1],
+  [1,0,1,0,0,0,0,0,0,0,0,0,0,0,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+const MG_SEEKER_START={x:1,y:1};
+const MG_DISTRACAO_STARTS=[{x:13,y:1},{x:1,y:17},{x:13,y:17}];
+const MG_FOCO_POS={x:7,y:9};
+const MG_LIVES=3;
+const MG_FRAGMENT_PTS=10;
+const MG_FOCO_PTS=20;
+const MG_COMPLETE_BONUS=100;
+const MG_FOCO_DURATION=7000; // ms de invencibilidade
+const MG_SPEED=4.4; // tiles/seg — Seeker
+const MG_DISTRACAO_SPEED=3.5; // tiles/seg
+const MG_DIRS=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+
+function mgIsOpen(col,row){
+  if(row<0||row>=MAZE_ROWS||col<0||col>=MAZE_COLS)return false;
+  return MAZE_GRID[row][col]===0;
+}
+function mgBuildFragments(){
+  const skip=new Set([`${MG_SEEKER_START.x},${MG_SEEKER_START.y}`,`${MG_FOCO_POS.x},${MG_FOCO_POS.y}`,...MG_DISTRACAO_STARTS.map(d=>`${d.x},${d.y}`)]);
+  const frags=[];
+  for(let row=0;row<MAZE_ROWS;row++)for(let col=0;col<MAZE_COLS;col++){
+    if(MAZE_GRID[row][col]===0&&!skip.has(`${col},${row}`))frags.push({x:col,y:row,collected:false});
+  }
+  return frags;
+}
+function mgTryMove(ent,dt,speed){
+  const EPS=0.04;
+  const rx=Math.round(ent.x),ry=Math.round(ent.y);
+  const atCenter=Math.abs(ent.x-rx)<EPS&&Math.abs(ent.y-ry)<EPS;
+  if(atCenter){
+    ent.x=rx;ent.y=ry;
+    if(ent.nextDir&&mgIsOpen(ent.x+ent.nextDir.x,ent.y+ent.nextDir.y))ent.dir=ent.nextDir;
+    if(ent.dir&&!mgIsOpen(ent.x+ent.dir.x,ent.y+ent.dir.y))ent.dir=null;
+  }
+  if(ent.dir){ent.x+=ent.dir.x*speed*dt;ent.y+=ent.dir.y*speed*dt;}
+}
+function mgChooseChaseDir(ent,targetX,targetY,flee){
+  const cx=Math.round(ent.x),cy=Math.round(ent.y);
+  const reverse=ent.dir?{x:-ent.dir.x,y:-ent.dir.y}:null;
+  let opts=MG_DIRS.filter(d=>mgIsOpen(cx+d.x,cy+d.y));
+  if(opts.length>1&&reverse){
+    const filtered=opts.filter(d=>!(d.x===reverse.x&&d.y===reverse.y));
+    if(filtered.length>0)opts=filtered;
+  }
+  if(opts.length===0)return null;
+  opts.sort((a,b)=>{
+    const da=Math.hypot((cx+a.x)-targetX,(cy+a.y)-targetY);
+    const db=Math.hypot((cx+b.x)-targetX,(cy+b.y)-targetY);
+    return flee?(db-da):(da-db);
+  });
+  return opts[0];
+}
+function mgDrawHex(ctx,cx,cy,r,fill,stroke,rot){
+  ctx.save();
+  ctx.translate(cx,cy);
+  if(rot)ctx.rotate(rot);
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    const a=(Math.PI/3)*i-Math.PI/2;
+    const px=Math.cos(a)*r,py=Math.sin(a)*r;
+    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+  ctx.fillStyle=fill;ctx.fill();
+  ctx.lineWidth=2;ctx.strokeStyle=stroke;ctx.stroke();
+  ctx.restore();
+}
+function mgDrawBlob(ctx,cx,cy,r,now,seed,fleeing){
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.beginPath();
+  const pts=8;
+  for(let i=0;i<=pts;i++){
+    const a=(Math.PI*2/pts)*i;
+    const wob=1+Math.sin(now/260+seed+i)*0.12;
+    const px=Math.cos(a)*r*wob,py=Math.sin(a)*r*wob;
+    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }
+  ctx.closePath();
+  const grad=ctx.createRadialGradient(0,0,r*0.1,0,0,r);
+  if(fleeing){grad.addColorStop(0,'rgba(150,150,160,.55)');grad.addColorStop(1,'rgba(90,90,100,.4)');}
+  else{grad.addColorStop(0,'#FF8A5C');grad.addColorStop(1,'#C0392B');}
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.restore();
+}
+
+function SeekerMazeGame({onFinish,onExit}){
+  const canvasRef=React.useRef(null);
+  const mazeImgRef=React.useRef(null);
+  const wrapRef=React.useRef(null);
+  const cellPxRef=React.useRef(20);
+  const gRef=React.useRef(null);
+  const rafRef=React.useRef(null);
+  const touchRef=React.useRef(null);
+  const [score,setScore]=useState(0);
+  const [lives,setLives]=useState(MG_LIVES);
+  const [fragLeft,setFragLeft]=useState(0);
+  const [focoActive,setFocoActive]=useState(false);
+  const [focoPct,setFocoPct]=useState(0);
+
+  useEffect(()=>{
+    function resize(){
+      const maxW=Math.min(wrapRef.current?wrapRef.current.clientWidth:340,380);
+      cellPxRef.current=Math.max(14,Math.floor(maxW/MAZE_COLS));
+    }
+    resize();
+    window.addEventListener('resize',resize);
+    return()=>window.removeEventListener('resize',resize);
+  },[]);
+
+  useEffect(()=>{
+    const frags=mgBuildFragments();
+    setFragLeft(frags.length);
+    gRef.current={
+      seeker:{x:MG_SEEKER_START.x,y:MG_SEEKER_START.y,dir:null,nextDir:null},
+      distracoes:MG_DISTRACAO_STARTS.map(p=>({x:p.x,y:p.y,dir:null})),
+      fragments:frags,
+      foco:{x:MG_FOCO_POS.x,y:MG_FOCO_POS.y,collected:false},
+      focoUntil:0,
+      score:0,
+      lives:MG_LIVES,
+      status:'playing',
+      lastT:performance.now(),
+      blobSeeds:MG_DISTRACAO_STARTS.map((_,i)=>i*1.7),
+    };
+    const c=document.createElement('canvas');
+    const S0=40;
+    c.width=MAZE_COLS*S0;c.height=MAZE_ROWS*S0;
+    const ctx=c.getContext('2d');
+    ctx.fillStyle='#0B121B';
+    ctx.fillRect(0,0,c.width,c.height);
+    for(let row=0;row<MAZE_ROWS;row++){
+      for(let col=0;col<MAZE_COLS;col++){
+        if(MAZE_GRID[row][col]===1){
+          const gx=col*S0,gy=row*S0;
+          const grad=ctx.createLinearGradient(gx,gy,gx,gy+S0);
+          grad.addColorStop(0,'#33404E');
+          grad.addColorStop(1,'#1B222B');
+          ctx.fillStyle=grad;
+          ctx.fillRect(gx+1,gy+1,S0-2,S0-2);
+          ctx.strokeStyle='rgba(255,255,255,.08)';
+          ctx.lineWidth=1;
+          ctx.strokeRect(gx+1.5,gy+1.5,S0-3,S0-3);
+        }
+      }
+    }
+    mazeImgRef.current=c;
+  },[]);
+
+  useEffect(()=>{
+    function onKey(e){
+      const map={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0}};
+      const d=map[e.key];
+      if(d&&gRef.current){e.preventDefault();gRef.current.seeker.nextDir=d;}
+    }
+    window.addEventListener('keydown',onKey);
+    return()=>window.removeEventListener('keydown',onKey);
+  },[]);
+
+  function setDir(d){if(gRef.current)gRef.current.seeker.nextDir=d;}
+  function onTouchStart(e){touchRef.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}
+  function onTouchEnd(e){
+    const st=touchRef.current;if(!st)return;
+    const t=e.changedTouches[0];
+    const dx=t.clientX-st.x,dy=t.clientY-st.y;
+    touchRef.current=null;
+    if(Math.hypot(dx,dy)<20)return;
+    if(Math.abs(dx)>Math.abs(dy))setDir(dx>0?{x:1,y:0}:{x:-1,y:0});
+    else setDir(dy>0?{x:0,y:1}:{x:0,y:-1});
+  }
+
+  function draw(g,now,focoOn){
+    const canvas=canvasRef.current;
+    if(!canvas)return;
+    const ctx=canvas.getContext('2d');
+    const S=cellPxRef.current;
+    const targetW=MAZE_COLS*S,targetH=MAZE_ROWS*S;
+    if(canvas.width!==targetW||canvas.height!==targetH){canvas.width=targetW;canvas.height=targetH;}
+    if(mazeImgRef.current)ctx.drawImage(mazeImgRef.current,0,0,MAZE_COLS*40,MAZE_ROWS*40,0,0,targetW,targetH);
+
+    g.fragments.forEach(f=>{
+      if(f.collected)return;
+      const cx=(f.x+0.5)*S,cy=(f.y+0.5)*S;
+      const glow=2+Math.sin(now/300)*0.6;
+      ctx.beginPath();
+      ctx.fillStyle='#FFD700';
+      ctx.arc(cx,cy,Math.max(2,S*0.07+glow*0.3),0,Math.PI*2);
+      ctx.fill();
+    });
+
+    if(!g.foco.collected){
+      const cx=(g.foco.x+0.5)*S,cy=(g.foco.y+0.5)*S;
+      const pulse=1+Math.sin(now/200)*0.15;
+      mgDrawHex(ctx,cx,cy,S*0.32*pulse,'#22D3C9','#0E7C74');
+    }
+
+    g.distracoes.forEach((d,i)=>{
+      const cx=(d.x+0.5)*S,cy=(d.y+0.5)*S;
+      mgDrawBlob(ctx,cx,cy,S*0.36,now,g.blobSeeds[i],focoOn);
+    });
+
+    {
+      const cx=(g.seeker.x+0.5)*S,cy=(g.seeker.y+0.5)*S;
+      const rot=(now/900)%(Math.PI*2);
+      const glowColor=focoOn?'#FFD700':'#22AA44';
+      mgDrawHex(ctx,cx,cy,S*0.38,glowColor,'#0E5A22',rot);
+    }
+  }
+
+  useEffect(()=>{
+    function loop(now){
+      const g=gRef.current;
+      if(!g||g.status!=='playing'){rafRef.current=requestAnimationFrame(loop);return;}
+      const dt=Math.min(0.05,(now-g.lastT)/1000);
+      g.lastT=now;
+      const focoOn=now<g.focoUntil;
+      if(focoOn!==g._focoOnPrev){setFocoActive(focoOn);g._focoOnPrev=focoOn;}
+      if(focoOn){
+        g._focoPctTick=(g._focoPctTick||0)+dt;
+        if(g._focoPctTick>0.1){g._focoPctTick=0;setFocoPct(Math.max(0,Math.min(1,(g.focoUntil-now)/MG_FOCO_DURATION)));}
+      }
+
+      mgTryMove(g.seeker,dt,MG_SPEED);
+      g.distracoes.forEach(d=>{
+        const atCenter=Math.abs(d.x-Math.round(d.x))<0.04&&Math.abs(d.y-Math.round(d.y))<0.04;
+        if(atCenter){
+          d.x=Math.round(d.x);d.y=Math.round(d.y);
+          d.dir=mgChooseChaseDir(d,g.seeker.x,g.seeker.y,focoOn);
+        }
+        if(d.dir){d.x+=d.dir.x*MG_DISTRACAO_SPEED*dt;d.y+=d.dir.y*MG_DISTRACAO_SPEED*dt;}
+      });
+
+      let collectedNow=false;
+      g.fragments.forEach(f=>{
+        if(!f.collected&&Math.hypot(f.x-g.seeker.x,f.y-g.seeker.y)<0.4){
+          f.collected=true;collectedNow=true;g.score+=MG_FRAGMENT_PTS;
+        }
+      });
+      if(collectedNow){
+        setScore(g.score);
+        const left=g.fragments.filter(f=>!f.collected).length;
+        setFragLeft(left);
+        if(left===0&&g.status==='playing'){
+          g.score+=MG_COMPLETE_BONUS;
+          g.status='won';
+          setScore(g.score);
+          onFinish({score:g.score,won:true});
+        }
+      }
+
+      if(!g.foco.collected&&Math.hypot(g.foco.x-g.seeker.x,g.foco.y-g.seeker.y)<0.4){
+        g.foco.collected=true;g.score+=MG_FOCO_PTS;g.focoUntil=now+MG_FOCO_DURATION;
+        setScore(g.score);
+      }
+
+      if(g.status==='playing'&&!focoOn){
+        for(const d of g.distracoes){
+          if(Math.hypot(d.x-g.seeker.x,d.y-g.seeker.y)<0.55){
+            g.lives-=1;setLives(g.lives);
+            if(g.lives<=0){
+              g.status='lost';
+              onFinish({score:g.score,won:false});
+            }else{
+              g.seeker.x=MG_SEEKER_START.x;g.seeker.y=MG_SEEKER_START.y;g.seeker.dir=null;g.seeker.nextDir=null;
+              g.distracoes.forEach((dd,i)=>{dd.x=MG_DISTRACAO_STARTS[i].x;dd.y=MG_DISTRACAO_STARTS[i].y;dd.dir=null;});
+            }
+            break;
+          }
+        }
+      }
+
+      draw(g,now,focoOn);
+      rafRef.current=requestAnimationFrame(loop);
+    }
+    rafRef.current=requestAnimationFrame(loop);
+    return()=>{if(rafRef.current)cancelAnimationFrame(rafRef.current);};
+  },[]);
+
+  return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+      <div style={{display:'flex',gap:16,fontSize:'.76rem',fontWeight:800,color:'#fff'}}>
+        <span>⭐ {score}</span>
+        <span>💎 {fragLeft}</span>
+        <span>{'❤️'.repeat(lives)}</span>
+      </div>
+      {focoActive&&<div style={{width:'100%',maxWidth:300,height:6,background:'rgba(255,255,255,.15)',borderRadius:99,overflow:'hidden'}}>
+        <div style={{width:`${Math.round(focoPct*100)}%`,height:'100%',background:'linear-gradient(90deg,#22D3C9,#FFD700)'}}/>
+      </div>}
+      <div ref={wrapRef} style={{width:'100%',maxWidth:380,touchAction:'none'}} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        <canvas ref={canvasRef} style={{width:'100%',display:'block',borderRadius:12,boxShadow:'0 4px 24px rgba(0,0,0,.5)'}}/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,44px)',gridTemplateRows:'repeat(3,44px)',gap:4}}>
+        <div/><button onClick={()=>setDir({x:0,y:-1})} style={MG_DPAD_BTN}>▲</button><div/>
+        <button onClick={()=>setDir({x:-1,y:0})} style={MG_DPAD_BTN}>◀</button><div/><button onClick={()=>setDir({x:1,y:0})} style={MG_DPAD_BTN}>▶</button>
+        <div/><button onClick={()=>setDir({x:0,y:1})} style={MG_DPAD_BTN}>▼</button><div/>
+      </div>
+      <button className="btn" style={{padding:'8px 20px',fontSize:'.74rem'}} onClick={onExit}>Sair</button>
+    </div>
+  );
+}
+const MG_DPAD_BTN={borderRadius:10,border:'none',background:'rgba(255,255,255,.14)',color:'#fff',fontSize:'1.1rem',cursor:'pointer'};
+
+function MinigameModal({seekId,jrId,scoreRow,onSaveScore,onClose}){
+  const [phase,setPhase]=useState('intro'); // intro | playing | gameover
+  const [gameKey,setGameKey]=useState(0);
+  const [result,setResult]=useState(null);
+  const [saving,setSaving]=useState(false);
+  const highScore=scoreRow?scoreRow.highScore:0;
+  const totalXp=scoreRow?scoreRow.totalXp:0;
+
+  function startGame(){setGameKey(k=>k+1);setPhase('playing');}
+
+  async function handleFinish({score,won}){
+    const xp=score; // conversão 1 ponto = 1 XP (ver resumo da tarefa)
+    setResult({score,won,xp,isNewHigh:score>highScore});
+    setPhase('gameover');
+    setSaving(true);
+    await onSaveScore(seekId,jrId,score,xp);
+    setSaving(false);
+  }
+
+  return(
+    <div className="spin-overlay" style={{flexDirection:'column',overflowY:'auto',padding:'20px 16px',background:'radial-gradient(ellipse at center,#123236 0%,#0A1A1D 60%,#050D0F 100%)'}} onClick={phase!=='playing'?onClose:undefined}>
+      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:420,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%'}}>
+          <span style={{fontWeight:900,fontSize:'1rem',color:'#fff'}}>🌀 Labirinto do Seeker</span>
+          <button className="icon-btn" style={{background:'rgba(255,255,255,.1)'}} onClick={onClose}><IcX s={17} c="#fff"/></button>
+        </div>
+
+        {phase==='intro'&&(
+          <div style={{display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center',padding:'6px 6px 10px'}}>
+            <div style={{fontSize:'.82rem',color:'rgba(255,255,255,.75)',lineHeight:1.7}}>
+              Guie o <b style={{color:'#fff'}}>Seeker</b> pelo labirinto, colete todos os <b style={{color:'#FFD700'}}>Fragmentos de Insight</b> e fuja das <b style={{color:'#FF8A5C'}}>Distrações</b>.<br/>
+              Pegue o <b style={{color:'#22D3C9'}}>Foco</b> para ficar invencível por alguns segundos!
+            </div>
+            <div style={{display:'flex',gap:28}}>
+              <div style={{textAlign:'center'}}><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Recorde</div><div style={{fontWeight:900,fontSize:'1.2rem',color:'#fff'}}>{highScore}</div></div>
+              <div style={{textAlign:'center'}}><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>XP Total</div><div style={{fontWeight:900,fontSize:'1.2rem',color:'#22D3C9'}}>{totalXp}</div></div>
+            </div>
+            <button className="btn btn-dark btn-full" style={{padding:14}} onClick={startGame}>🎮 Jogar</button>
+          </div>
+        )}
+
+        {phase==='playing'&&<SeekerMazeGame key={gameKey} onFinish={handleFinish} onExit={onClose}/>}
+
+        {phase==='gameover'&&result&&(
+          <div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center',textAlign:'center',padding:'6px 6px 10px'}}>
+            <div style={{fontSize:'2.6rem'}}>{result.won?'🏆':'💫'}</div>
+            <div style={{fontWeight:900,fontSize:'1.1rem',color:'#fff'}}>{result.won?'Labirinto completo!':'Fim de jogo'}</div>
+            {result.isNewHigh&&<div style={{fontSize:'.74rem',fontWeight:800,color:'#22D3C9'}}>🌟 Novo recorde!</div>}
+            <div style={{display:'flex',gap:28,marginTop:4}}>
+              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Pontos</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#fff'}}>{result.score}</div></div>
+              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>XP Ganho</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#22D3C9'}}>+{result.xp}</div></div>
+            </div>
+            {saving&&<div style={{fontSize:'.7rem',color:'rgba(255,255,255,.6)'}}>Salvando...</div>}
+            <div style={{display:'flex',gap:10,width:'100%',marginTop:8}}>
+              <button className="btn btn-full" onClick={onClose}>Fechar</button>
+              <button className="btn btn-dark btn-full" onClick={startGame}>🔄 Jogar de novo</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function App(){
   const [loading,setLoading]=useState(true);
   const [session,setSession]=useState(null);
@@ -5007,6 +5348,7 @@ function App(){
   const [pendingSpins,setPendingSpins]=useState([]);
   const [chestPending,setChestPending]=useState([]);
   const [chestRewards,setChestRewards]=useState([]);
+  const [minigameScores,setMinigameScores]=useState([]);
   const [dbError,setDbError]=useState(null);
 
   useEffect(()=>{
@@ -5032,7 +5374,7 @@ function App(){
       const [
         {data:rRows},{data:reqRows},{data:jrRefRows},
         {data:notifRows},{data:offerRows},{data:spinRows},{data:spinPendingRows},
-        {data:chestPendingRows},{data:chestRewardRows},
+        {data:chestPendingRows},{data:chestRewardRows},{data:mgRows,error:mgErr},
       ]=await Promise.all([
         db.from('referrals').select('*'),
         db.from('pass_requests').select('*'),
@@ -5043,7 +5385,9 @@ function App(){
         db.from('spin_pending').select('*'),
         db.from('chest_pending').select('*').eq('used',false),
         db.from('chest_rewards').select('*'),
+        db.from('minigame_scores').select('*'),
       ]);
+      if(mgErr)console.warn('[SEEK boot] tabela minigame_scores indisponível (migration-minigame-scores.sql ainda não executada?):',mgErr.message);
       setReferrals((rRows||[]).map(mRef));
       setPassReqs((reqRows||[]).map(mPassReq));
       setJrReferrals((jrRefRows||[]).map(mJrRef));
@@ -5053,6 +5397,7 @@ function App(){
       setPendingSpins((spinPendingRows||[]).map(mSpinPending));
       setChestPending((chestPendingRows||[]).map(mChestPending));
       setChestRewards((chestRewardRows||[]).map(mChestReward));
+      setMinigameScores((mgRows||[]).map(mMinigameScore));
     }
     boot();
   },[]);
@@ -5293,11 +5638,15 @@ function App(){
     if(isJr){
       const ref=jrReferrals.find(r=>sameId(r.id,rid));
       if(!ref)return;
-      setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r));
+      const newJrRefs=jrReferrals.map(r=>sameId(r.id,rid)?{...r,...data,status:'a_pagar',paid:false}:r);
+      setJrReferrals(newJrRefs);
       let {error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,observacoes:data.observacoes??ref.observacoes??null,paid:false,status:'a_pagar'}).eq('id',rid);
       if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
       if(error)console.error('[markReferralSold jr]',error);
       addSpinPending(null,String(ref.jrId),String(rid));
+      // Cofre libera a cada 5 indicações COM VENDA confirmada (não a cada giro — retries pagos não contam)
+      const soldCount=newJrRefs.filter(r=>sameId(r.jrId,ref.jrId)&&(r.paid||r.status==='a_pagar'||r.productValue>0)).length;
+      if(soldCount>0&&soldCount%5===0)setTimeout(()=>addChestPending(null,String(ref.jrId)),50);
     }else{
       const ref=referrals.find(r=>sameId(r.id,rid));
       if(!ref)return;
@@ -5309,6 +5658,9 @@ function App(){
       if(error&&error.code==='42703')({error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
       if(error)console.error('[markReferralSold]',error);
       addSpinPending(String(ref.memberId),null,String(rid));
+      // Cofre libera a cada 5 indicações COM VENDA confirmada (não a cada giro — retries pagos não contam)
+      const soldCount=newRefs.filter(r=>sameId(r.memberId,ref.memberId)&&(r.paid||r.status==='a_pagar'||r.productValue>0)).length;
+      if(soldCount>0&&soldCount%5===0)setTimeout(()=>addChestPending(String(ref.memberId),null),50);
     }
   }
 
@@ -5347,19 +5699,30 @@ function App(){
     setChestRewards(u=>[...u,mChestReward(saved)]);
   }
 
+  async function saveMinigameScore(seekId,jrId,score,xp){
+    const existing=minigameScores.find(s=>seekId?sameId(s.seekId,seekId):sameId(s.jrId,jrId));
+    if(!existing){
+      const{data:saved,error}=await db.from('minigame_scores').insert({seek_id:seekId||null,jr_id:jrId||null,high_score:score,total_xp:xp,plays_count:1}).select().single();
+      if(error){console.error('[saveMinigameScore] insert',error);setDbError('Não foi possível salvar a pontuação do minigame. Peça ao administrador para rodar migration-minigame-scores.sql no Supabase.');return null;}
+      const row=mMinigameScore(saved);
+      setMinigameScores(u=>[...u,row]);
+      return row;
+    }
+    const newHigh=Math.max(existing.highScore,score);
+    const newXp=existing.totalXp+xp;
+    const newPlays=existing.playsCount+1;
+    const{error}=await db.from('minigame_scores').update({high_score:newHigh,total_xp:newXp,plays_count:newPlays}).eq('id',existing.id);
+    if(error){console.error('[saveMinigameScore] update',error);setDbError('Não foi possível salvar a pontuação do minigame.');return null;}
+    const row={...existing,highScore:newHigh,totalXp:newXp,playsCount:newPlays};
+    setMinigameScores(u=>u.map(s=>sameId(s.id,existing.id)?row:s));
+    return row;
+  }
+
   async function addSpinReward(seekId,jrId,referralId,value){
     const{data:saved,error}=await db.from('spin_rewards').insert({seek_id:seekId||null,jr_id:jrId||null,referral_id:referralId?String(referralId):null,value,used:true}).select().single();
     if(error){console.error('[addSpinReward]',error);return;}
     const newSpin=mSpin(saved);
-    setSpinRewards(u=>{
-      const next=[...u,newSpin];
-      // a cada 5 giros do mesmo SEEK ou JR → novo cofre
-      const ownerId=jrId?jrId:seekId;
-      const field=jrId?'jrId':'seekId';
-      const count=next.filter(s=>sameId(s[field],ownerId)).length;
-      if(count>0&&count%5===0)setTimeout(()=>addChestPending(seekId,jrId),50);
-      return next;
-    });
+    setSpinRewards(u=>[...u,newSpin]);
   }
 
   async function toggleSpinPaid(spinId){
@@ -5522,7 +5885,7 @@ function App(){
         const jrLastRef=jrReferrals.filter(r=>sameId(r.jrId,jr.id)).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
         return<ChestModal seekerName={jr.name} onResult={v=>addChestReward(null,String(jr.id),v)} onClose={()=>consumeChestPending(first.id)} onRetrySpin={jrLastRef?()=>{addSpinReward(null,String(jr.id),jrLastRef.id,-5);addSpinPending(null,String(jr.id),jrLastRef.id);}:null}/>;
       }
-      return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards}/>;
+      return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} minigameScores={minigameScores} onSaveMinigameScore={saveMinigameScore}/>;
     }
     if(session.role==='member'){
       const member=members.find(m=>sameId(m.id,session.memberId));
@@ -5539,10 +5902,10 @@ function App(){
         const memberLastRef=referrals.filter(r=>sameId(r.memberId,member.id)).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
         return<ChestModal seekerName={member.name} onResult={v=>addChestReward(String(member.id),null,v)} onClose={()=>consumeChestPending(first.id)} onRetrySpin={memberLastRef?()=>{addSpinReward(String(member.id),null,memberLastRef.id,-5);addSpinPending(String(member.id),null,memberLastRef.id);}:null}/>;
       }
-      return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards}/>;
+      return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} minigameScores={minigameScores} onSaveMinigameScore={saveMinigameScore}/>;
     }
     if(session.role==='master'){
-      return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral} onToggleSpinPaid={toggleSpinPaid} onRefresh={refreshLedgerData} refreshing={refreshingLedger}/>;
+      return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onRefresh={refreshLedgerData} refreshing={refreshingLedger}/>;
     }
     if(session.role==='adm'){
       const adm=adms.find(a=>sameId(a.id,session.admId));
