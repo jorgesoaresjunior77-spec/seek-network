@@ -6075,21 +6075,33 @@ function App(){
 
   /* Ao excluir uma indicação, os spin_rewards/spin_pending vinculados a ela já
      saem junto (deleteReferral/deleteJrReferral). Isso pode fazer o dono cair
-     abaixo do múltiplo de 5 giros que tinha liberado um Cofre — se o Cofre
-     ainda não foi aberto (chest_pending não usado), cancela; um já reivindicado
-     (chest_rewards) não é desfeito, pois o valor já foi concedido. */
+     abaixo do múltiplo de 5 giros que tinha liberado um Cofre — cancela primeiro
+     o(s) chest_pending não usado(s); se ainda sobrar excesso, revoga também
+     chest_reward(s) já reivindicado(s) (o mais recente primeiro, já que os
+     marcos são conquistados em ordem — decisão explícita do usuário: a exclusão
+     deve remover TUDO que foi gerado a partir da venda apagada, mesmo dinheiro
+     já concedido). */
   function reconcileChestAfterSpinRemoval(seekId,jrId,remainingSpins){
     const ownerSpinMatch=s=>jrId?sameId(s.jrId,jrId):sameId(s.seekId,seekId);
     const ownerChestMatch=c=>jrId?sameId(c.jrId,jrId):sameId(c.seekId,seekId);
     const distinctCount=new Set(remainingSpins.filter(ownerSpinMatch).map(s=>String(s.referralId))).size;
     const expectedChests=Math.floor(distinctCount/5);
     const unusedPending=chestPending.filter(ownerChestMatch);
-    const claimedCount=chestRewards.filter(ownerChestMatch).length;
-    const excess=claimedCount+unusedPending.length-expectedChests;
+    const claimed=chestRewards.filter(ownerChestMatch).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+    let excess=claimed.length+unusedPending.length-expectedChests;
     if(excess<=0)return;
-    const toCancel=unusedPending.slice(0,excess);
-    toCancel.forEach(c=>db.from('chest_pending').delete().eq('id',c.id).then(({error})=>{if(error)console.error('[reconcileChestAfterSpinRemoval]',error);}));
-    setChestPending(u=>u.filter(c=>!toCancel.some(x=>sameId(x.id,c.id))));
+
+    const cancelPending=unusedPending.slice(0,excess);
+    excess-=cancelPending.length;
+    if(cancelPending.length){
+      cancelPending.forEach(c=>db.from('chest_pending').delete().eq('id',c.id).then(({error})=>{if(error)console.error('[reconcileChestAfterSpinRemoval] chest_pending',error);}));
+      setChestPending(u=>u.filter(c=>!cancelPending.some(x=>sameId(x.id,c.id))));
+    }
+    if(excess>0){
+      const revoke=claimed.slice(0,excess);
+      revoke.forEach(c=>db.from('chest_rewards').delete().eq('id',c.id).then(({error})=>{if(error)console.error('[reconcileChestAfterSpinRemoval] chest_rewards',error);}));
+      setChestRewards(u=>u.filter(c=>!revoke.some(x=>sameId(x.id,c.id))));
+    }
   }
 
   async function addSpinReward(seekId,jrId,referralId,value){
