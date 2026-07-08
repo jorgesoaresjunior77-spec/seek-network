@@ -96,7 +96,10 @@ html,body{font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;backgrou
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
 @keyframes confetti-fall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
 @keyframes prize-pop{0%{transform:scale(.5);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
-.spin-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;display:flex;align-items:center;justify-content:center;}
+.spin-overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.roulette-wheel-wrap{transform-origin:center center;}
+@media (max-width:400px){.roulette-wheel-wrap{transform:scale(.82);}}
+@media (max-width:340px){.roulette-wheel-wrap{transform:scale(.68);}}
 @keyframes chest-wobble{0%,100%{transform:rotate(-4deg) scale(1) translateY(0)}33%{transform:rotate(4deg) scale(1.06) translateY(-6px)}66%{transform:rotate(-2deg) scale(1.02) translateY(3px)}}
 @keyframes chest-explode{0%{transform:scale(1);opacity:1}40%{transform:scale(1.5) rotate(8deg);opacity:.7}100%{transform:scale(.05) rotate(20deg);opacity:0}}
 @keyframes value-appear{0%{transform:scale(.2) translateY(30px);opacity:0}65%{transform:scale(1.18) translateY(-6px);opacity:1}100%{transform:scale(1) translateY(0);opacity:1}}
@@ -165,6 +168,7 @@ const mSpinPending   =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:
 const mChestPending  =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,used:r.used||false,createdAt:r.created_at});
 const mChestReward   =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,valor:Number(r.valor),paid:r.paid||false,createdAt:r.created_at});
 const mMinigameScore =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,highScore:Number(r.high_score)||0,totalXp:Number(r.total_xp)||0,playsCount:Number(r.plays_count)||0});
+const mChallengeConfig=r=>({id:r.id,year:Number(r.year),month:Number(r.month),targetN:Number(r.target_n),pct1:Number(r.pct1),pct2:Number(r.pct2),pct3:Number(r.pct3),active:r.active!==false,createdAt:r.created_at});
 const CHEST_PRIZES=[
   {value:2,  prob:.30},{value:5,  prob:.25},{value:10, prob:.18},
   {value:15, prob:.12},{value:20, prob:.07},{value:25, prob:.04},
@@ -236,6 +240,72 @@ function splitSpins(spins){
   const bonus=(spins||[]).filter(isSpinBonus);
   const debit=(spins||[]).filter(isSpinDebit);
   return{bonus,debit,bonusSum:bonus.reduce((s,x)=>s+x.value,0),debitSum:debit.reduce((s,x)=>s+x.value,0)};
+}
+
+/* ── DESAFIO DO MÊS ──────────────────────────────────────────────────────
+   Recorrente e configurável pelo Vendedor (ver monthly_challenge_config).
+   Nada aqui é persistido separadamente: meta batida, indicações do grupo e
+   bônus de cada venda são sempre CALCULADOS a partir de referrals/jr_referrals
+   + da config vigente do mês — a mesma estratégia já usada para o Cofre
+   Misterioso, para nunca dessincronizar do estado real das vendas. */
+function getChallengeConfig(configs,year,month){
+  return(configs||[]).find(c=>c.year===year&&c.month===month)||null;
+}
+/* 3 faixas fixas: 1ª venda, 2ª venda, e a meta inteira (N/N) — os percentuais
+   são configuráveis, mas as contagens de faixa sempre acompanham a meta N. */
+function challengeTiers(cfg){
+  if(!cfg)return[];
+  return[{count:1,pct:cfg.pct1},{count:2,pct:cfg.pct2},{count:cfg.targetN,pct:cfg.pct3}];
+}
+/* Não cumulativo: aplica sempre a taxa da MAIOR faixa já atingida. */
+function challengeTierPct(cfg,convertedCount){
+  if(!cfg||convertedCount<=0)return 0;
+  const hit=challengeTiers(cfg).filter(t=>t.count<=convertedCount);
+  return hit.length?Math.max(...hit.map(t=>t.pct)):0;
+}
+function isReferralConverted(r){return!!(r.paid||r.status==='a_pagar'||r.productValue>0);}
+/* As N primeiras indicações do mês de vigência da config (por data de
+   criação) — indicações extras além da meta não entram no desafio. */
+function challengeGroup(ownerRefs,cfg){
+  if(!cfg)return[];
+  return ownerRefs
+    .filter(r=>r.year===cfg.year&&r.month===cfg.month)
+    .slice()
+    .sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0))
+    .slice(0,cfg.targetN);
+}
+/* Bônus (em R$) do desafio para UMA indicação específica, dado o conjunto de
+   indicações do mesmo dono (seek ou jr) e a config vigente. */
+function challengeBonusForRef(ref,ownerRefs,cfg){
+  if(!cfg||!cfg.active)return{applies:false,pct:0,amount:0};
+  const group=challengeGroup(ownerRefs,cfg);
+  if(!group.some(g=>sameId(g.id,ref.id))||!isReferralConverted(ref))return{applies:false,pct:0,amount:0};
+  const pct=challengeTierPct(cfg,group.filter(isReferralConverted).length);
+  return{applies:pct>0,pct,amount:pct>0?ref.commission*pct/100:0};
+}
+/* Progresso agregado do dono no mês corrente — usado no banner. */
+function challengeProgress(ownerRefs,cfg){
+  if(!cfg)return null;
+  const group=challengeGroup(ownerRefs,cfg);
+  const convertedCount=group.filter(isReferralConverted).length;
+  return{targetN:cfg.targetN,groupCount:group.length,convertedCount,pct:challengeTierPct(cfg,convertedCount)};
+}
+/* Todos os bônus de desafio já ganhos pelo dono, em QUALQUER mês (cada mês
+   usa a config vigente naquele mês, respeitando o histórico) — usado no
+   Extrato e no A Receber/A Pagar, que precisam olhar para trás no tempo. */
+function allChallengeBonuses(ownerRefs,configs){
+  const months=new Set((ownerRefs||[]).map(r=>`${r.year}-${r.month}`));
+  const results=[];
+  months.forEach(key=>{
+    const[y,m]=key.split('-').map(Number);
+    const cfg=getChallengeConfig(configs,y,m);
+    if(!cfg||!cfg.active)return;
+    challengeGroup(ownerRefs,cfg).forEach(ref=>{
+      const{applies,pct,amount}=challengeBonusForRef(ref,ownerRefs,cfg);
+      if(applies)results.push({ref,pct,amount});
+    });
+  });
+  return results;
 }
 
 /* ── LEGACY STORAGE CLEANUP ────────────────────────────────────────────────
@@ -920,11 +990,12 @@ function RemuneracaoPanel({isMaster,onBack,isAdm=false}){
 /* ══════════════════════════════════════════════════════════════════
    A PAGAR MODAL — somente visualização (SEEK / SEEK JR)
 ══════════════════════════════════════════════════════════════════ */
-function APagarModal({commissions,spinItems,chestItems=[],allRefs=[],onClose}){
+function APagarModal({commissions,spinItems,chestItems=[],challengeItems=[],allRefs=[],onClose}){
   const comTotal=commissions.reduce((s,r)=>s+r.commission,0);
   const{bonusSum:spinBonusTotal,debitSum:spinDebitTotal}=splitSpins(spinItems);
   const chestTotal=(chestItems||[]).reduce((s,c)=>s+c.valor,0);
-  const total=comTotal+spinBonusTotal+spinDebitTotal+chestTotal;
+  const challengeTotal=(challengeItems||[]).reduce((s,c)=>s+c.amount,0);
+  const total=comTotal+spinBonusTotal+spinDebitTotal+chestTotal+challengeTotal;
   const refIds=new Set(commissions.map(r=>String(r.id)));
   const otherSpins=spinItems.filter(s=>!refIds.has(String(s.referralId)));
   const hasOther=otherSpins.length>0||(chestItems||[]).length>0;
@@ -942,6 +1013,7 @@ function APagarModal({commissions,spinItems,chestItems=[],allRefs=[],onClose}){
             {commissions.map((r,i)=>{
               const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
               const{bonusSum:linkedBonus,debitSum:linkedDebit}=splitSpins(spinItems.filter(s=>sameId(s.referralId,r.id)));
+              const linkedChallenge=(challengeItems||[]).find(c=>sameId(c.referralId,r.id));
               return(
                 <React.Fragment key={r.id}>
                   <div style={{padding:'11px 0'}}>
@@ -951,6 +1023,7 @@ function APagarModal({commissions,spinItems,chestItems=[],allRefs=[],onClose}){
                     </div>
                     {linkedBonus>0&&<div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:700,marginTop:3}}>{'🎰 Bônus Roleta desta indicação: '}{fBRL(linkedBonus)}</div>}
                     {linkedDebit<0&&<div style={{fontSize:'.68rem',color:'var(--red)',fontWeight:700,marginTop:3}}>{'🎲 Débito Roleta (girar de novo): '}{fBRL(linkedDebit)}</div>}
+                    {linkedChallenge&&<div style={{fontSize:'.68rem',color:'#B8860B',fontWeight:700,marginTop:3}}>{`🏆 Bônus Desafio do Mês (+${linkedChallenge.pct}%): `}{fBRL(linkedChallenge.amount)}</div>}
                   </div>
                   {i<commissions.length-1&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
                 </React.Fragment>
@@ -980,6 +1053,7 @@ function APagarModal({commissions,spinItems,chestItems=[],allRefs=[],onClose}){
                 {comTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Comissões: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(comTotal)}</span></div>}
                 {spinBonusTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Bônus Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(spinBonusTotal)}</span></div>}
                 {chestTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Cofre Misterioso: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(chestTotal)}</span></div>}
+                {challengeTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Bônus Desafio do Mês: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(challengeTotal)}</span></div>}
                 {spinDebitTotal<0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Débito Roleta: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(spinDebitTotal)}</span></div>}
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:4}}>
                   <span style={{fontSize:'.62rem',fontWeight:800,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.06em'}}>{'💰 Total a Receber'}</span>
@@ -1059,9 +1133,41 @@ function BonusRoletaModal({spinItems,allRefs=[],onClose}){
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   DESAFIO DO MÊS — banner (SEEK / SEEK JR)
+══════════════════════════════════════════════════════════════════ */
+function ChallengeBanner({ownerRefs,configs}){
+  const now=new Date();
+  const cfg=getChallengeConfig(configs,now.getFullYear(),now.getMonth()+1);
+  if(!cfg||!cfg.active)return null;
+  const prog=challengeProgress(ownerRefs,cfg);
+  if(!prog)return null;
+  const tiers=challengeTiers(cfg);
+  return(
+    <div className="nm-in" style={{padding:'14px 16px',background:'linear-gradient(135deg,rgba(255,140,0,.14),rgba(255,215,0,.08))',border:'1.5px solid rgba(255,180,0,.35)'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+        <span style={{fontWeight:900,fontSize:'.82rem',color:'#B8860B'}}>🏆 Desafio do Mês</span>
+        <span style={{fontSize:'.68rem',fontWeight:800,color:'var(--muted)'}}>{prog.groupCount} de {prog.targetN} indicações feitas</span>
+      </div>
+      <div style={{fontSize:'.72rem',color:'var(--muted)',fontWeight:700,marginBottom:10}}>
+        {prog.convertedCount} de {prog.targetN} já vendeu
+        {prog.pct>0?<> — bônus atual: <b style={{color:'#B8860B'}}>+{prog.pct}% garantido</b></>:' — venda a primeira para começar a garantir bônus!'}
+      </div>
+      <div style={{display:'flex',gap:6}}>
+        {tiers.map((t,i)=>(
+          <div key={i} style={{flex:1,textAlign:'center'}}>
+            <div style={{height:8,borderRadius:4,background:prog.convertedCount>=t.count?'linear-gradient(90deg,#FFD700,#FF8C00)':'var(--gray)',marginBottom:4,transition:'background .3s'}}/>
+            <div style={{fontSize:'.58rem',fontWeight:800,color:prog.convertedCount>=t.count?'#B8860B':'var(--muted)'}}>{t.count}/{prog.targetN} · +{t.pct}%</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    SEEK JR PANEL
 ══════════════════════════════════════════════════════════════════ */
-function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral,onChangePin,offers,spinRewards,chestRewards=[],minigameScores,onSaveMinigameScore}){
+function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral,onChangePin,offers,spinRewards,chestRewards=[],minigameScores,onSaveMinigameScore,challengeConfigs}){
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -1102,6 +1208,9 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const myChests=(chestRewards||[]).filter(c=>sameId(c.jrId,jr.id));
   const chestPendente=myChests.filter(c=>!c.paid&&inMonth(c.createdAt,sm,sy)).reduce((s,c)=>s+c.valor,0);
   const chestTotalJr=myChests.reduce((s,c)=>s+c.valor,0);
+  const challengeBonusItems=allChallengeBonuses(myRefs,challengeConfigs);
+  const challengeBonusPendenteMonth=challengeBonusItems.filter(x=>!x.ref.paid&&x.ref.month===sm&&x.ref.year===sy).reduce((s,x)=>s+x.amount,0);
+  const challengeItemsUnpaid=challengeBonusItems.filter(x=>!x.ref.paid).map(x=>({referralId:x.ref.id,pct:x.pct,amount:x.amount}));
 
   function changePin(e){
     e.preventDefault();setPinErr('');
@@ -1146,7 +1255,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
 
         {/* Stats */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:16}}>
-          {[['Indicações Mês',monthRefs.length,null],['Valor Mês',fBRL(monthVol),null],['A Receber',fBRL(monthComDue+bonusRoletaPendente+chestPendente),'var(--red)'],['Total Acumulado',fBRL(totalVol),null]].map(([l,v,c])=>(
+          {[['Indicações Mês',monthRefs.length,null],['Valor Mês',fBRL(monthVol),null],['A Receber',fBRL(monthComDue+bonusRoletaPendente+chestPendente+challengeBonusPendenteMonth),'var(--red)'],['Total Acumulado',fBRL(totalVol),null]].map(([l,v,c])=>(
             l==='A Receber'
               ?<button key={l} className="nm-in" style={{padding:'12px 14px',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowAPagar(true)}><div className="section-title" style={{marginBottom:6}}>{l}{' ▸'}</div><div style={{fontWeight:800,fontSize:'.9rem',color:'var(--red)'}}>{v}</div></button>
               :<div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c||'var(--black)'}}>{v}</div></div>
@@ -1193,6 +1302,8 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
         </div>
       </div>
 
+      <ChallengeBanner ownerRefs={myRefs} configs={challengeConfigs}/>
+
       {/* Big green opportunity button */}
       <button className="btn-green-opp" onClick={()=>setShowAdd(true)}>
         <IcPlus s={22} c="#fff"/>
@@ -1234,8 +1345,8 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     </div>
     {showAdd&&<Sheet title="Nova Indicação" onClose={()=>setShowAdd(false)}><LeadForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral({...d,jrId:jr.id});setShowAdd(false);}}/></Sheet>}
     {showJrOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowJrOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
-    {showExtrato&&<ExtratoModal role="jr" data={{jr,referrals:referrals.filter(r=>sameId(r.jrId,jr.id)),seekMember,spinRewards:(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)),chestRewards:myChests}} onClose={()=>setShowExtrato(false)}/>}
-    {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.jrId,jr.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowAPagar(false)}/>}
+    {showExtrato&&<ExtratoModal role="jr" data={{jr,referrals:referrals.filter(r=>sameId(r.jrId,jr.id)),seekMember,spinRewards:(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)),chestRewards:myChests,challengeConfigs}} onClose={()=>setShowExtrato(false)}/>}
+    {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.jrId,jr.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} challengeItems={challengeItemsUnpaid} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowAPagar(false)}/>}
     {showCofres&&<CofresModal chestItems={myChests} onClose={()=>setShowCofres(false)}/>}
     {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id))} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowBonusRoleta(false)}/>}
     {showMinigame&&<MinigameModal seekId={null} jrId={jr.id} scoreRow={(minigameScores||[]).find(s=>sameId(s.jrId,jr.id))} onSaveScore={onSaveMinigameScore} onClose={()=>setShowMinigame(false)}/>}
@@ -1256,7 +1367,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
 /* ══════════════════════════════════════════════════════════════════
    SEEK MEMBER PANEL
 ══════════════════════════════════════════════════════════════════ */
-function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,onAddReferral,onAddJr,onChangePin,levelNotifs,onDismissNotif,offers,spinRewards,chestRewards=[],minigameScores,onSaveMinigameScore}){
+function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,onAddReferral,onAddJr,onChangePin,levelNotifs,onDismissNotif,offers,spinRewards,chestRewards=[],minigameScores,onSaveMinigameScore,challengeConfigs}){
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -1312,6 +1423,9 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const myChests=(chestRewards||[]).filter(c=>sameId(c.seekId,member.id));
   const chestPendente=myChests.filter(c=>!c.paid&&inMonth(c.createdAt,sm,sy)).reduce((s,c)=>s+c.valor,0);
   const chestTotalM=myChests.reduce((s,c)=>s+c.valor,0);
+  const challengeBonusItems=allChallengeBonuses(myRefs,challengeConfigs);
+  const challengeBonusPendenteMonth=challengeBonusItems.filter(x=>!x.ref.paid&&x.ref.month===sm&&x.ref.year===sy).reduce((s,x)=>s+x.amount,0);
+  const challengeItemsUnpaid=challengeBonusItems.filter(x=>!x.ref.paid).map(x=>({referralId:x.ref.id,pct:x.pct,amount:x.amount}));
   const myLevelNotif=(levelNotifs||[]).find(n=>sameId(n.memberId,member.id)&&!n.dismissed);
   const nextLevel=level.id==='elite'?null:SEEK_LEVELS[SEEK_LEVELS.findIndex(l=>l.id===level.id)+1];
 
@@ -1405,7 +1519,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
 
         {/* Commission summary */}
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-          {[['Comissão Total',fBRL(monthCom),'var(--green)'],['Bônus JR',fBRL(jrBonus),'var(--green)'],['A Receber',fBRL(monthComDue+bonusRoletaPendente+chestPendente),'var(--red)'],['Recebido',fBRL(monthComPaid),'var(--green)']].map(([l,v,c])=>(
+          {[['Comissão Total',fBRL(monthCom),'var(--green)'],['Bônus JR',fBRL(jrBonus),'var(--green)'],['A Receber',fBRL(monthComDue+bonusRoletaPendente+chestPendente+challengeBonusPendenteMonth),'var(--red)'],['Recebido',fBRL(monthComPaid),'var(--green)']].map(([l,v,c])=>(
             l==='A Receber'
               ?<button key={l} className="nm-in" style={{padding:'12px 14px',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowAPagar(true)}><div className="section-title" style={{marginBottom:6}}>{l}{' ▸'}</div><div style={{fontWeight:800,fontSize:'.9rem',color:'var(--red)'}}>{v}</div></button>
               :<div key={l} className="nm-in" style={{padding:'12px 14px'}}><div className="section-title" style={{marginBottom:6}}>{l}</div><div style={{fontWeight:800,fontSize:'.9rem',color:c}}>{v}</div></div>
@@ -1426,6 +1540,8 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
           <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
       </div>
+
+      <ChallengeBanner ownerRefs={myRefs} configs={challengeConfigs}/>
 
       {/* Medals showcase */}
       <MedalsShowcase points={points}/>
@@ -1501,8 +1617,8 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     </div>
 
     {showMemberOffers&&<OffersPanel offers={offers||[]} onClose={()=>setShowMemberOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
-    {showExtrato&&<ExtratoModal role="member" data={{member,referrals:referrals.filter(r=>sameId(r.memberId,member.id)),jrReferrals,seekJrs,spinRewards:(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)),chestRewards:myChests}} onClose={()=>setShowExtrato(false)}/>}
-    {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.memberId,member.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowAPagar(false)}/>}
+    {showExtrato&&<ExtratoModal role="member" data={{member,referrals:referrals.filter(r=>sameId(r.memberId,member.id)),jrReferrals,seekJrs,spinRewards:(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)),chestRewards:myChests,challengeConfigs}} onClose={()=>setShowExtrato(false)}/>}
+    {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.memberId,member.id)&&!r.paid&&(r.status==='a_pagar'||r.productValue>0))} spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} challengeItems={challengeItemsUnpaid} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowAPagar(false)}/>}
     {showCofres&&<CofresModal chestItems={myChests} onClose={()=>setShowCofres(false)}/>}
     {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id))} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowBonusRoleta(false)}/>}
     {showMinigame&&<MinigameModal seekId={member.id} jrId={null} scoreRow={(minigameScores||[]).find(s=>sameId(s.seekId,member.id))} onSaveScore={onSaveMinigameScore} onClose={()=>setShowMinigame(false)}/>}
@@ -1525,7 +1641,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
 /* ══════════════════════════════════════════════════════════════════
    ADM — DASHBOARD
 ══════════════════════════════════════════════════════════════════ */
-function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,credentials,onDeleteRef,onDeleteJrRef,spinRewards,chestRewards=[],showPaymentReminder,hideAdmCommission}){
+function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,credentials,onDeleteRef,onDeleteJrRef,spinRewards,chestRewards=[],challengeConfigs=[],showPaymentReminder,hideAdmCommission}){
   const curY=new Date().getFullYear();
   const years=Array.from({length:5},(_,i)=>curY-2+i);
   const fil=referrals.filter(r=>r.month===sm&&r.year===sy);
@@ -1537,7 +1653,11 @@ function AdmDashboard({members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,o
   const _scChests=(chestRewards||[]).filter(c=>((c.seekId&&_mIds.has(c.seekId))||(c.jrId&&_jrIds.has(c.jrId)))&&inMonth(c.createdAt,sm,sy));
   const spinAP=_scSpins.filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
   const chestAP=_scChests.filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
-  const comAP=([...fil,...jrFil]).filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP+chestAP;
+  /* challengeGroup ranqueia "as N primeiras do mês" por dono — nunca somar a lista de vários
+     SEEKs/JRs misturada, senão a ordenação/corte em N fica errada entre donos diferentes. */
+  const challengeAP=members.reduce((sum,m)=>sum+allChallengeBonuses(fil.filter(r=>sameId(r.memberId,m.id)),challengeConfigs).filter(c=>!c.ref.paid).reduce((s,c)=>s+c.amount,0),0)
+    +seekJrs.reduce((sum,jr)=>sum+allChallengeBonuses(jrFil.filter(r=>sameId(r.jrId,jr.id)),challengeConfigs).filter(c=>!c.ref.paid).reduce((s,c)=>s+c.amount,0),0);
+  const comAP=([...fil,...jrFil]).filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP+chestAP+challengeAP;
   const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
   const newSeekRefs=referrals.filter(r=>r.isNew);
   const newJrRefs=jrReferrals.filter(r=>r.isNew);
@@ -1808,7 +1928,7 @@ function EditMemberForm({member,onClose,onSave}){
 }
 
 
-function MemberMesAnteriorModal({member,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],onClose}){
+function MemberMesAnteriorModal({member,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],challengeConfigs=[],onClose}){
   const now=new Date();
   const prevM=now.getMonth()===0?12:now.getMonth();
   const prevY=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
@@ -1832,16 +1952,16 @@ function MemberMesAnteriorModal({member,seekJrs,referrals,jrReferrals,spinReward
             </div>
           </div>
           <div className="section-title" style={{paddingLeft:4,marginBottom:8}}>{'💰 A Pagar — '}{MONTHS[pm-1]} {py}</div>
-          <LedgerEntries members={[member]} seekJrs={myJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} readOnly={true} filterMonth={pm} filterYear={py}/>
+          <LedgerEntries members={[member]} seekJrs={myJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={false} readOnly={true} filterMonth={pm} filterYear={py}/>
           <div className="section-title" style={{paddingLeft:4,margin:'18px 0 8px'}}>{'✅ Pagas — '}{MONTHS[pm-1]} {py}</div>
-          <LedgerEntries members={[member]} seekJrs={myJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} readOnly={true} filterMonth={pm} filterYear={py}/>
+          <LedgerEntries members={[member]} seekJrs={myJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={true} readOnly={true} filterMonth={pm} filterYear={py}/>
         </div>
       </div>
     </div>
   );
 }
 
-function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBack,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onDeleteMember,onUpdateMember,onUpdatePin,spinRewards,chestRewards=[],onToggleSpinPaid}){
+function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBack,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onDeleteMember,onUpdateMember,onUpdatePin,spinRewards,chestRewards=[],onToggleSpinPaid,challengeConfigs=[]}){
   const [showAdd,setShowAdd]=useState(false);
   const [editRef,setEditRef]=useState(null);
   const [showEdit,setShowEdit]=useState(false);
@@ -1859,7 +1979,9 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
   const totC=myRefs.reduce((s,r)=>s+r.commission,0);
   const memberUnpaidSpin=(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid).reduce((s,r)=>s+r.value,0);
   const memberUnpaidChest=(chestRewards||[]).filter(c=>sameId(c.seekId,member.id)&&!c.paid).reduce((s,c)=>s+c.valor,0);
-  const totAP=myRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+memberUnpaidSpin+memberUnpaidChest;
+  const challengeItems=allChallengeBonuses(myRefs,challengeConfigs);
+  const memberChallengeUnpaid=challengeItems.filter(c=>!c.ref.paid).reduce((s,c)=>s+c.amount,0);
+  const totAP=myRefs.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+memberUnpaidSpin+memberUnpaidChest+memberChallengeUnpaid;
   const comAP=myRefs.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)).reduce((s,r)=>s+r.commission,0);
   const cred=credentials[member.id]||{login:member.whatsapp||'',pin:'0000'};
   const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
@@ -1928,6 +2050,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
             ['Com. A Pagar',fBRL(comAP),'var(--red)'],
             ['🎰 Roleta Pend.',fBRL(memberUnpaidSpin),'var(--red)'],
             ['🎁 Cofre Pend.',fBRL(memberUnpaidChest),'var(--red)'],
+            ['🏆 Desafio Pend.',fBRL(memberChallengeUnpaid),'var(--red)'],
           ].map(([l,v,c])=>(
             <div key={l} className="nm-in" style={{padding:'10px 8px',textAlign:'center'}}>
               <div style={{fontSize:'.52rem',fontWeight:800,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--muted)',marginBottom:4}}>{l}</div>
@@ -1949,6 +2072,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                 const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
                 const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
                 const{bonusSum:linkedBonus,debitSum:linkedDebit}=splitSpins((spinRewards||[]).filter(s=>sameId(s.referralId,r.id)));
+                const linkedChallenge=challengeItems.find(c=>sameId(c.ref.id,r.id));
                 return<div key={r.id}><div style={{padding:'12px 0'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
                     <div style={{fontWeight:700,fontSize:'.86rem'}}>{r.clientName}</div>
@@ -1960,6 +2084,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                   <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:4}}>{pt.icon} {pt.name} · {fBRL(r.productValue)}</div>
                   {linkedBonus>0&&<div style={{fontSize:'.7rem',fontWeight:700,color:'#8833BB',marginBottom:4}}>🎰 Bônus roleta: {fBRL(linkedBonus)}</div>}
                   {linkedDebit<0&&<div style={{fontSize:'.7rem',fontWeight:700,color:'var(--red)',marginBottom:4}}>🎲 Débito roleta (girar de novo): {fBRL(linkedDebit)}</div>}
+                  {linkedChallenge&&<div style={{fontSize:'.7rem',fontWeight:700,color:'#B8860B',marginBottom:4}}>{`🏆 Bônus Desafio (+${linkedChallenge.pct}%): `}{fBRL(linkedChallenge.amount)}</div>}
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
                     <div style={{display:'flex',gap:7,alignItems:'center'}}>
@@ -2007,8 +2132,8 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
     {showAdd&&<Sheet title="Cadastrar Indicação" onClose={()=>setShowAdd(false)}><LeadForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral(d);setShowAdd(false);}}/></Sheet>}
     {editRef&&<Sheet title="Editar Indicação" onClose={()=>setEditRef(null)}><ReferralForm initial={editRef} onCancel={()=>setEditRef(null)} onSave={d=>{onUpdateReferral(editRef.id,d);setEditRef(null);}} label="Salvar"/></Sheet>}
     {showEdit&&<EditMemberForm member={member} onClose={()=>setShowEdit(false)} onSave={d=>{onUpdateMember(member.id,d);setShowEdit(false);}}/>}
-    {showExtrato&&<ExtratoModal role="member" isAdm={true} data={{member,referrals:myRefs,jrReferrals,seekJrs,spinRewards:(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)),chestRewards:(chestRewards||[]).filter(c=>sameId(c.seekId,member.id))}} onClose={()=>setShowExtrato(false)} onTogglePaid={onTogglePaid}/>}
-    {showMesAnterior&&<MemberMesAnteriorModal member={member} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} onClose={()=>setShowMesAnterior(false)}/>}
+    {showExtrato&&<ExtratoModal role="member" isAdm={true} data={{member,referrals:myRefs,jrReferrals,seekJrs,spinRewards:(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)),chestRewards:(chestRewards||[]).filter(c=>sameId(c.seekId,member.id)),challengeConfigs}} onClose={()=>setShowExtrato(false)} onTogglePaid={onTogglePaid}/>}
+    {showMesAnterior&&<MemberMesAnteriorModal member={member} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} onClose={()=>setShowMesAnterior(false)}/>}
     {showCreds&&(()=>{
       const phone=cred.login?(cred.login.startsWith('55')&&cred.login.length>=12?cred.login:`55${cred.login}`):'';
       function saveP(){if(!/^\d{4}$/.test(newPin)){setPinErr('Deve ter 4 dígitos.');return;}onUpdatePin(member.id,newPin);setPinErr('');setNewPin('');setShowCreds(false);}
@@ -3093,9 +3218,93 @@ function CalendarioAniversarios({referrals,jrReferrals,members,seekJrs,autoOpenD
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   DESAFIO DO MÊS — configuração (Vendedor) + histórico
+══════════════════════════════════════════════════════════════════ */
+function ChallengeConfigPanel({configs,onSave,onClose}){
+  const now=new Date();
+  const year=now.getFullYear(),month=now.getMonth()+1;
+  const current=getChallengeConfig(configs,year,month);
+  const [targetN,setTargetN]=useState(current?current.targetN:3);
+  const [pct1,setPct1]=useState(current?current.pct1:5);
+  const [pct2,setPct2]=useState(current?current.pct2:8);
+  const [pct3,setPct3]=useState(current?current.pct3:10);
+  const [active,setActive]=useState(current?current.active:true);
+  const [saved,setSaved]=useState(false);
+
+  const history=(configs||[])
+    .filter(c=>!(c.year===year&&c.month===month))
+    .slice()
+    .sort((a,b)=>(b.year-a.year)||(b.month-a.month));
+
+  function save(e){
+    e.preventDefault();
+    const n=Math.max(1,Math.round(Number(targetN)||1));
+    onSave({targetN:n,pct1:Number(pct1)||0,pct2:Number(pct2)||0,pct3:Number(pct3)||0,active});
+    setSaved(true);
+    setTimeout(()=>setSaved(false),2200);
+  }
+
+  return(
+    <Sheet title="🏆 Desafio do Mês" onClose={onClose}>
+      <div style={{display:'flex',flexDirection:'column',gap:18}}>
+        <div className="nm-in" style={{padding:'10px 14px',fontSize:'.72rem',color:'var(--muted)',fontWeight:700}}>
+          Configuração vigente para <b style={{color:'var(--black)'}}>{MONTHS[month-1]} {year}</b> — vale a partir do momento em que for salva.
+        </div>
+
+        <form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
+          <Fld label="Meta de indicações no mês (N)">
+            <input className="inp" type="number" min={1} value={targetN} onChange={e=>setTargetN(e.target.value)}/>
+          </Fld>
+
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{fontSize:'.68rem',fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--muted)'}}>Bônus por faixa de conversão</div>
+            <Fld label="1ª indicação vendida — bônus sobre a comissão">
+              <div style={{display:'flex',alignItems:'center',gap:8}}><input className="inp" type="number" step="0.1" min={0} value={pct1} onChange={e=>setPct1(e.target.value)}/><span style={{fontWeight:800}}>%</span></div>
+            </Fld>
+            <Fld label="2ª indicação vendida — bônus sobre a comissão">
+              <div style={{display:'flex',alignItems:'center',gap:8}}><input className="inp" type="number" step="0.1" min={0} value={pct2} onChange={e=>setPct2(e.target.value)}/><span style={{fontWeight:800}}>%</span></div>
+            </Fld>
+            <Fld label={`Todas as ${Math.max(1,Math.round(Number(targetN)||1))} vendidas — bônus sobre a comissão`}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}><input className="inp" type="number" step="0.1" min={0} value={pct3} onChange={e=>setPct3(e.target.value)}/><span style={{fontWeight:800}}>%</span></div>
+            </Fld>
+          </div>
+
+          <button type="button" onClick={()=>setActive(a=>!a)} className="nm-in" style={{padding:'12px 14px',border:'none',cursor:'pointer',background:'var(--bg)',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontWeight:800,fontSize:'.82rem'}}>Desafio ativo neste mês</span>
+            <span style={{fontWeight:900,fontSize:'.8rem',color:active?'var(--green)':'var(--muted)'}}>{active?'✓ ATIVO':'INATIVO'}</span>
+          </button>
+
+          <button type="submit" className="btn btn-dark btn-full" style={{padding:14}}>{saved?'✓ Salvo!':'Salvar configuração'}</button>
+        </form>
+
+        {history.length>0&&<div>
+          <div style={{fontSize:'.68rem',fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Histórico (somente consulta)</div>
+          <div className="nm" style={{padding:'0 14px'}}>
+            {history.map((c,i)=>(
+              <div key={c.id}>
+                <div style={{padding:'11px 0'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                    <span style={{fontWeight:800,fontSize:'.8rem'}}>{MONTHS[c.month-1]} {c.year}</span>
+                    <span style={{fontSize:'.7rem',fontWeight:800,color:c.active?'var(--green)':'var(--muted)'}}>{c.active?'Ativo':'Inativo'}</span>
+                  </div>
+                  <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,marginTop:3}}>
+                    Meta {c.targetN} · {c.pct1}% / {c.pct2}% / {c.pct3}%
+                  </div>
+                </div>
+                {i<history.length-1&&<Div/>}
+              </div>
+            ))}
+          </div>
+        </div>}
+      </div>
+    </Sheet>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
    ADM TAB BAR
 ══════════════════════════════════════════════════════════════════ */
-function AdmTabBar({view,setView,onOffers}){
+function AdmTabBar({view,setView,onOffers,onChallenge}){
   const tabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'members',l:'SEEK',I:IcUsers},{id:'remuneracao',l:'Regras',I:IcBook}];
   const active=view==='memberDetail'?'members':['pending','paid','prevPending'].includes(view)?'dashboard':view;
   return(
@@ -3120,6 +3329,10 @@ function AdmTabBar({view,setView,onOffers}){
         <button className="tab" onClick={onOffers}>
           <span style={{fontSize:'1.1rem',lineHeight:1}}>🏷️</span>
           <span>Ofertas</span>
+        </button>
+        <button className="tab" onClick={onChallenge}>
+          <span style={{fontSize:'1.1rem',lineHeight:1}}>🏆</span>
+          <span>Desafio</span>
         </button>
       </div>
     </div>
@@ -3210,7 +3423,7 @@ function AdmLedger({title,referrals,members,seekJrs,paid,onBack,onTogglePaid,onT
 /* ══════════════════════════════════════════════════════════════════
    MASTER — DASHBOARD
 ══════════════════════════════════════════════════════════════════ */
-function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,onSelectAdm,spinRewards,chestRewards=[]}){
+function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy,setSy,onNav,passReqs,onSelectAdm,spinRewards,chestRewards=[],challengeConfigs=[]}){
   const curY=new Date().getFullYear();
   const years=Array.from({length:5},(_,i)=>curY-2+i);
   const fil=referrals.filter(r=>r.month===sm&&r.year===sy);
@@ -3221,7 +3434,11 @@ function MasterDashboard({adms,members,referrals,jrReferrals,seekJrs,sm,setSm,sy
   const chestFil=(chestRewards||[]).filter(c=>inMonth(c.createdAt,sm,sy));
   const spinAP=spinFil.filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
   const chestAP=chestFil.filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
-  const comAP=allFil.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP+chestAP;
+  /* challengeGroup ranqueia "as N primeiras do mês" por dono — nunca somar a lista de vários
+     SEEKs/JRs misturada, senão a ordenação/corte em N fica errada entre donos diferentes. */
+  const challengeAP=members.reduce((sum,m)=>sum+allChallengeBonuses(fil.filter(r=>sameId(r.memberId,m.id)),challengeConfigs).filter(c=>!c.ref.paid).reduce((s,c)=>s+c.amount,0),0)
+    +seekJrs.reduce((sum,jr)=>sum+allChallengeBonuses(jrFil.filter(r=>sameId(r.jrId,jr.id)),challengeConfigs).filter(c=>!c.ref.paid).reduce((s,c)=>s+c.amount,0),0);
+  const comAP=allFil.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+spinAP+chestAP+challengeAP;
   const allTotV=[...referrals,...jrReferrals].reduce((s,r)=>s+r.productValue,0);
   const pendReqs=(passReqs||[]).filter(r=>!r.resolved);
   const admStats=adms.map(adm=>{
@@ -3356,7 +3573,7 @@ function MasterVendedores({adms,members,referrals,jrReferrals,seekJrs,credential
 /* ══════════════════════════════════════════════════════════════════
    MASTER PANEL
 ══════════════════════════════════════════════════════════════════ */
-function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddAdm,onDeleteAdm,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onRefresh,refreshing=false}){
+function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddAdm,onDeleteAdm,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],challengeConfigs=[],onRefresh,refreshing=false}){
   const [view,setView]=useState('dashboard');
   useEffect(()=>{onRefresh&&onRefresh();},[]);
   const [selAdm,setSelAdm]=useState(null);
@@ -3406,19 +3623,19 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
         {refreshing&&<span style={{fontSize:'0.5rem',fontWeight:700,color:'var(--muted)',marginLeft:8}}>atualizando…</span>}
       </div>
 
-      {view==='dashboard'&&<MasterDashboard adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} onSelectAdm={goAdm} spinRewards={spinRewards} chestRewards={chestRewards}/>}
+      {view==='dashboard'&&<MasterDashboard adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} onSelectAdm={goAdm} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs}/>}
       {view==='vendedores'&&<MasterVendedores adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onAdd={onAddAdm} onDelete={onDeleteAdm} onSelect={goAdm} onUpdatePin={onUpdatePin}/>}
       {view==='vendedorDetail'&&selAdm&&<>
         <div style={{padding:'5px 16px 0',textAlign:'center'}}>
           <span style={{fontSize:'.76rem',fontWeight:800}}>{selAdm.name}</span>
         </div>
-        <AdmDashboard members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} chestRewards={chestRewards} hideAdmCommission={true}/>
+        <AdmDashboard members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} hideAdmCommission={true}/>
       </>}
-      {view==='prevPending'&&selAdm&&<MesAnteriorPanel adm={selAdm} members={scopeMembers} seekJrs={scopeJrs} referrals={scopeRefs} jrReferrals={scopeJrRefs} spinRewards={spinRewards} chestRewards={chestRewards} onBack={()=>setView('vendedorDetail')}/>}
+      {view==='prevPending'&&selAdm&&<MesAnteriorPanel adm={selAdm} members={scopeMembers} seekJrs={scopeJrs} referrals={scopeRefs} jrReferrals={scopeJrRefs} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} onBack={()=>setView('vendedorDetail')}/>}
       {view==='membros'&&<AdmMembers members={scopeMembers} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={selAdm?d=>onAddMember(d,selAdm.id):null} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
-      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards}/>}
-      {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
-      {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs}/>}
+      {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={false} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
+      {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={true} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={true}/>}
       {view==='dashboard'&&<div className="page" style={{paddingTop:0,paddingBottom:0}}><CalendarioAniversarios referrals={referrals} jrReferrals={jrReferrals} members={members} seekJrs={seekJrs}/></div>}
 
@@ -3865,7 +4082,7 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
    LEDGER ENTRIES — lista de comissões/roleta/cofre organizada por SEEK/JR
    (conteúdo reutilizável entre LedgerPorSeek e o painel Mês Anterior)
 ══════════════════════════════════════════════════════════════════ */
-function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],paid,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
+function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],challengeConfigs=[],paid,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
   const allSpins=spinRewards||[];
   const allChests=chestRewards||[];
   const filtRefs=paid
@@ -3876,7 +4093,19 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
     :jrReferrals.filter(r=>!r.paid&&(r.status==='a_pagar'||r.productValue>0)&&(!filterMonth||(r.month===filterMonth&&r.year===filterYear)));
   const filtSpins=(paid?allSpins.filter(s=>s.paid):allSpins.filter(s=>!s.paid)).filter(s=>!filterMonth||inMonth(s.createdAt,filterMonth,filterYear));
   const filtChests=(paid?allChests.filter(c=>c.paid):allChests.filter(c=>!c.paid)).filter(c=>!filterMonth||inMonth(c.createdAt,filterMonth,filterYear));
-  const total=filtRefs.reduce((s,r)=>s+r.commission,0)+filtJrRefs.reduce((s,r)=>s+r.commission,0)+filtSpins.reduce((s,r)=>s+r.value,0)+filtChests.reduce((s,c)=>s+c.valor,0);
+  /* Bônus do desafio não tem linha própria — é derivado de referrals/jr_referrals + a config
+     vigente no mês de cada indicação, igual ao Cofre/Roleta. "Pago" acompanha r.paid da própria indicação.
+     challengeGroup/allChallengeBonuses ranqueiam "as N primeiras do mês" DENTRO de um único dono
+     (um SEEK ou um JR) — por isso o mapa é montado dono a dono, nunca com a lista inteira misturada. */
+  const challengeByRefId=new Map();
+  members.forEach(m=>{
+    allChallengeBonuses(referrals.filter(r=>sameId(r.memberId,m.id)),challengeConfigs).forEach(c=>challengeByRefId.set(String(c.ref.id),c));
+    seekJrs.filter(j=>sameId(j.seekId,m.id)).forEach(jr=>{
+      allChallengeBonuses(jrReferrals.filter(r=>sameId(r.jrId,jr.id)),challengeConfigs).forEach(c=>challengeByRefId.set(String(c.ref.id),c));
+    });
+  });
+  const filtChallenge=[...filtRefs,...filtJrRefs].map(r=>challengeByRefId.get(String(r.id))).filter(Boolean);
+  const total=filtRefs.reduce((s,r)=>s+r.commission,0)+filtJrRefs.reduce((s,r)=>s+r.commission,0)+filtSpins.reduce((s,r)=>s+r.value,0)+filtChests.reduce((s,c)=>s+c.valor,0)+filtChallenge.reduce((s,c)=>s+c.amount,0);
   const comColor=paid?'var(--green)':'var(--red)';
 
   const entries=[];
@@ -3885,14 +4114,16 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
     const refs=filtRefs.filter(r=>sameId(r.memberId,m.id));
     const spins=filtSpins.filter(s=>sameId(s.seekId,m.id));
     const chests=filtChests.filter(c=>sameId(c.seekId,m.id));
+    const challenge=refs.map(r=>challengeByRefId.get(String(r.id))).filter(Boolean);
     if(refs.length||spins.length||chests.length)
-      entries.push({type:'seek',m,refs,spins,chests,sub:refs.reduce((s,r)=>s+r.commission,0)+spins.reduce((s,r)=>s+r.value,0)+chests.reduce((s,c)=>s+c.valor,0)});
+      entries.push({type:'seek',m,refs,spins,chests,sub:refs.reduce((s,r)=>s+r.commission,0)+spins.reduce((s,r)=>s+r.value,0)+chests.reduce((s,c)=>s+c.valor,0)+challenge.reduce((s,c)=>s+c.amount,0)});
     myJrs.forEach(jr=>{
       const jr_refs=filtJrRefs.filter(r=>sameId(r.jrId,jr.id));
       const jr_spins=filtSpins.filter(s=>sameId(s.jrId,jr.id));
       const jr_chests=filtChests.filter(c=>sameId(c.jrId,jr.id));
+      const jr_challenge=jr_refs.map(r=>challengeByRefId.get(String(r.id))).filter(Boolean);
       if(jr_refs.length||jr_spins.length||jr_chests.length)
-        entries.push({type:'jr',jr,seekName:m.name,seekId:m.id,refs:jr_refs,spins:jr_spins,chests:jr_chests,sub:jr_refs.reduce((s,r)=>s+r.commission,0)+jr_spins.reduce((s,r)=>s+r.value,0)+jr_chests.reduce((s,c)=>s+c.valor,0)});
+        entries.push({type:'jr',jr,seekName:m.name,seekId:m.id,refs:jr_refs,spins:jr_spins,chests:jr_chests,sub:jr_refs.reduce((s,r)=>s+r.commission,0)+jr_spins.reduce((s,r)=>s+r.value,0)+jr_chests.reduce((s,c)=>s+c.valor,0)+jr_challenge.reduce((s,c)=>s+c.amount,0)});
     });
   });
 
@@ -3902,6 +4133,7 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
     const comTotal=e.refs.reduce((s,r)=>s+r.commission,0);
     const{bonusSum:spinBonusTotal,debitSum:spinDebitTotal}=splitSpins(e.spins);
     const chestTotal=(e.chests||[]).reduce((s,c)=>s+c.valor,0);
+    const challengeTotal=e.refs.reduce((s,r)=>{const c=challengeByRefId.get(String(r.id));return s+(c?c.amount:0);},0);
     const showPay=!paid&&!readOnly;
     const refIds=new Set(e.refs.map(r=>String(r.id)));
     const otherSpins=e.spins.filter(s=>!refIds.has(String(s.referralId)));
@@ -3918,6 +4150,7 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
           {e.refs.map((r,i)=>{
             const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
             const{bonusSum:linkedBonus,debitSum:linkedDebit}=splitSpins(e.spins.filter(s=>sameId(s.referralId,r.id)));
+            const linkedChallenge=challengeByRefId.get(String(r.id));
             return(
               <React.Fragment key={r.id}>
                 <div style={{padding:'11px 0'}}>
@@ -3927,6 +4160,7 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
                   </div>
                   {linkedBonus>0&&<div style={{fontSize:'.68rem',color:'#8833BB',fontWeight:700,marginTop:3}}>{'🎰 Bônus Roleta desta indicação: '}{fBRL(linkedBonus)}</div>}
                   {linkedDebit<0&&<div style={{fontSize:'.68rem',color:'var(--red)',fontWeight:700,marginTop:3}}>{'🎲 Débito Roleta (girar de novo): '}{fBRL(linkedDebit)}</div>}
+                  {linkedChallenge&&<div style={{fontSize:'.68rem',color:'#B8860B',fontWeight:700,marginTop:3}}>{`🏆 Bônus Desafio do Mês (+${linkedChallenge.pct}%): `}{fBRL(linkedChallenge.amount)}</div>}
                 </div>
                 {i<e.refs.length-1&&<div style={{height:1,background:'rgba(0,0,0,.06)'}}/>}
               </React.Fragment>
@@ -3957,6 +4191,7 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
               {comTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Comissões: '}<span style={{color:comColor,fontWeight:800}}>{fBRL(comTotal)}</span></div>}
               {spinBonusTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Bônus Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(spinBonusTotal)}</span></div>}
               {chestTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Cofre Misterioso: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(chestTotal)}</span></div>}
+              {challengeTotal>0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Bônus Desafio do Mês: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(challengeTotal)}</span></div>}
               {spinDebitTotal<0&&<div style={{fontSize:'.69rem',fontWeight:600}}>{'Débito Roleta: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(spinDebitTotal)}</span></div>}
               <div style={{fontSize:'.75rem',fontWeight:900,marginTop:2}}>{'TOTAL: '}<span style={{color:comColor}}>{fBRL(e.sub)}</span></div>
             </div>
@@ -3983,13 +4218,13 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
 /* ══════════════════════════════════════════════════════════════════
    LEDGER POR SEEK — tela de A Pagar / Pagas organizados por SEEK/JR
 ══════════════════════════════════════════════════════════════════ */
-function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
+function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],challengeConfigs=[],paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
   const title=filterMonth?`${MONTHS[filterMonth-1]} — ${paid?'Pagas':'A Pagar'}`:paid?'Comissões Pagas':'A Pagar';
   return(
     <>
       <TopBar title={title} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
       <div className="page">
-        <LedgerEntries members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={paid} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} readOnly={readOnly} filterMonth={filterMonth} filterYear={filterYear}/>
+        <LedgerEntries members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={paid} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} readOnly={readOnly} filterMonth={filterMonth} filterYear={filterYear}/>
       </div>
     </>
   );
@@ -3998,7 +4233,7 @@ function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
 /* ══════════════════════════════════════════════════════════════════
    PAGAMENTO MÊS ANTERIOR — extrato mensal por SEEK/JR + WhatsApp/Impressão
 ══════════════════════════════════════════════════════════════════ */
-function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],onBack}){
+function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],challengeConfigs=[],onBack}){
   const now=new Date();
   const prevM=now.getMonth()===0?12:now.getMonth();
   const prevY=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
@@ -4016,17 +4251,19 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
     const mRefs=monthRefs.filter(r=>sameId(r.memberId,m.id));
     const{bonusSum:mBonus,debitSum:mDebit}=splitSpins(monthSpins.filter(s=>sameId(s.seekId,m.id)));
     const mChest=monthChests.filter(c=>sameId(c.seekId,m.id)).reduce((s,c)=>s+c.valor,0);
+    const mChallenge=allChallengeBonuses(mRefs,challengeConfigs).reduce((s,c)=>s+c.amount,0);
     const mJrs=seekJrs.filter(j=>sameId(j.seekId,m.id));
     const jrSecs=[];
     mJrs.forEach(jr=>{
       const jRefs=monthJrRefs.filter(r=>sameId(r.jrId,jr.id));
       const{bonusSum:jBonus,debitSum:jDebit}=splitSpins(monthSpins.filter(s=>sameId(s.jrId,jr.id)));
       const jChest=monthChests.filter(c=>sameId(c.jrId,jr.id)).reduce((s,c)=>s+c.valor,0);
-      if(jRefs.length===0&&jBonus===0&&jDebit===0&&jChest===0)return;
-      jrSecs.push({name:jr.name,parentName:m.name,refs:jRefs,bonus:jBonus,debit:jDebit,chest:jChest,subtotal:jRefs.reduce((s,r)=>s+r.commission,0)+jBonus+jDebit+jChest});
+      const jChallenge=allChallengeBonuses(jRefs,challengeConfigs).reduce((s,c)=>s+c.amount,0);
+      if(jRefs.length===0&&jBonus===0&&jDebit===0&&jChest===0&&jChallenge===0)return;
+      jrSecs.push({name:jr.name,parentName:m.name,refs:jRefs,bonus:jBonus,debit:jDebit,chest:jChest,challenge:jChallenge,subtotal:jRefs.reduce((s,r)=>s+r.commission,0)+jBonus+jDebit+jChest+jChallenge});
     });
-    if(mRefs.length===0&&mBonus===0&&mDebit===0&&mChest===0&&jrSecs.length===0)return;
-    sections.push({name:m.name,refs:mRefs,bonus:mBonus,debit:mDebit,chest:mChest,subtotal:mRefs.reduce((s,r)=>s+r.commission,0)+mBonus+mDebit+mChest,jrSecs});
+    if(mRefs.length===0&&mBonus===0&&mDebit===0&&mChest===0&&mChallenge===0&&jrSecs.length===0)return;
+    sections.push({name:m.name,refs:mRefs,bonus:mBonus,debit:mDebit,chest:mChest,challenge:mChallenge,subtotal:mRefs.reduce((s,r)=>s+r.commission,0)+mBonus+mDebit+mChest+mChallenge,jrSecs});
   });
   const totalGeral=sections.reduce((s,sec)=>s+sec.subtotal+sec.jrSecs.reduce((s2,j)=>s2+j.subtotal,0),0);
 
@@ -4043,6 +4280,7 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
       if(sec.bonus>0)lines.push(`  🎰 Bônus Roleta: ${fBRL(sec.bonus)}`);
       if(sec.debit<0)lines.push(`  🎲 Débito Roleta: ${fBRL(sec.debit)}`);
       if(sec.chest>0)lines.push(`  🎁 Cofre: ${fBRL(sec.chest)}`);
+      if(sec.challenge>0)lines.push(`  🏆 Desafio do Mês: ${fBRL(sec.challenge)}`);
       lines.push(`  Subtotal: ${fBRL(sec.subtotal)}`);
       return lines;
     }
@@ -4104,6 +4342,7 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
             {sec.bonus>0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎰 Bônus Roleta: '}<span style={{color:'#8833BB',fontWeight:800}}>{fBRL(sec.bonus)}</span></div>}
             {sec.debit<0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎲 Débito Roleta: '}<span style={{color:'var(--red)',fontWeight:800}}>{fBRL(sec.debit)}</span></div>}
             {sec.chest>0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🎁 Cofre: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(sec.chest)}</span></div>}
+            {sec.challenge>0&&<div style={{fontSize:'.69rem',fontWeight:600,marginBottom:2}}>{'🏆 Desafio do Mês: '}<span style={{color:'#B8860B',fontWeight:800}}>{fBRL(sec.challenge)}</span></div>}
             <div style={{fontSize:'.75rem',fontWeight:900,marginTop:2}}>{'Subtotal: '}<span>{fBRL(sec.subtotal)}</span></div>
           </div>
         </div>
@@ -4143,11 +4382,12 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
 /* ══════════════════════════════════════════════════════════════════
    VENDEDOR PANEL (ADM role — dados filtrados por adm_id)
 ══════════════════════════════════════════════════════════════════ */
-function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onMarkSold,onUpdateJrReferral,onToggleSpinPaid,onPayAllForSeek,onPayAllForJr}){
+function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onMarkSold,onUpdateJrReferral,onToggleSpinPaid,onPayAllForSeek,onPayAllForJr,challengeConfigs,onSaveChallengeConfig}){
   const [view,setView]=useState('dashboard');
   const [selMember,setSelMember]=useState(null);
   const [editRefDirect,setEditRefDirect]=useState(null);
   const [showOffers,setShowOffers]=useState(false);
+  const [showChallenge,setShowChallenge]=useState(false);
   const [showBell,setShowBell]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const now=new Date();
@@ -4186,13 +4426,13 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
         </div>
       </>
 
-      {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} chestRewards={chestRewards} showPaymentReminder={true}/>}
+      {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} showPaymentReminder={true}/>}
       {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={d=>onAddMember(d,adm.id)} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
-      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>}
-      {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={sm} filterYear={sy}/>}
-      {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} paid={true} onBack={()=>setView('dashboard')} filterMonth={sm} filterYear={sy}/>}
-      {view==='prevPending'&&<MesAnteriorPanel adm={adm} members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} onBack={()=>setView('dashboard')}/>}
-      {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid}/>;})()}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid} challengeConfigs={challengeConfigs}/>}
+      {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={sm} filterYear={sy}/>}
+      {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={true} onBack={()=>setView('dashboard')} filterMonth={sm} filterYear={sy}/>}
+      {view==='prevPending'&&<MesAnteriorPanel adm={adm} members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} onBack={()=>setView('dashboard')}/>}
+      {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid} challengeConfigs={challengeConfigs}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={false} isAdm={true}/>}
       {view==='fipe'&&<FipeConsulta/>}
       {view==='financiamento'&&<SimuladorFinanciamento/>}
@@ -4209,9 +4449,10 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       )}
       {view==='dashboard'&&<div className="page" style={{paddingTop:0,paddingBottom:0}}><CalendarioAniversarios referrals={referrals} jrReferrals={jrReferrals} members={members} seekJrs={seekJrs} autoOpenDay={calAutoDay}/></div>}
 
-      {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)}/>}
+      {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)} onChallenge={()=>setShowChallenge(true)}/>}
       {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onMarkSold={onMarkSold} onUpdateRef={updateRef} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
+      {showChallenge&&<ChallengeConfigPanel configs={challengeConfigs} onSave={onSaveChallengeConfig} onClose={()=>setShowChallenge(false)}/>}
       {showHelp&&<HelpModal role="adm" onClose={()=>setShowHelp(false)}/>}
     </div>
   );
@@ -4306,7 +4547,7 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       ].join('\n');
     }
     if(role==='member'){
-      const {member,referrals,jrReferrals,seekJrs,spinRewards=[],chestRewards=[]}=data;
+      const {member,referrals,jrReferrals,seekJrs,spinRewards=[],chestRewards=[],challengeConfigs=[]}=data;
       const totVol=referrals.reduce((s,r)=>s+r.productValue,0);
       const pts=calcPoints(totVol);
       const lv=getSeekLevel(pts);
@@ -4314,7 +4555,10 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       const bonusRUnpaid=spinRewards.filter(r=>!r.paid).reduce((s,r)=>s+r.value,0);
       const chestTotal=(chestRewards||[]).reduce((s,c)=>s+c.valor,0);
       const chestUnpaid=(chestRewards||[]).filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
-      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+bonusRUnpaid+chestUnpaid;
+      const challengeItems=allChallengeBonuses(referrals,challengeConfigs);
+      const challengeTotal=challengeItems.reduce((s,c)=>s+c.amount,0);
+      const challengeUnpaid=challengeItems.filter(c=>!c.ref.paid).reduce((s,c)=>s+c.amount,0);
+      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+bonusRUnpaid+chestUnpaid+challengeUnpaid;
       const nextLv=lv.id==='elite'?null:SEEK_LEVELS[SEEK_LEVELS.findIndex(l=>l.id===lv.id)+1];
       const myJrs=seekJrs.filter(j=>sameId(j.seekId,member.id));
       const SEP='─────────────────────────';
@@ -4322,18 +4566,20 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       const refLines=[];
       confRefs.forEach((r,i)=>{
         const{bonusSum:spinBonus,debitSum:spinDebit}=splitSpins(spinRewards.filter(s=>sameId(s.referralId,r.id)));
-        const total=r.commission+spinBonus+spinDebit;
+        const challenge=challengeItems.find(c=>sameId(c.ref.id,r.id));
+        const total=r.commission+spinBonus+spinDebit+(challenge?challenge.amount:0);
         const st=r.paid?'Pago':'A Pagar';
         refLines.push(`👤 ${r.clientName}`);
         refLines.push(`   Comissão: ${fBRL(r.commission)}`);
         if(spinBonus>0)refLines.push(`   🎰 Bônus Roleta: ${fBRL(spinBonus)}`);
         if(spinDebit<0)refLines.push(`   🎲 Débito Roleta: ${fBRL(spinDebit)}`);
+        if(challenge)refLines.push(`   🏆 Bônus Desafio do Mês (+${challenge.pct}%): ${fBRL(challenge.amount)}`);
         refLines.push(`   Total: ${fBRL(total)}`);
         refLines.push(`   Status: ${st}`);
         if(i<confRefs.length-1)refLines.push(SEP);
       });
       const chestLines=(chestRewards||[]).map(c=>`🎁 Cofre Misterioso — ${fBRL(c.valor)} | ${c.paid?'Pago':'A Pagar'}`);
-      const totalGeral=referrals.reduce((s,r)=>s+r.commission,0)+bonusR+chestTotal;
+      const totalGeral=referrals.reduce((s,r)=>s+r.commission,0)+bonusR+chestTotal+challengeTotal;
       return [
         `*SEEK NETWORK — EXTRATO SEEK*`,
         `${member.name}  |  #${String(member.id).padStart(3,'0')}`,
@@ -4359,13 +4605,16 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       ].filter(l=>l!=null).join('\n');
     }
     if(role==='jr'){
-      const {jr,referrals,seekMember,spinRewards=[],chestRewards=[]}=data;
+      const {jr,referrals,seekMember,spinRewards=[],chestRewards=[],challengeConfigs=[]}=data;
       const totVol=referrals.reduce((s,r)=>s+r.productValue,0);
       const bonusR=spinRewards.reduce((s,r)=>s+r.value,0);
       const bonusRUnpaid=spinRewards.filter(r=>!r.paid).reduce((s,r)=>s+r.value,0);
       const chestTotal=(chestRewards||[]).reduce((s,c)=>s+c.valor,0);
       const chestUnpaid=(chestRewards||[]).filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
-      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+bonusRUnpaid+chestUnpaid;
+      const challengeItems=allChallengeBonuses(referrals,challengeConfigs);
+      const challengeTotal=challengeItems.reduce((s,c)=>s+c.amount,0);
+      const challengeUnpaid=challengeItems.filter(c=>!c.ref.paid).reduce((s,c)=>s+c.amount,0);
+      const apagar=referrals.filter(r=>!r.paid).reduce((s,r)=>s+r.commission,0)+bonusRUnpaid+chestUnpaid+challengeUnpaid;
       const jrLv=getJrLevel(totVol);
       const gradPct=Math.min(100,(totVol/JR_GRADUATION)*100).toFixed(1);
       const SEP='─────────────────────────';
@@ -4373,18 +4622,20 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
       const refLines=[];
       confRefs.forEach((r,i)=>{
         const{bonusSum:spinBonus,debitSum:spinDebit}=splitSpins(spinRewards.filter(s=>sameId(s.referralId,r.id)));
-        const total=r.commission+spinBonus+spinDebit;
+        const challenge=challengeItems.find(c=>sameId(c.ref.id,r.id));
+        const total=r.commission+spinBonus+spinDebit+(challenge?challenge.amount:0);
         const st=r.paid?'Pago':'A Pagar';
         refLines.push(`👤 ${r.clientName}`);
         refLines.push(`   Comissão: ${fBRL(r.commission)}`);
         if(spinBonus>0)refLines.push(`   🎰 Bônus Roleta: ${fBRL(spinBonus)}`);
         if(spinDebit<0)refLines.push(`   🎲 Débito Roleta: ${fBRL(spinDebit)}`);
+        if(challenge)refLines.push(`   🏆 Bônus Desafio do Mês (+${challenge.pct}%): ${fBRL(challenge.amount)}`);
         refLines.push(`   Total: ${fBRL(total)}`);
         refLines.push(`   Status: ${st}`);
         if(i<confRefs.length-1)refLines.push(SEP);
       });
       const chestLines=(chestRewards||[]).map(c=>`🎁 Cofre Misterioso — ${fBRL(c.valor)} | ${c.paid?'Pago':'A Pagar'}`);
-      const totalGeral=referrals.reduce((s,r)=>s+r.commission,0)+bonusR+chestTotal;
+      const totalGeral=referrals.reduce((s,r)=>s+r.commission,0)+bonusR+chestTotal+challengeTotal;
       return [
         `*SEEK NETWORK — EXTRATO SEEK JR*`,
         `${jr.name}  |  ID: ${jr.id}JR`,
@@ -4713,7 +4964,7 @@ function CofresModal({chestItems,onClose}){
   );
 }
 
-function SpinModal({seekerName,pendingCount,onClose,onResult}){
+function SpinModal({seekerName,spinIndex=1,spinTotal=1,onClose,onResult}){
   const [rotation,setRotation]=useState(0);
   const [spinning,setSpinning]=useState(false);
   const [won,setWon]=useState(null);
@@ -4844,10 +5095,10 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
           <div style={{textAlign:'center',marginBottom:6,zIndex:1,padding:'0 20px'}}>
             <div style={{fontSize:'1.3rem',fontWeight:900,color:'#FFD700',letterSpacing:'.06em',textShadow:'0 0 20px rgba(255,215,0,.8)'}}>{'🎰 ROLETA DA SORTE'}</div>
             <div style={{fontSize:'.76rem',color:'rgba(255,255,255,.88)',fontWeight:700,marginTop:5}}>{'Parabéns, '}{seekerName}{'!'}</div>
-            {pendingCount>1&&<div style={{fontSize:'.66rem',color:'#FF7700',fontWeight:800,marginTop:3}}>{pendingCount}{' chances pendentes'}</div>}
+            {spinTotal>1&&<div style={{fontSize:'.66rem',color:'#FF7700',fontWeight:800,marginTop:3}}>{`Giro ${spinIndex} de ${spinTotal}`}</div>}
           </div>
 
-          <div style={{position:'relative',width:size+50,height:size+60,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+          <div className="roulette-wheel-wrap" style={{position:'relative',width:size+50,height:size+60,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
             <div style={{position:'absolute',top:2,left:'50%',transform:'translateX(-50%)',zIndex:10}}>
               <svg width={24} height={22} viewBox="0 0 24 22">
                 <defs>
@@ -4895,8 +5146,8 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
                     <text key={i} x={tx} y={ty} textAnchor="middle" dominantBaseline="central"
                       transform={`rotate(${mid},${tx},${ty})`}
                       fontFamily="'Inter',-apple-system,'SF Pro Display',sans-serif"
-                      fontSize={10} fontWeight="900" fill={tc}
-                      stroke="#000" strokeWidth={2.5} strokeLinejoin="round" paintOrder="stroke">
+                      fontSize={13} fontWeight="900" fill={tc}
+                      stroke="#000" strokeWidth={3.2} strokeLinejoin="round" paintOrder="stroke">
                       {wl}
                     </text>
                   );
@@ -4927,8 +5178,12 @@ function SpinModal({seekerName,pendingCount,onClose,onResult}){
               <div style={{fontSize:'3.5rem',fontWeight:900,lineHeight:1.1,background:'linear-gradient(135deg,#FFD700,#FF8C00)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',animation:'prize-pop .5s ease'}}>{'R$ '}{won.value}</div>
               <div style={{fontSize:'.85rem',color:'rgba(255,255,255,.7)',fontWeight:600,marginTop:10}}>{'de Bônus Roleta! 🎰'}</div>
               <div style={{marginTop:30,display:'flex',flexDirection:'column',gap:10,alignItems:'center'}}>
-                <button onClick={onClose} style={{padding:'14px 48px',borderRadius:50,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontWeight:900,fontSize:'1rem',boxShadow:'0 4px 18px rgba(29,122,58,.45)'}}>{'Fechar'}</button>
-                <button onClick={handleRetryPaid} style={{padding:'11px 30px',borderRadius:50,border:'1.5px solid rgba(255,215,0,.5)',cursor:'pointer',background:'transparent',color:'#FFD700',fontWeight:800,fontSize:'.82rem'}}>{'🔄 Tente Novamente por apenas R$ 5,00'}</button>
+                {spinIndex<spinTotal?(
+                  <button onClick={onClose} style={{padding:'14px 48px',borderRadius:50,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontWeight:900,fontSize:'1rem',boxShadow:'0 4px 18px rgba(29,122,58,.45)'}}>{`Próximo Giro (${spinIndex+1}/${spinTotal})`}</button>
+                ):(<>
+                  <button onClick={onClose} style={{padding:'14px 48px',borderRadius:50,border:'none',cursor:'pointer',background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',fontWeight:900,fontSize:'1rem',boxShadow:'0 4px 18px rgba(29,122,58,.45)'}}>{'Fechar'}</button>
+                  <button onClick={handleRetryPaid} style={{padding:'11px 30px',borderRadius:50,border:'1.5px solid rgba(255,215,0,.5)',cursor:'pointer',background:'transparent',color:'#FFD700',fontWeight:800,fontSize:'.82rem'}}>{'🔄 Tente Novamente por apenas R$ 5,00'}</button>
+                </>)}
               </div>
             </>
           )}
@@ -5346,9 +5601,20 @@ function App(){
   const [offers,setOffers]=useState([]);
   const [spinRewards,setSpinRewards]=useState([]);
   const [pendingSpins,setPendingSpins]=useState([]);
+  const spinBatchTotalsRef=React.useRef({});
+  /* Cada giro pendente vira um SpinModal remontado à parte (key={first.id}), então
+     o total do "lote" (ex: 3 vendas fechadas de uma vez) não sobrevive entre
+     remontagens — guardamos aqui, fora do state, para exibir "Giro 2 de 3". */
+  function spinBatchInfo(key,remaining){
+    if(remaining<=0){delete spinBatchTotalsRef.current[key];return{index:0,total:0};}
+    const total=Math.max(spinBatchTotalsRef.current[key]||0,remaining);
+    spinBatchTotalsRef.current[key]=total;
+    return{index:total-remaining+1,total};
+  }
   const [chestPending,setChestPending]=useState([]);
   const [chestRewards,setChestRewards]=useState([]);
   const [minigameScores,setMinigameScores]=useState([]);
+  const [challengeConfigs,setChallengeConfigs]=useState([]);
   const [dbError,setDbError]=useState(null);
 
   useEffect(()=>{
@@ -5375,6 +5641,7 @@ function App(){
         {data:rRows},{data:reqRows},{data:jrRefRows},
         {data:notifRows},{data:offerRows},{data:spinRows},{data:spinPendingRows},
         {data:chestPendingRows},{data:chestRewardRows},{data:mgRows,error:mgErr},
+        {data:ccRows,error:ccErr},
       ]=await Promise.all([
         db.from('referrals').select('*'),
         db.from('pass_requests').select('*'),
@@ -5386,6 +5653,7 @@ function App(){
         db.from('chest_pending').select('*').eq('used',false),
         db.from('chest_rewards').select('*'),
         db.from('minigame_scores').select('*'),
+        db.from('monthly_challenge_config').select('*'),
       ]);
       if(mgErr)console.warn('[SEEK boot] tabela minigame_scores indisponível (migration-minigame-scores.sql ainda não executada?):',mgErr.message);
       setReferrals((rRows||[]).map(mRef));
@@ -5398,6 +5666,8 @@ function App(){
       setChestPending((chestPendingRows||[]).map(mChestPending));
       setChestRewards((chestRewardRows||[]).map(mChestReward));
       setMinigameScores((mgRows||[]).map(mMinigameScore));
+      if(ccErr)console.warn('[SEEK boot] tabela monthly_challenge_config indisponível (migration-monthly-challenge.sql ainda não executada?):',ccErr.message);
+      setChallengeConfigs((ccRows||[]).map(mChallengeConfig));
     }
     boot();
   },[]);
@@ -5602,17 +5872,30 @@ function App(){
   }
 
   async function deleteReferral(rid){
-    await db.from('referrals').delete().eq('id',rid);
+    const ref=referrals.find(r=>sameId(r.id,rid));
+    await Promise.all([
+      db.from('referrals').delete().eq('id',rid),
+      db.from('spin_rewards').delete().eq('referral_id',String(rid)),
+      db.from('spin_pending').delete().eq('referral_id',String(rid)),
+    ]);
     setReferrals(u=>u.filter(r=>!sameId(r.id,rid)));
+    setPendingSpins(u=>u.filter(s=>!sameId(s.referralId,rid)));
+    const remainingSpins=spinRewards.filter(s=>!sameId(s.referralId,rid));
+    setSpinRewards(remainingSpins);
+    if(ref)reconcileChestAfterSpinRemoval(ref.memberId,null,remainingSpins);
   }
 
   async function addSeekJr(data){
     const existing=seekJrs.filter(j=>sameId(j.seekId,data.seekId)).length;
     const jrId=existing===0?`${data.seekId}JR`:`${data.seekId}JR${existing+1}`;
     const rawJL=(data.whatsapp||'').replace(/\D/g,'');
-    const {error:je}=await db.from('seek_jrs').insert({id:jrId,name:data.name,whatsapp:rawJL,seek_id:String(data.seekId),pin:data.pin||'0000',is_new:true,pix_key:data.pixKey||null});
-    if(je){console.error('[addSeekJr]',je);return;}
-    await db.from('credentials').insert({key:`jr_${jrId}`,login:rawJL||jrId,pin:data.pin||'0000'});
+    let {error:je}=await db.from('seek_jrs').insert({id:jrId,name:data.name,whatsapp:rawJL,seek_id:String(data.seekId),pin:data.pin||'0000',is_new:true,pix_key:data.pixKey||null});
+    if(je&&je.code==='42703'){
+      ({error:je}=await db.from('seek_jrs').insert({id:jrId,name:data.name,whatsapp:rawJL,seek_id:String(data.seekId),pin:data.pin||'0000',is_new:true}));
+    }
+    if(je){console.error('[addSeekJr]',je);setDbError('Erro ao cadastrar SEEK JR: '+je.message);return;}
+    const{error:ce}=await db.from('credentials').insert({key:`jr_${jrId}`,login:rawJL||jrId,pin:data.pin||'0000'});
+    if(ce){console.error('[addSeekJr] credentials',ce);setDbError('SEEK JR criado, mas houve erro ao gerar o acesso de login: '+ce.message);}
     setSeekJrs(u=>[...u,{id:jrId,name:data.name,whatsapp:rawJL,seekId:String(data.seekId),pin:data.pin||'0000',isNew:true,pixKey:data.pixKey||null}]);
     setCredentials(u=>({...u,[`jr_${jrId}`]:{login:rawJL||jrId,pin:data.pin||'0000'}}));
   }
@@ -5644,9 +5927,7 @@ function App(){
       if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
       if(error)console.error('[markReferralSold jr]',error);
       addSpinPending(null,String(ref.jrId),String(rid));
-      // Cofre libera a cada 5 indicações COM VENDA confirmada (não a cada giro — retries pagos não contam)
-      const soldCount=newJrRefs.filter(r=>sameId(r.jrId,ref.jrId)&&(r.paid||r.status==='a_pagar'||r.productValue>0)).length;
-      if(soldCount>0&&soldCount%5===0)setTimeout(()=>addChestPending(null,String(ref.jrId)),50);
+      // Cofre é liberado em addSpinReward, ao completar o 5º giro real (não aqui, para não dessincronizar do nº de giros de fato jogados)
     }else{
       const ref=referrals.find(r=>sameId(r.id,rid));
       if(!ref)return;
@@ -5658,9 +5939,7 @@ function App(){
       if(error&&error.code==='42703')({error}=await db.from('referrals').update({product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,paid:false}).eq('id',rid));
       if(error)console.error('[markReferralSold]',error);
       addSpinPending(String(ref.memberId),null,String(rid));
-      // Cofre libera a cada 5 indicações COM VENDA confirmada (não a cada giro — retries pagos não contam)
-      const soldCount=newRefs.filter(r=>sameId(r.memberId,ref.memberId)&&(r.paid||r.status==='a_pagar'||r.productValue>0)).length;
-      if(soldCount>0&&soldCount%5===0)setTimeout(()=>addChestPending(String(ref.memberId),null),50);
+      // Cofre é liberado em addSpinReward, ao completar o 5º giro real (não aqui, para não dessincronizar do nº de giros de fato jogados)
     }
   }
 
@@ -5677,9 +5956,9 @@ function App(){
     setPendingSpins(u=>[...u,mSpinPending(saved)]);
   }
 
-  async function consumeSpinPending(pendingId){
-    await db.from('spin_pending').delete().eq('id',pendingId);
+  function consumeSpinPending(pendingId){
     setPendingSpins(u=>u.filter(s=>s.id!==pendingId));
+    db.from('spin_pending').delete().eq('id',pendingId).then(({error})=>{if(error)console.error('[consumeSpinPending]',error);});
   }
 
   async function addChestPending(seekId,jrId){
@@ -5688,9 +5967,9 @@ function App(){
     setChestPending(u=>[...u,mChestPending(saved)]);
   }
 
-  async function consumeChestPending(chestId){
-    await db.from('chest_pending').update({used:true}).eq('id',chestId);
+  function consumeChestPending(chestId){
     setChestPending(u=>u.filter(c=>c.id!==chestId));
+    db.from('chest_pending').update({used:true}).eq('id',chestId).then(({error})=>{if(error)console.error('[consumeChestPending]',error);});
   }
 
   async function addChestReward(seekId,jrId,valor){
@@ -5718,11 +5997,61 @@ function App(){
     return row;
   }
 
+  /* Upsert da config do MÊS CORRENTE — meses passados nunca são alterados,
+     só ficam registrados como histórico (uma linha por year/month). */
+  async function saveChallengeConfig(data){
+    const now=new Date();
+    const year=now.getFullYear(),month=now.getMonth()+1;
+    const existing=challengeConfigs.find(c=>c.year===year&&c.month===month);
+    const payload={year,month,target_n:data.targetN,pct1:data.pct1,pct2:data.pct2,pct3:data.pct3,active:data.active};
+    if(existing){
+      const{error}=await db.from('monthly_challenge_config').update(payload).eq('id',existing.id);
+      if(error){console.error('[saveChallengeConfig]',error);setDbError('Não foi possível salvar o Desafio do Mês. Peça ao administrador para rodar migration-monthly-challenge.sql no Supabase.');return;}
+      setChallengeConfigs(u=>u.map(c=>sameId(c.id,existing.id)?{...c,targetN:data.targetN,pct1:data.pct1,pct2:data.pct2,pct3:data.pct3,active:data.active}:c));
+    }else{
+      const{data:saved,error}=await db.from('monthly_challenge_config').insert(payload).select().single();
+      if(error){console.error('[saveChallengeConfig]',error);setDbError('Não foi possível salvar o Desafio do Mês. Peça ao administrador para rodar migration-monthly-challenge.sql no Supabase.');return;}
+      setChallengeConfigs(u=>[...u,mChallengeConfig(saved)]);
+    }
+  }
+
+  /* Ao excluir uma indicação, os spin_rewards/spin_pending vinculados a ela já
+     saem junto (deleteReferral/deleteJrReferral). Isso pode fazer o dono cair
+     abaixo do múltiplo de 5 giros que tinha liberado um Cofre — se o Cofre
+     ainda não foi aberto (chest_pending não usado), cancela; um já reivindicado
+     (chest_rewards) não é desfeito, pois o valor já foi concedido. */
+  function reconcileChestAfterSpinRemoval(seekId,jrId,remainingSpins){
+    const ownerSpinMatch=s=>jrId?sameId(s.jrId,jrId):sameId(s.seekId,seekId);
+    const ownerChestMatch=c=>jrId?sameId(c.jrId,jrId):sameId(c.seekId,seekId);
+    const distinctCount=new Set(remainingSpins.filter(ownerSpinMatch).map(s=>String(s.referralId))).size;
+    const expectedChests=Math.floor(distinctCount/5);
+    const unusedPending=chestPending.filter(ownerChestMatch);
+    const claimedCount=chestRewards.filter(ownerChestMatch).length;
+    const excess=claimedCount+unusedPending.length-expectedChests;
+    if(excess<=0)return;
+    const toCancel=unusedPending.slice(0,excess);
+    toCancel.forEach(c=>db.from('chest_pending').delete().eq('id',c.id).then(({error})=>{if(error)console.error('[reconcileChestAfterSpinRemoval]',error);}));
+    setChestPending(u=>u.filter(c=>!toCancel.some(x=>sameId(x.id,c.id))));
+  }
+
   async function addSpinReward(seekId,jrId,referralId,value){
     const{data:saved,error}=await db.from('spin_rewards').insert({seek_id:seekId||null,jr_id:jrId||null,referral_id:referralId?String(referralId):null,value,used:true}).select().single();
     if(error){console.error('[addSpinReward]',error);return;}
     const newSpin=mSpin(saved);
     setSpinRewards(u=>[...u,newSpin]);
+    // Cofre libera a cada 5 giros DISTINTOS (1 por indicação) já registrados de fato — retries pagos (value<0
+    // é o débito, e mesmo o giro grátis resultante reaproveita o referralId da última indicação) não contam de novo,
+    // evitando dessincronizar do nº real de giros.
+    if(referralId&&value>=0){
+      const ownerMatch=s=>jrId?sameId(s.jrId,jrId):sameId(s.seekId,seekId);
+      const alreadyCounted=spinRewards.some(s=>ownerMatch(s)&&sameId(s.referralId,referralId));
+      if(!alreadyCounted){
+        const distinctCount=new Set(spinRewards.filter(ownerMatch).map(s=>String(s.referralId))).size+1;
+        if(distinctCount%5===0){
+          if(jrId)addChestPending(null,String(jrId));else addChestPending(String(seekId),null);
+        }
+      }
+    }
   }
 
   async function toggleSpinPaid(spinId){
@@ -5794,8 +6123,17 @@ function App(){
   }
 
   async function deleteJrReferral(rid){
-    await db.from('jr_referrals').delete().eq('id',rid);
+    const ref=jrReferrals.find(r=>sameId(r.id,rid));
+    await Promise.all([
+      db.from('jr_referrals').delete().eq('id',rid),
+      db.from('spin_rewards').delete().eq('referral_id',String(rid)),
+      db.from('spin_pending').delete().eq('referral_id',String(rid)),
+    ]);
     setJrReferrals(u=>u.filter(r=>r.id!==rid));
+    setPendingSpins(u=>u.filter(s=>!sameId(s.referralId,rid)));
+    const remainingSpins=spinRewards.filter(s=>!sameId(s.referralId,rid));
+    setSpinRewards(remainingSpins);
+    if(ref)reconcileChestAfterSpinRemoval(null,ref.jrId,remainingSpins);
   }
 
   async function dismissLevelNotif(notifId){
@@ -5878,14 +6216,15 @@ function App(){
       if(!seekMember){console.warn('[SEEK route] JR found, but its parent SEEK member was not found — JR panel will render with seekMember=undefined.',{jrSeekId:jr.seekId,availableMemberIds:members.map(m=>m.id)});}
       else{console.log(`[SEEK route] JR PANEL — jr="${jr.name}" (id=${jr.id}) seekMember="${seekMember.name}" (id=${seekMember.id})`);}
       const jrPending=pendingSpins.filter(s=>sameId(s.jrId,jr.id));
-      if(jrPending.length>0){const first=jrPending[0];return<SpinModal seekerName={jr.name} pendingCount={jrPending.length} onResult={v=>addSpinReward(null,String(jr.id),first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;}
+      const{index:jrSpinIndex,total:jrSpinTotal}=spinBatchInfo('jr_'+jr.id,jrPending.length);
+      if(jrPending.length>0){const first=jrPending[0];return<SpinModal key={first.id} seekerName={jr.name} spinIndex={jrSpinIndex} spinTotal={jrSpinTotal} onResult={v=>addSpinReward(null,String(jr.id),first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;}
       const jrChests=chestPending.filter(c=>sameId(c.jrId,jr.id));
       if(jrChests.length>0){
         const first=jrChests[0];
         const jrLastRef=jrReferrals.filter(r=>sameId(r.jrId,jr.id)).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
         return<ChestModal seekerName={jr.name} onResult={v=>addChestReward(null,String(jr.id),v)} onClose={()=>consumeChestPending(first.id)} onRetrySpin={jrLastRef?()=>{addSpinReward(null,String(jr.id),jrLastRef.id,-5);addSpinPending(null,String(jr.id),jrLastRef.id);}:null}/>;
       }
-      return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} minigameScores={minigameScores} onSaveMinigameScore={saveMinigameScore}/>;
+      return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} minigameScores={minigameScores} onSaveMinigameScore={saveMinigameScore} challengeConfigs={challengeConfigs}/>;
     }
     if(session.role==='member'){
       const member=members.find(m=>sameId(m.id,session.memberId));
@@ -5895,17 +6234,18 @@ function App(){
       }
       console.log(`[SEEK route] SEEK PANEL — member="${member.name}" (id=${member.id})`);
       const memberPending=pendingSpins.filter(s=>sameId(s.seekId,member.id));
-      if(memberPending.length>0){const first=memberPending[0];return<SpinModal seekerName={member.name} pendingCount={memberPending.length} onResult={v=>addSpinReward(String(member.id),null,first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;}
+      const{index:memberSpinIndex,total:memberSpinTotal}=spinBatchInfo('seek_'+member.id,memberPending.length);
+      if(memberPending.length>0){const first=memberPending[0];return<SpinModal key={first.id} seekerName={member.name} spinIndex={memberSpinIndex} spinTotal={memberSpinTotal} onResult={v=>addSpinReward(String(member.id),null,first.referralId,v)} onClose={()=>consumeSpinPending(first.id)}/>;}
       const memberChests=chestPending.filter(c=>sameId(c.seekId,member.id));
       if(memberChests.length>0){
         const first=memberChests[0];
         const memberLastRef=referrals.filter(r=>sameId(r.memberId,member.id)).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
         return<ChestModal seekerName={member.name} onResult={v=>addChestReward(String(member.id),null,v)} onClose={()=>consumeChestPending(first.id)} onRetrySpin={memberLastRef?()=>{addSpinReward(String(member.id),null,memberLastRef.id,-5);addSpinPending(String(member.id),null,memberLastRef.id);}:null}/>;
       }
-      return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} minigameScores={minigameScores} onSaveMinigameScore={saveMinigameScore}/>;
+      return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} minigameScores={minigameScores} onSaveMinigameScore={saveMinigameScore} challengeConfigs={challengeConfigs}/>;
     }
     if(session.role==='master'){
-      return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onRefresh={refreshLedgerData} refreshing={refreshingLedger}/>;
+      return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} onRefresh={refreshLedgerData} refreshing={refreshingLedger}/>;
     }
     if(session.role==='adm'){
       const adm=adms.find(a=>sameId(a.id,session.admId));
@@ -5914,7 +6254,7 @@ function App(){
       const mySeekJrs=seekJrs.filter(j=>myMembers.some(m=>sameId(m.id,j.seekId)));
       const myReferrals=referrals.filter(r=>myMembers.some(m=>sameId(m.id,r.memberId)));
       const myJrReferrals=jrReferrals.filter(r=>mySeekJrs.some(j=>sameId(j.id,r.jrId)));
-      return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral} onToggleSpinPaid={toggleSpinPaid} onPayAllForSeek={payAllForSeek} onPayAllForJr={payAllForJr}/>;
+      return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral} onToggleSpinPaid={toggleSpinPaid} onPayAllForSeek={payAllForSeek} onPayAllForJr={payAllForJr} challengeConfigs={challengeConfigs} onSaveChallengeConfig={saveChallengeConfig}/>;
     }
     return null;
   }
