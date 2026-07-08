@@ -1,8 +1,9 @@
--- SEEK NETWORK — Migração Minigame "Labirinto do Seeker"
+-- SEEK NETWORK — Migração Minigame (genérica, reaproveitada entre jogos)
 -- Execute este arquivo no Supabase SQL Editor
 
 -- Tabela: minigame_scores
--- Guarda o high score e o XP acumulado do minigame por SEEK ou SEEK JR.
+-- Guarda o high score e o XP acumulado do minigame vigente por SEEK ou SEEK JR
+-- (atualmente "Estoura Oportunidade" — a tabela não é específica de um jogo).
 -- XP do minigame é independente do sistema de níveis por volume de vendas
 -- (SEEK_LEVELS / calcPoints) — não afeta comissão nem bônus de produto.
 CREATE TABLE IF NOT EXISTS minigame_scores (

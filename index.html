@@ -1304,7 +1304,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMinigame(true)}>🌀 Minigame</button>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMinigame(true)}>🫧 Minigame</button>
 
       {/* Referrals */}
       <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
@@ -1550,7 +1550,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMinigame(true)}>🌀 Minigame</button>
+      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMinigame(true)}>🫧 Minigame</button>
 
       {/* My JRs */}
       {myJrs.length>0&&<div>
@@ -5182,137 +5182,163 @@ function SpinModal({seekerName,spinIndex=1,spinTotal=1,onClose,onResult}){
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   MINIGAME — LABIRINTO DO SEEKER
-   Original: Seeker (jogador) coleta Fragmentos de Insight, foge de
-   Distrações (perseguidoras) e pode pegar o power-up Foco (invencibilidade
-   temporária). Layout de labirinto único e fixo (gerado uma vez, sem
-   geração aleatória em runtime).
+   MINIGAME — ESTOURA OPORTUNIDADE
+   Bubble-shooter original do SEEK Network: atira peças hexagonais
+   coloridas (uma por categoria de produto) contra um aglomerado fixo
+   no topo da tela. 3+ peças da mesma categoria em contato formam um
+   "Negócio Fechado!" e somem (peças que ficam desconectadas do topo
+   caem junto, como bônus). 5 fases fixas com formatos diferentes —
+   sem geração aleatória de fase; só a cor de cada peça sorteada é
+   aleatória, sempre dentre as cores ainda presentes no tabuleiro.
 ══════════════════════════════════════════════════════════════════ */
-const MAZE_COLS=15, MAZE_ROWS=19;
-const MAZE_GRID=[
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,0,0,0,1,0,0,0,0,0,0,0,0,0,1],
-  [1,0,1,0,1,0,1,0,1,1,1,1,1,1,1],
-  [1,0,0,0,1,0,1,0,0,0,0,0,0,0,1],
-  [1,0,1,1,1,1,1,1,1,1,1,1,1,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,1,1,1,1,0,1,1,1,1,1,1,1,0,1],
-  [1,0,1,0,0,0,0,0,0,0,0,0,1,0,1],
-  [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
-  [1,0,0,0,1,0,0,0,0,0,1,0,1,0,1],
-  [1,0,1,1,1,0,1,0,1,1,1,1,1,0,1],
-  [1,0,1,0,0,0,1,0,0,0,0,0,1,0,1],
-  [1,1,1,0,1,1,1,0,1,1,1,0,1,0,1],
-  [1,0,0,0,1,0,0,0,1,0,1,0,1,0,1],
-  [1,0,1,0,1,0,1,1,1,0,1,0,1,0,1],
-  [1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
-  [1,0,1,0,1,1,1,1,1,0,1,0,1,1,1],
-  [1,0,1,0,0,0,0,0,0,0,0,0,0,0,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+const EO_CATEGORIES=[
+  {id:'auto',    name:'Automóveis',         color:'#3A86FF', dark:'#1948A3'},
+  {id:'cons',    name:'Consórcios',         color:'#1D7A3A', dark:'#0F4A22'},
+  {id:'corp',    name:'Empresariais',       color:'#8833BB', dark:'#551F79'},
+  {id:'premiada',name:'Indicação Premiada', color:'#FFD700', dark:'#B8860B', bonus:true},
 ];
-const MG_SEEKER_START={x:1,y:1};
-const MG_DISTRACAO_STARTS=[{x:13,y:1},{x:1,y:17},{x:13,y:17}];
-const MG_FOCO_POS={x:7,y:9};
-const MG_LIVES=3;
-const MG_FRAGMENT_PTS=10;
-const MG_FOCO_PTS=20;
-const MG_COMPLETE_BONUS=100;
-const MG_FOCO_DURATION=7000; // ms de invencibilidade
-const MG_SPEED=4.4; // tiles/seg — Seeker
-const MG_DISTRACAO_SPEED=3.5; // tiles/seg
-const MG_DIRS=[{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
+const EO_LEVELS=[
+  {name:'Triângulo',mask:['111111111','.1111111.','..11111..','...111...','....1....']},
+  {name:'Losango',  mask:['....1....','...111...','..11111..','.1111111.','..11111..','...111...','....1....']},
+  {name:'Coração',  mask:['.11...11.','111.1.111','111111111','.1111111.','..11111..','...111...','....1....']},
+  {name:'Hexágono', mask:['..11111..','.1111111.','111111111','111111111','.1111111.','..11111..']},
+  {name:'Seta',     mask:['....1....','...111...','..11111..','.1111111.','....1....','....1....','....1....']},
+];
+const EO_COLS=9, EO_ROWS=11, EO_DANGER_ROW=9;
 
-function mgIsOpen(col,row){
-  if(row<0||row>=MAZE_ROWS||col<0||col>=MAZE_COLS)return false;
-  return MAZE_GRID[row][col]===0;
+function eoNeighbors(row,col){
+  const odd=row%2===1;
+  return odd
+    ?[[row,col-1],[row,col+1],[row-1,col],[row-1,col+1],[row+1,col],[row+1,col+1]]
+    :[[row,col-1],[row,col+1],[row-1,col-1],[row-1,col],[row+1,col-1],[row+1,col]];
 }
-function mgBuildFragments(){
-  const skip=new Set([`${MG_SEEKER_START.x},${MG_SEEKER_START.y}`,`${MG_FOCO_POS.x},${MG_FOCO_POS.y}`,...MG_DISTRACAO_STARTS.map(d=>`${d.x},${d.y}`)]);
-  const frags=[];
-  for(let row=0;row<MAZE_ROWS;row++)for(let col=0;col<MAZE_COLS;col++){
-    if(MAZE_GRID[row][col]===0&&!skip.has(`${col},${row}`))frags.push({x:col,y:row,collected:false});
-  }
-  return frags;
-}
-function mgTryMove(ent,dt,speed){
-  const EPS=0.04;
-  const rx=Math.round(ent.x),ry=Math.round(ent.y);
-  const atCenter=Math.abs(ent.x-rx)<EPS&&Math.abs(ent.y-ry)<EPS;
-  if(atCenter){
-    ent.x=rx;ent.y=ry;
-    if(ent.nextDir&&mgIsOpen(ent.x+ent.nextDir.x,ent.y+ent.nextDir.y))ent.dir=ent.nextDir;
-    if(ent.dir&&!mgIsOpen(ent.x+ent.dir.x,ent.y+ent.dir.y))ent.dir=null;
-  }
-  if(ent.dir){ent.x+=ent.dir.x*speed*dt;ent.y+=ent.dir.y*speed*dt;}
-}
-function mgChooseChaseDir(ent,targetX,targetY,flee){
-  const cx=Math.round(ent.x),cy=Math.round(ent.y);
-  const reverse=ent.dir?{x:-ent.dir.x,y:-ent.dir.y}:null;
-  let opts=MG_DIRS.filter(d=>mgIsOpen(cx+d.x,cy+d.y));
-  if(opts.length>1&&reverse){
-    const filtered=opts.filter(d=>!(d.x===reverse.x&&d.y===reverse.y));
-    if(filtered.length>0)opts=filtered;
-  }
-  if(opts.length===0)return null;
-  opts.sort((a,b)=>{
-    const da=Math.hypot((cx+a.x)-targetX,(cy+a.y)-targetY);
-    const db=Math.hypot((cx+b.x)-targetX,(cy+b.y)-targetY);
-    return flee?(db-da):(da-db);
+function eoBuildBoard(levelIdx){
+  const{mask}=EO_LEVELS[levelIdx];
+  const board=Array.from({length:EO_ROWS},()=>Array(EO_COLS).fill(null));
+  const normalIds=EO_CATEGORIES.filter(c=>!c.bonus).map(c=>c.id);
+  mask.forEach((rowStr,r)=>{
+    for(let c=0;c<EO_COLS;c++){
+      if(rowStr[c]==='1'){
+        const colorId=Math.random()<0.12?'premiada':normalIds[Math.floor(Math.random()*normalIds.length)];
+        board[r][c]={colorId};
+      }
+    }
   });
-  return opts[0];
+  return board;
 }
-function mgDrawHex(ctx,cx,cy,r,fill,stroke,rot){
-  ctx.save();
-  ctx.translate(cx,cy);
-  if(rot)ctx.rotate(rot);
+function eoFilledCount(board){
+  let n=0;
+  for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++)if(board[r][c])n++;
+  return n;
+}
+function eoDistinctColors(board){
+  const set=new Set();
+  for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++)if(board[r][c])set.add(board[r][c].colorId);
+  return[...set];
+}
+function eoFloodMatch(board,row,col){
+  const target=board[row][col].colorId;
+  const seen=new Set([row+','+col]);
+  const stack=[[row,col]], group=[[row,col]];
+  while(stack.length){
+    const[r,c]=stack.pop();
+    eoNeighbors(r,c).forEach(([nr,nc])=>{
+      if(nr<0||nr>=EO_ROWS||nc<0||nc>=EO_COLS)return;
+      const key=nr+','+nc;
+      if(seen.has(key))return;
+      const cell=board[nr][nc];
+      if(cell&&cell.colorId===target){seen.add(key);stack.push([nr,nc]);group.push([nr,nc]);}
+    });
+  }
+  return group;
+}
+function eoRemoveFloating(board){
+  const reachable=new Set();
+  const stack=[];
+  for(let c=0;c<EO_COLS;c++)if(board[0][c]){reachable.add('0,'+c);stack.push([0,c]);}
+  while(stack.length){
+    const[r,c]=stack.pop();
+    eoNeighbors(r,c).forEach(([nr,nc])=>{
+      if(nr<0||nr>=EO_ROWS||nc<0||nc>=EO_COLS)return;
+      const key=nr+','+nc;
+      if(reachable.has(key))return;
+      if(board[nr][nc]){reachable.add(key);stack.push([nr,nc]);}
+    });
+  }
+  let floatCount=0;
+  for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++){
+    if(board[r][c]&&!reachable.has(r+','+c)){board[r][c]=null;floatCount++;}
+  }
+  return floatCount;
+}
+function eoHexPath(ctx,cx,cy,r){
   ctx.beginPath();
   for(let i=0;i<6;i++){
-    const a=(Math.PI/3)*i-Math.PI/2;
-    const px=Math.cos(a)*r,py=Math.sin(a)*r;
-    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+    const a=Math.PI/180*(60*i-90);
+    const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
   }
   ctx.closePath();
-  ctx.fillStyle=fill;ctx.fill();
-  ctx.lineWidth=2;ctx.strokeStyle=stroke;ctx.stroke();
-  ctx.restore();
 }
-function mgDrawBlob(ctx,cx,cy,r,now,seed,fleeing){
-  ctx.save();
-  ctx.translate(cx,cy);
-  ctx.beginPath();
-  const pts=8;
-  for(let i=0;i<=pts;i++){
-    const a=(Math.PI*2/pts)*i;
-    const wob=1+Math.sin(now/260+seed+i)*0.12;
-    const px=Math.cos(a)*r*wob,py=Math.sin(a)*r*wob;
-    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
-  }
-  ctx.closePath();
-  const grad=ctx.createRadialGradient(0,0,r*0.1,0,0,r);
-  if(fleeing){grad.addColorStop(0,'rgba(150,150,160,.55)');grad.addColorStop(1,'rgba(90,90,100,.4)');}
-  else{grad.addColorStop(0,'#FF8A5C');grad.addColorStop(1,'#C0392B');}
+function eoDrawPiece(ctx,cx,cy,r,cat){
+  eoHexPath(ctx,cx,cy,r*0.94);
+  const grad=ctx.createRadialGradient(cx-r*0.25,cy-r*0.3,r*0.1,cx,cy,r);
+  grad.addColorStop(0,cat.bonus?'#FFF6C0':'rgba(255,255,255,.55)');
+  grad.addColorStop(1,cat.color);
   ctx.fillStyle=grad;ctx.fill();
-  ctx.restore();
+  ctx.lineWidth=Math.max(1.5,r*0.1);ctx.strokeStyle=cat.dark;ctx.stroke();
+  if(cat.bonus){
+    ctx.fillStyle='rgba(255,255,255,.9)';
+    ctx.font=`${Math.round(r*0.85)}px sans-serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('★',cx,cy+r*0.05);
+  }
 }
 
-function SeekerMazeGame({onFinish,onExit}){
+function EstouraOportunidadeGame({levelIdx,onLevelResult,onExit}){
   const canvasRef=React.useRef(null);
-  const mazeImgRef=React.useRef(null);
   const wrapRef=React.useRef(null);
-  const cellPxRef=React.useRef(20);
-  const gRef=React.useRef(null);
+  const layoutRef=React.useRef(null);
+  const boardRef=React.useRef(null);
+  const movingRef=React.useRef(null);
+  const aimRef=React.useRef({angle:0,active:false});
   const rafRef=React.useRef(null);
-  const touchRef=React.useRef(null);
+  const toastRef=React.useRef({text:'',until:0});
+  const currentRef=React.useRef(null);
+  const nextRef=React.useRef(null);
+  const shotsUsedRef=React.useRef(0);
+  const shotBudgetRef=React.useRef(0);
+  const scoreRef=React.useRef(0);
+  const doneRef=React.useRef(false);
   const [score,setScore]=useState(0);
-  const [lives,setLives]=useState(MG_LIVES);
-  const [fragLeft,setFragLeft]=useState(0);
-  const [focoActive,setFocoActive]=useState(false);
-  const [focoPct,setFocoPct]=useState(0);
+  const [shotsLeft,setShotsLeft]=useState(0);
+  const [next,setNext]=useState(null);
+  const level=EO_LEVELS[levelIdx];
+
+  function computeLayout(width){
+    const R=Math.max(12,width/((EO_COLS+1)*1.75));
+    const hexW=R*Math.sqrt(3), rowH=R*1.5;
+    const originX=width/2-((EO_COLS-1)/2)*hexW;
+    const originY=R+10;
+    const gridBottom=originY+(EO_ROWS-1)*rowH+R;
+    const cannonY=gridBottom+R+18;
+    const height=cannonY+R+26;
+    return{R,hexW,rowH,originX,originY,width,height,cannonX:width/2,cannonY};
+  }
+  function cellCenter(L,row,col){
+    return{x:L.originX+col*L.hexW+(row%2?L.hexW/2:0),y:L.originY+row*L.rowH};
+  }
+  function pickColor(){
+    const colors=eoDistinctColors(boardRef.current);
+    return colors.length?colors[Math.floor(Math.random()*colors.length)]:EO_CATEGORIES[0].id;
+  }
 
   useEffect(()=>{
     function resize(){
-      const maxW=Math.min(wrapRef.current?wrapRef.current.clientWidth:340,380);
-      cellPxRef.current=Math.max(14,Math.floor(maxW/MAZE_COLS));
+      const w=Math.min(wrapRef.current?wrapRef.current.clientWidth:340,380);
+      const L=computeLayout(w);
+      layoutRef.current=L;
+      if(canvasRef.current){canvasRef.current.width=L.width;canvasRef.current.height=L.height;}
     }
     resize();
     window.addEventListener('resize',resize);
@@ -5320,253 +5346,297 @@ function SeekerMazeGame({onFinish,onExit}){
   },[]);
 
   useEffect(()=>{
-    const frags=mgBuildFragments();
-    setFragLeft(frags.length);
-    gRef.current={
-      seeker:{x:MG_SEEKER_START.x,y:MG_SEEKER_START.y,dir:null,nextDir:null},
-      distracoes:MG_DISTRACAO_STARTS.map(p=>({x:p.x,y:p.y,dir:null})),
-      fragments:frags,
-      foco:{x:MG_FOCO_POS.x,y:MG_FOCO_POS.y,collected:false},
-      focoUntil:0,
-      score:0,
-      lives:MG_LIVES,
-      status:'playing',
-      lastT:performance.now(),
-      blobSeeds:MG_DISTRACAO_STARTS.map((_,i)=>i*1.7),
-    };
-    const c=document.createElement('canvas');
-    const S0=40;
-    c.width=MAZE_COLS*S0;c.height=MAZE_ROWS*S0;
-    const ctx=c.getContext('2d');
-    ctx.fillStyle='#0B121B';
-    ctx.fillRect(0,0,c.width,c.height);
-    for(let row=0;row<MAZE_ROWS;row++){
-      for(let col=0;col<MAZE_COLS;col++){
-        if(MAZE_GRID[row][col]===1){
-          const gx=col*S0,gy=row*S0;
-          const grad=ctx.createLinearGradient(gx,gy,gx,gy+S0);
-          grad.addColorStop(0,'#33404E');
-          grad.addColorStop(1,'#1B222B');
-          ctx.fillStyle=grad;
-          ctx.fillRect(gx+1,gy+1,S0-2,S0-2);
-          ctx.strokeStyle='rgba(255,255,255,.08)';
-          ctx.lineWidth=1;
-          ctx.strokeRect(gx+1.5,gy+1.5,S0-3,S0-3);
-        }
-      }
+    const board=eoBuildBoard(levelIdx);
+    boardRef.current=board;
+    const filled=eoFilledCount(board);
+    shotBudgetRef.current=filled+Math.ceil(filled*0.5)+6;
+    shotsUsedRef.current=0;
+    scoreRef.current=0;
+    doneRef.current=false;
+    movingRef.current=null;
+    currentRef.current=pickColor();
+    nextRef.current=pickColor();
+    setScore(0);
+    setShotsLeft(shotBudgetRef.current);
+    setNext(nextRef.current);
+
+    let lastT=performance.now();
+    function frame(now){
+      const dt=Math.min(0.05,(now-lastT)/1000);
+      lastT=now;
+      step(dt);
+      draw(now);
+      if(!doneRef.current)rafRef.current=requestAnimationFrame(frame);
     }
-    mazeImgRef.current=c;
-  },[]);
-
-  useEffect(()=>{
-    function onKey(e){
-      const map={ArrowUp:{x:0,y:-1},ArrowDown:{x:0,y:1},ArrowLeft:{x:-1,y:0},ArrowRight:{x:1,y:0}};
-      const d=map[e.key];
-      if(d&&gRef.current){e.preventDefault();gRef.current.seeker.nextDir=d;}
-    }
-    window.addEventListener('keydown',onKey);
-    return()=>window.removeEventListener('keydown',onKey);
-  },[]);
-
-  function setDir(d){if(gRef.current)gRef.current.seeker.nextDir=d;}
-  function onTouchStart(e){touchRef.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}
-  function onTouchEnd(e){
-    const st=touchRef.current;if(!st)return;
-    const t=e.changedTouches[0];
-    const dx=t.clientX-st.x,dy=t.clientY-st.y;
-    touchRef.current=null;
-    if(Math.hypot(dx,dy)<20)return;
-    if(Math.abs(dx)>Math.abs(dy))setDir(dx>0?{x:1,y:0}:{x:-1,y:0});
-    else setDir(dy>0?{x:0,y:1}:{x:0,y:-1});
-  }
-
-  function draw(g,now,focoOn){
-    const canvas=canvasRef.current;
-    if(!canvas)return;
-    const ctx=canvas.getContext('2d');
-    const S=cellPxRef.current;
-    const targetW=MAZE_COLS*S,targetH=MAZE_ROWS*S;
-    if(canvas.width!==targetW||canvas.height!==targetH){canvas.width=targetW;canvas.height=targetH;}
-    if(mazeImgRef.current)ctx.drawImage(mazeImgRef.current,0,0,MAZE_COLS*40,MAZE_ROWS*40,0,0,targetW,targetH);
-
-    g.fragments.forEach(f=>{
-      if(f.collected)return;
-      const cx=(f.x+0.5)*S,cy=(f.y+0.5)*S;
-      const glow=2+Math.sin(now/300)*0.6;
-      ctx.beginPath();
-      ctx.fillStyle='#FFD700';
-      ctx.arc(cx,cy,Math.max(2,S*0.07+glow*0.3),0,Math.PI*2);
-      ctx.fill();
-    });
-
-    if(!g.foco.collected){
-      const cx=(g.foco.x+0.5)*S,cy=(g.foco.y+0.5)*S;
-      const pulse=1+Math.sin(now/200)*0.15;
-      mgDrawHex(ctx,cx,cy,S*0.32*pulse,'#22D3C9','#0E7C74');
-    }
-
-    g.distracoes.forEach((d,i)=>{
-      const cx=(d.x+0.5)*S,cy=(d.y+0.5)*S;
-      mgDrawBlob(ctx,cx,cy,S*0.36,now,g.blobSeeds[i],focoOn);
-    });
-
-    {
-      const cx=(g.seeker.x+0.5)*S,cy=(g.seeker.y+0.5)*S;
-      const rot=(now/900)%(Math.PI*2);
-      const glowColor=focoOn?'#FFD700':'#22AA44';
-      mgDrawHex(ctx,cx,cy,S*0.38,glowColor,'#0E5A22',rot);
-    }
-  }
-
-  useEffect(()=>{
-    function loop(now){
-      const g=gRef.current;
-      if(!g||g.status!=='playing'){rafRef.current=requestAnimationFrame(loop);return;}
-      const dt=Math.min(0.05,(now-g.lastT)/1000);
-      g.lastT=now;
-      const focoOn=now<g.focoUntil;
-      if(focoOn!==g._focoOnPrev){setFocoActive(focoOn);g._focoOnPrev=focoOn;}
-      if(focoOn){
-        g._focoPctTick=(g._focoPctTick||0)+dt;
-        if(g._focoPctTick>0.1){g._focoPctTick=0;setFocoPct(Math.max(0,Math.min(1,(g.focoUntil-now)/MG_FOCO_DURATION)));}
-      }
-
-      mgTryMove(g.seeker,dt,MG_SPEED);
-      g.distracoes.forEach(d=>{
-        const atCenter=Math.abs(d.x-Math.round(d.x))<0.04&&Math.abs(d.y-Math.round(d.y))<0.04;
-        if(atCenter){
-          d.x=Math.round(d.x);d.y=Math.round(d.y);
-          d.dir=mgChooseChaseDir(d,g.seeker.x,g.seeker.y,focoOn);
-        }
-        if(d.dir){d.x+=d.dir.x*MG_DISTRACAO_SPEED*dt;d.y+=d.dir.y*MG_DISTRACAO_SPEED*dt;}
-      });
-
-      let collectedNow=false;
-      g.fragments.forEach(f=>{
-        if(!f.collected&&Math.hypot(f.x-g.seeker.x,f.y-g.seeker.y)<0.4){
-          f.collected=true;collectedNow=true;g.score+=MG_FRAGMENT_PTS;
-        }
-      });
-      if(collectedNow){
-        setScore(g.score);
-        const left=g.fragments.filter(f=>!f.collected).length;
-        setFragLeft(left);
-        if(left===0&&g.status==='playing'){
-          g.score+=MG_COMPLETE_BONUS;
-          g.status='won';
-          setScore(g.score);
-          onFinish({score:g.score,won:true});
-        }
-      }
-
-      if(!g.foco.collected&&Math.hypot(g.foco.x-g.seeker.x,g.foco.y-g.seeker.y)<0.4){
-        g.foco.collected=true;g.score+=MG_FOCO_PTS;g.focoUntil=now+MG_FOCO_DURATION;
-        setScore(g.score);
-      }
-
-      if(g.status==='playing'&&!focoOn){
-        for(const d of g.distracoes){
-          if(Math.hypot(d.x-g.seeker.x,d.y-g.seeker.y)<0.55){
-            g.lives-=1;setLives(g.lives);
-            if(g.lives<=0){
-              g.status='lost';
-              onFinish({score:g.score,won:false});
-            }else{
-              g.seeker.x=MG_SEEKER_START.x;g.seeker.y=MG_SEEKER_START.y;g.seeker.dir=null;g.seeker.nextDir=null;
-              g.distracoes.forEach((dd,i)=>{dd.x=MG_DISTRACAO_STARTS[i].x;dd.y=MG_DISTRACAO_STARTS[i].y;dd.dir=null;});
-            }
-            break;
-          }
-        }
-      }
-
-      draw(g,now,focoOn);
-      rafRef.current=requestAnimationFrame(loop);
-    }
-    rafRef.current=requestAnimationFrame(loop);
+    rafRef.current=requestAnimationFrame(frame);
     return()=>{if(rafRef.current)cancelAnimationFrame(rafRef.current);};
-  },[]);
+  },[levelIdx]);
+
+  function finish(cleared){
+    if(doneRef.current)return;
+    doneRef.current=true;
+    let stars=0;
+    if(cleared){
+      const eff=shotsUsedRef.current/shotBudgetRef.current;
+      stars=eff<=0.6?3:eff<=0.85?2:1;
+    }
+    onLevelResult({cleared,score:scoreRef.current,stars,levelName:level.name});
+  }
+
+  function resolveShot(snapRow,snapCol){
+    const board=boardRef.current;
+    const group=eoFloodMatch(board,snapRow,snapCol);
+    if(group.length>=3){
+      const isBonus=board[snapRow][snapCol].colorId==='premiada';
+      let gained=group.length*10+Math.max(0,group.length-3)*15;
+      if(isBonus)gained*=2;
+      group.forEach(([r,c])=>{board[r][c]=null;});
+      gained+=eoRemoveFloating(board)*20;
+      scoreRef.current+=gained;
+      setScore(scoreRef.current);
+      toastRef.current={text:'Negócio Fechado!',until:performance.now()+900};
+    }
+    if(eoFilledCount(board)===0){finish(true);return;}
+    let danger=false;
+    for(let r=EO_DANGER_ROW;r<EO_ROWS&&!danger;r++){
+      for(let c=0;c<EO_COLS;c++){if(board[r][c]){danger=true;break;}}
+    }
+    if(danger){finish(false);return;}
+    if(shotsUsedRef.current>=shotBudgetRef.current){finish(false);return;}
+    currentRef.current=nextRef.current;
+    nextRef.current=pickColor();
+    setNext(nextRef.current);
+    setShotsLeft(shotBudgetRef.current-shotsUsedRef.current);
+  }
+
+  function step(dt){
+    const m=movingRef.current;
+    if(!m)return;
+    const L=layoutRef.current;
+    m.x+=m.vx*dt;m.y+=m.vy*dt;
+    if(m.x<L.R){m.x=L.R;m.vx=-m.vx;}
+    if(m.x>L.width-L.R){m.x=L.width-L.R;m.vx=-m.vx;}
+    const board=boardRef.current;
+    let hit=null,hitDist=Infinity;
+    for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++){
+      if(!board[r][c])continue;
+      const p=cellCenter(L,r,c);
+      const d=Math.hypot(p.x-m.x,p.y-m.y);
+      if(d<L.R*1.9&&d<hitDist){hit=[r,c];hitDist=d;}
+    }
+    let snapRow=null,snapCol=null;
+    if(hit){
+      let best=null,bestD=Infinity;
+      eoNeighbors(hit[0],hit[1]).forEach(([nr,nc])=>{
+        if(nr<0||nr>=EO_ROWS||nc<0||nc>=EO_COLS||board[nr][nc])return;
+        const p=cellCenter(L,nr,nc);
+        const d=Math.hypot(p.x-m.x,p.y-m.y);
+        if(d<bestD){bestD=d;best=[nr,nc];}
+      });
+      if(best){snapRow=best[0];snapCol=best[1];}
+    }else if(m.y<=L.originY){
+      let best=null,bestD=Infinity;
+      for(let c=0;c<EO_COLS;c++){
+        if(board[0][c])continue;
+        const d=Math.abs(cellCenter(L,0,c).x-m.x);
+        if(d<bestD){bestD=d;best=[0,c];}
+      }
+      if(best){snapRow=best[0];snapCol=best[1];}
+    }
+    if(snapRow==null){
+      if(!hit&&m.y>L.originY)return; // ainda em voo, nada para snapar
+      // fallback de segurança: nenhum vizinho vazio perto o bastante — usa a célula vazia mais próxima do tabuleiro
+      let best=null,bestD=Infinity;
+      for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++){
+        if(board[r][c])continue;
+        const p=cellCenter(L,r,c);
+        const d=Math.hypot(p.x-m.x,p.y-m.y);
+        if(d<bestD){bestD=d;best=[r,c];}
+      }
+      if(!best){movingRef.current=null;return;}
+      snapRow=best[0];snapCol=best[1];
+    }
+    board[snapRow][snapCol]={colorId:m.colorId};
+    shotsUsedRef.current+=1;
+    movingRef.current=null;
+    resolveShot(snapRow,snapCol);
+  }
+
+  function draw(now){
+    const canvas=canvasRef.current,L=layoutRef.current;
+    if(!canvas||!L)return;
+    const ctx=canvas.getContext('2d');
+    ctx.clearRect(0,0,L.width,L.height);
+    const dangerY=L.originY+(EO_DANGER_ROW-0.5)*L.rowH;
+    ctx.setLineDash([6,6]);ctx.strokeStyle='rgba(255,60,60,.35)';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(0,dangerY);ctx.lineTo(L.width,dangerY);ctx.stroke();
+    ctx.setLineDash([]);
+    const board=boardRef.current;
+    for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++){
+      if(!board[r][c])continue;
+      const p=cellCenter(L,r,c);
+      eoDrawPiece(ctx,p.x,p.y,L.R,EO_CATEGORIES.find(x=>x.id===board[r][c].colorId));
+    }
+    const aim=aimRef.current;
+    if(aim.active&&!movingRef.current){
+      let x=L.cannonX,y=L.cannonY,dx=Math.sin(aim.angle),dy=-Math.cos(aim.angle),bounced=false;
+      ctx.setLineDash([5,7]);ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=2;
+      ctx.beginPath();ctx.moveTo(x,y);
+      for(let i=0;i<300;i++){
+        x+=dx*5;y+=dy*5;
+        if(x<=L.R||x>=L.width-L.R){if(bounced)break;dx=-dx;bounced=true;}
+        if(y<=L.originY)break;
+        ctx.lineTo(x,y);
+      }
+      ctx.stroke();ctx.setLineDash([]);
+    }
+    ctx.fillStyle='#111';
+    ctx.beginPath();ctx.arc(L.cannonX,L.cannonY,L.R*1.15,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#FFD700';ctx.lineWidth=2;ctx.stroke();
+    if(currentRef.current)eoDrawPiece(ctx,L.cannonX,L.cannonY,L.R*0.85,EO_CATEGORIES.find(x=>x.id===currentRef.current));
+    if(movingRef.current){
+      const m=movingRef.current;
+      eoDrawPiece(ctx,m.x,m.y,L.R,EO_CATEGORIES.find(x=>x.id===m.colorId));
+    }
+    if(toastRef.current.until>now){
+      const alpha=Math.min(1,(toastRef.current.until-now)/900);
+      ctx.fillStyle=`rgba(255,215,0,${alpha})`;
+      ctx.font='900 16px Inter,sans-serif';ctx.textAlign='center';
+      ctx.fillText(toastRef.current.text,L.width/2,L.height*0.42);
+    }
+  }
+
+  function fire(){
+    if(movingRef.current||doneRef.current)return;
+    const L=layoutRef.current;
+    const angle=Math.max(-1.3,Math.min(1.3,aimRef.current.angle));
+    const speed=620;
+    movingRef.current={x:L.cannonX,y:L.cannonY-L.R*1.2,vx:speed*Math.sin(angle),vy:-speed*Math.cos(angle),colorId:currentRef.current};
+    aimRef.current.active=false;
+  }
+  function updateAim(clientX,clientY){
+    const canvas=canvasRef.current,L=layoutRef.current;
+    if(!canvas||!L)return;
+    const rect=canvas.getBoundingClientRect();
+    const scale=L.width/rect.width;
+    const x=(clientX-rect.left)*scale, y=(clientY-rect.top)*scale;
+    let angle=Math.atan2(x-L.cannonX,L.cannonY-y);
+    angle=Math.max(-1.3,Math.min(1.3,angle));
+    aimRef.current={angle,active:true};
+  }
+  function onMouseMove(e){updateAim(e.clientX,e.clientY);}
+  function onMouseDown(e){updateAim(e.clientX,e.clientY);fire();}
+  function onTouchStart(e){const t=e.touches[0];updateAim(t.clientX,t.clientY);}
+  function onTouchMove(e){e.preventDefault();const t=e.touches[0];updateAim(t.clientX,t.clientY);}
+  function onTouchEnd(e){e.preventDefault();fire();}
 
   return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,width:'100%'}}>
       <div style={{display:'flex',gap:16,fontSize:'.76rem',fontWeight:800,color:'#fff'}}>
-        <span>⭐ {score}</span>
-        <span>💎 {fragLeft}</span>
-        <span>{'❤️'.repeat(lives)}</span>
+        <span>🏆 {score}</span>
+        <span>🎯 {shotsLeft}</span>
+        <span>Fase {levelIdx+1}/{EO_LEVELS.length} · {level.name}</span>
       </div>
-      {focoActive&&<div style={{width:'100%',maxWidth:300,height:6,background:'rgba(255,255,255,.15)',borderRadius:99,overflow:'hidden'}}>
-        <div style={{width:`${Math.round(focoPct*100)}%`,height:'100%',background:'linear-gradient(90deg,#22D3C9,#FFD700)'}}/>
-      </div>}
-      <div ref={wrapRef} style={{width:'100%',maxWidth:380,touchAction:'none'}} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <div ref={wrapRef} style={{width:'100%',maxWidth:380,touchAction:'none'}}
+        onMouseMove={onMouseMove} onMouseDown={onMouseDown}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <canvas ref={canvasRef} style={{width:'100%',display:'block',borderRadius:12,boxShadow:'0 4px 24px rgba(0,0,0,.5)'}}/>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,44px)',gridTemplateRows:'repeat(3,44px)',gap:4}}>
-        <div/><button onClick={()=>setDir({x:0,y:-1})} style={MG_DPAD_BTN}>▲</button><div/>
-        <button onClick={()=>setDir({x:-1,y:0})} style={MG_DPAD_BTN}>◀</button><div/><button onClick={()=>setDir({x:1,y:0})} style={MG_DPAD_BTN}>▶</button>
-        <div/><button onClick={()=>setDir({x:0,y:1})} style={MG_DPAD_BTN}>▼</button><div/>
+      <div style={{display:'flex',alignItems:'center',gap:8,fontSize:'.68rem',color:'rgba(255,255,255,.6)',fontWeight:700}}>
+        <span>Próxima:</span>
+        {next&&<span style={{width:16,height:16,borderRadius:4,background:EO_CATEGORIES.find(x=>x.id===next).color,display:'inline-block'}}/>}
       </div>
       <button className="btn" style={{padding:'8px 20px',fontSize:'.74rem'}} onClick={onExit}>Sair</button>
     </div>
   );
 }
-const MG_DPAD_BTN={borderRadius:10,border:'none',background:'rgba(255,255,255,.14)',color:'#fff',fontSize:'1.1rem',cursor:'pointer'};
 
 function MinigameModal({seekId,jrId,scoreRow,onSaveScore,onClose}){
-  const [phase,setPhase]=useState('intro'); // intro | playing | gameover
-  const [gameKey,setGameKey]=useState(0);
-  const [result,setResult]=useState(null);
+  const [phase,setPhase]=useState('intro'); // intro | playing | levelResult | sessionOver
+  const [levelIdx,setLevelIdx]=useState(0);
+  const [sessionScore,setSessionScore]=useState(0);
+  const [lastResult,setLastResult]=useState(null);
+  const [finalResult,setFinalResult]=useState(null);
   const [saving,setSaving]=useState(false);
   const highScore=scoreRow?scoreRow.highScore:0;
   const totalXp=scoreRow?scoreRow.totalXp:0;
+  const isLastLevel=levelIdx===EO_LEVELS.length-1;
 
-  function startGame(){setGameKey(k=>k+1);setPhase('playing');}
-
-  async function handleFinish({score,won}){
-    const xp=score; // conversão 1 ponto = 1 XP (ver resumo da tarefa)
-    setResult({score,won,xp,isNewHigh:score>highScore});
-    setPhase('gameover');
-    setSaving(true);
-    await onSaveScore(seekId,jrId,score,xp);
-    setSaving(false);
+  function startSession(){setLevelIdx(0);setSessionScore(0);setPhase('playing');}
+  function handleLevelResult(result){
+    setSessionScore(s=>s+result.score);
+    setLastResult(result);
+    setPhase('levelResult');
   }
+  async function finalizeSession(total){
+    setSaving(true);
+    await onSaveScore(seekId,jrId,total,total);
+    setSaving(false);
+    setFinalResult({total,xp:total,isNewHigh:total>highScore});
+    setPhase('sessionOver');
+  }
+  function nextLevel(){setLevelIdx(i=>i+1);setPhase('playing');}
+  function retryLevel(){setPhase('playing');}
 
   return(
-    <div className="spin-overlay" style={{flexDirection:'column',overflowY:'auto',padding:'20px 16px',background:'radial-gradient(ellipse at center,#123236 0%,#0A1A1D 60%,#050D0F 100%)'}} onClick={phase!=='playing'?onClose:undefined}>
+    <div className="spin-overlay" style={{flexDirection:'column',overflowY:'auto',padding:'20px 16px',background:'radial-gradient(ellipse at center,#2A1E00 0%,#140F00 60%,#0A0700 100%)'}} onClick={phase!=='playing'?onClose:undefined}>
       <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:420,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
         <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%'}}>
-          <span style={{fontWeight:900,fontSize:'1rem',color:'#fff'}}>🌀 Labirinto do Seeker</span>
+          <span style={{fontWeight:900,fontSize:'1rem',color:'#fff'}}>🫧 Estoura Oportunidade</span>
           <button className="icon-btn" style={{background:'rgba(255,255,255,.1)'}} onClick={onClose}><IcX s={17} c="#fff"/></button>
         </div>
 
         {phase==='intro'&&(
           <div style={{display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center',padding:'6px 6px 10px'}}>
             <div style={{fontSize:'.82rem',color:'rgba(255,255,255,.75)',lineHeight:1.7}}>
-              Guie o <b style={{color:'#fff'}}>Seeker</b> pelo labirinto, colete todos os <b style={{color:'#FFD700'}}>Fragmentos de Insight</b> e fuja das <b style={{color:'#FF8A5C'}}>Distrações</b>.<br/>
-              Pegue o <b style={{color:'#22D3C9'}}>Foco</b> para ficar invencível por alguns segundos!
+              Mire e atire as peças no aglomerado. Junte <b style={{color:'#fff'}}>3 ou mais</b> da mesma categoria para fechar negócio e estourar as peças.<br/>
+              Fique de olho na <b style={{color:'#FFD700'}}>Indicação Premiada</b> — vale o dobro dos pontos!
             </div>
             <div style={{display:'flex',gap:28}}>
               <div style={{textAlign:'center'}}><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Recorde</div><div style={{fontWeight:900,fontSize:'1.2rem',color:'#fff'}}>{highScore}</div></div>
-              <div style={{textAlign:'center'}}><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>XP Total</div><div style={{fontWeight:900,fontSize:'1.2rem',color:'#22D3C9'}}>{totalXp}</div></div>
+              <div style={{textAlign:'center'}}><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>XP Total</div><div style={{fontWeight:900,fontSize:'1.2rem',color:'#FFD700'}}>{totalXp}</div></div>
             </div>
-            <button className="btn btn-dark btn-full" style={{padding:14}} onClick={startGame}>🎮 Jogar</button>
+            <button className="btn btn-dark btn-full" style={{padding:14}} onClick={startSession}>🎮 Jogar</button>
           </div>
         )}
 
-        {phase==='playing'&&<SeekerMazeGame key={gameKey} onFinish={handleFinish} onExit={onClose}/>}
+        {phase==='playing'&&<EstouraOportunidadeGame key={levelIdx} levelIdx={levelIdx} onLevelResult={handleLevelResult} onExit={onClose}/>}
 
-        {phase==='gameover'&&result&&(
+        {phase==='levelResult'&&lastResult&&(
           <div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center',textAlign:'center',padding:'6px 6px 10px'}}>
-            <div style={{fontSize:'2.6rem'}}>{result.won?'🏆':'💫'}</div>
-            <div style={{fontWeight:900,fontSize:'1.1rem',color:'#fff'}}>{result.won?'Labirinto completo!':'Fim de jogo'}</div>
-            {result.isNewHigh&&<div style={{fontSize:'.74rem',fontWeight:800,color:'#22D3C9'}}>🌟 Novo recorde!</div>}
+            <div style={{fontSize:'2.6rem'}}>{lastResult.cleared?'🏆':'💫'}</div>
+            <div style={{fontWeight:900,fontSize:'1.1rem',color:'#fff'}}>{lastResult.cleared?'Fase Completa!':'Fase não concluída'}</div>
+            {lastResult.cleared&&<div style={{fontSize:'1.6rem'}}>{'⭐'.repeat(lastResult.stars)}{'☆'.repeat(3-lastResult.stars)}</div>}
             <div style={{display:'flex',gap:28,marginTop:4}}>
-              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Pontos</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#fff'}}>{result.score}</div></div>
-              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>XP Ganho</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#22D3C9'}}>+{result.xp}</div></div>
+              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Pontos da Fase</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#fff'}}>{lastResult.score}</div></div>
+              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Total da Sessão</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#FFD700'}}>{sessionScore}</div></div>
+            </div>
+            <div style={{display:'flex',gap:10,width:'100%',marginTop:8}}>
+              {lastResult.cleared&&isLastLevel?(
+                <button className="btn btn-dark btn-full" onClick={()=>finalizeSession(sessionScore)}>Ver Resultado Final</button>
+              ):(<>
+                <button className="btn btn-full" onClick={()=>finalizeSession(sessionScore)}>Encerrar e Salvar</button>
+                {lastResult.cleared
+                  ?<button className="btn btn-dark btn-full" onClick={nextLevel}>Próxima Fase</button>
+                  :<button className="btn btn-dark btn-full" onClick={retryLevel}>🔄 Tentar de Novo</button>}
+              </>)}
+            </div>
+          </div>
+        )}
+
+        {phase==='sessionOver'&&finalResult&&(
+          <div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center',textAlign:'center',padding:'6px 6px 10px'}}>
+            <div style={{fontSize:'2.6rem'}}>🎉</div>
+            <div style={{fontWeight:900,fontSize:'1.1rem',color:'#fff'}}>Sessão Encerrada</div>
+            {finalResult.isNewHigh&&<div style={{fontSize:'.74rem',fontWeight:800,color:'#FFD700'}}>🌟 Novo recorde!</div>}
+            <div style={{display:'flex',gap:28,marginTop:4}}>
+              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Pontos</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#fff'}}>{finalResult.total}</div></div>
+              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>XP Ganho</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#FFD700'}}>+{finalResult.xp}</div></div>
             </div>
             {saving&&<div style={{fontSize:'.7rem',color:'rgba(255,255,255,.6)'}}>Salvando...</div>}
             <div style={{display:'flex',gap:10,width:'100%',marginTop:8}}>
               <button className="btn btn-full" onClick={onClose}>Fechar</button>
-              <button className="btn btn-dark btn-full" onClick={startGame}>🔄 Jogar de novo</button>
+              <button className="btn btn-dark btn-full" onClick={startSession}>🔄 Jogar de novo</button>
             </div>
           </div>
         )}
