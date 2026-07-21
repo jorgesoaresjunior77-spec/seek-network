@@ -18,7 +18,7 @@
 :root{
   --bg:#F2F2F2;--bg-up:#F8F8F8;--black:#111111;--gray:#D0D0D0;--white:#FFFFFF;
   --muted:#888888;--green:#1D7A3A;--red:#C0392B;--yellow:#C47700;
-  --bg-master:#FDF0E0;
+  --bg-master:#E8E9EB;
   --nm-out:7px 7px 18px rgba(0,0,0,0.26),-7px -7px 18px rgba(255,255,255,0.95);
   --nm-in:inset 5px 5px 12px rgba(0,0,0,0.22),inset -5px -5px 12px rgba(255,255,255,0.92);
   --nm-press:inset 4px 4px 10px rgba(0,0,0,0.22),inset -4px -4px 10px rgba(255,255,255,0.88);
@@ -371,14 +371,19 @@ const IcShare=p=><Ic {...p} d={<><circle cx="18" cy="5" r="3"/><circle cx="6" cy
 const IcBell =p=><Ic {...p} d={<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>}/>;
 const IcWA   =({s=20,fill='currentColor',...p})=><svg width={s} height={s} viewBox="0 0 24 24" fill={fill} {...p}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>;
 
-/* ── SEEK NETWORK LOGO — usa as imagens fornecidas ── */
+/* ── SEEK NETWORK LOGO — tipografia, sem imagem ── */
 function SeekNetworkLogo(){
-  return <img src="logo-completo.png" alt="SEEK NETWORK" style={{width:'100%',maxWidth:400,display:'block',margin:'0 auto',mixBlendMode:'multiply'}}/>;
+  return(
+    <div style={{textAlign:'center'}}>
+      <div className="seek-logo">SEEK</div>
+      <div style={{fontSize:'.78rem',fontWeight:700,letterSpacing:'.18em',textTransform:'uppercase',color:'var(--muted)',marginTop:6}}>Indicações Inteligentes</div>
+    </div>
+  );
 }
 function SeekNetworkMark(){
   return(
     <span style={{fontWeight:900,fontSize:'0.85rem',color:'#111111',textShadow:'0 0 4px rgba(255,255,255,0.9),1px 1px 3px rgba(255,255,255,0.8),-1px -1px 3px rgba(255,255,255,0.8)',letterSpacing:'0.03em',textAlign:'center',whiteSpace:'nowrap'}}>
-      SEEK NETWORK
+      SEEK
     </span>
   );
 }
@@ -3588,9 +3593,6 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
     <div style={{'--bg':'var(--bg-master)',background:'var(--bg-master)',minHeight:'100vh',maxWidth:640,margin:'0 auto',position:'relative'}}>
       <TopBar logo="SEEK NETWORK" right={
         <div style={{display:'flex',gap:8,alignItems:'center'}}>
-          <button className="icon-btn" onClick={onRefresh} disabled={refreshing} title="Atualizar dados">
-            <span style={{fontSize:'1rem',display:'inline-block',animation:refreshing?'spin 1s linear infinite':'none'}}>🔄</span>
-          </button>
           <button style={{position:'relative'}} className="icon-btn" onClick={()=>setShowBell(true)}>
             {badge>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{badge}</span>}
             <IcBell s={18} c="var(--muted)"/>
@@ -5799,6 +5801,9 @@ function App(){
       jrIds.length?db.from('chest_rewards').delete().in('jr_id',jrIds):Promise.resolve(),
       db.from('chest_pending').delete().eq('seek_id',midStr),
       jrIds.length?db.from('chest_pending').delete().in('jr_id',jrIds):Promise.resolve(),
+      db.from('level_notifs').delete().eq('member_id',midStr),
+      db.from('minigame_scores').delete().eq('seek_id',midStr),
+      jrIds.length?db.from('minigame_scores').delete().in('jr_id',jrIds):Promise.resolve(),
     ]);
     setMembers(u=>u.filter(m=>!sameId(m.id,mid)));
     setSeekJrs(u=>u.filter(j=>!sameId(j.seekId,mid)));
@@ -5809,6 +5814,8 @@ function App(){
     setPendingSpins(u=>u.filter(s=>!sameId(s.seekId,mid)&&!jrIds.some(jid=>sameId(s.jrId,jid))));
     setChestRewards(u=>u.filter(c=>!sameId(c.seekId,mid)&&!jrIds.some(jid=>sameId(c.jrId,jid))));
     setChestPending(u=>u.filter(c=>!sameId(c.seekId,mid)&&!jrIds.some(jid=>sameId(c.jrId,jid))));
+    setLevelNotifs(u=>u.filter(n=>!sameId(n.memberId,mid)));
+    setMinigameScores(u=>u.filter(s=>!sameId(s.seekId,mid)&&!jrIds.some(jid=>sameId(s.jrId,jid))));
   }
 
   async function deleteSeekJr(jid){
@@ -5821,6 +5828,7 @@ function App(){
       db.from('spin_pending').delete().eq('jr_id',jidStr),
       db.from('chest_rewards').delete().eq('jr_id',jidStr),
       db.from('chest_pending').delete().eq('jr_id',jidStr),
+      db.from('minigame_scores').delete().eq('jr_id',jidStr),
     ]);
     setSeekJrs(u=>u.filter(j=>!sameId(j.id,jid)));
     setJrReferrals(u=>u.filter(r=>!sameId(r.jrId,jid)));
@@ -5829,6 +5837,7 @@ function App(){
     setPendingSpins(u=>u.filter(s=>!sameId(s.jrId,jid)));
     setChestRewards(u=>u.filter(c=>!sameId(c.jrId,jid)));
     setChestPending(u=>u.filter(c=>!sameId(c.jrId,jid)));
+    setMinigameScores(u=>u.filter(s=>!sameId(s.jrId,jid)));
   }
 
   async function addAdm(data){
@@ -5863,6 +5872,17 @@ function App(){
       admMids.length?db.from('members').delete().in('id',admMids.map(Number)):Promise.resolve(),
       db.from('credentials').delete().eq('key',`adm_${admStr}`),
       db.from('adms').delete().eq('id',admId),
+      admMids.length?db.from('spin_rewards').delete().in('seek_id',admMids):Promise.resolve(),
+      admJids.length?db.from('spin_rewards').delete().in('jr_id',admJids):Promise.resolve(),
+      admMids.length?db.from('spin_pending').delete().in('seek_id',admMids):Promise.resolve(),
+      admJids.length?db.from('spin_pending').delete().in('jr_id',admJids):Promise.resolve(),
+      admMids.length?db.from('chest_rewards').delete().in('seek_id',admMids):Promise.resolve(),
+      admJids.length?db.from('chest_rewards').delete().in('jr_id',admJids):Promise.resolve(),
+      admMids.length?db.from('chest_pending').delete().in('seek_id',admMids):Promise.resolve(),
+      admJids.length?db.from('chest_pending').delete().in('jr_id',admJids):Promise.resolve(),
+      admMids.length?db.from('level_notifs').delete().in('member_id',admMids):Promise.resolve(),
+      admMids.length?db.from('minigame_scores').delete().in('seek_id',admMids):Promise.resolve(),
+      admJids.length?db.from('minigame_scores').delete().in('jr_id',admJids):Promise.resolve(),
     ]);
     setAdms(u=>u.filter(a=>!sameId(a.id,admId)));
     setMembers(u=>u.filter(m=>!sameId(m.admId,admId)));
@@ -5870,6 +5890,12 @@ function App(){
     setReferrals(u=>u.filter(r=>!admMids.some(id=>sameId(r.memberId,id))));
     setJrReferrals(u=>u.filter(r=>!admJids.some(id=>sameId(r.jrId,id))));
     setCredentials(u=>{const nc={...u};delete nc[`adm_${admStr}`];admMids.forEach(id=>delete nc[id]);admJids.forEach(jid=>delete nc[`jr_${jid}`]);return nc;});
+    setSpinRewards(u=>u.filter(s=>!admMids.some(id=>sameId(s.seekId,id))&&!admJids.some(jid=>sameId(s.jrId,jid))));
+    setPendingSpins(u=>u.filter(s=>!admMids.some(id=>sameId(s.seekId,id))&&!admJids.some(jid=>sameId(s.jrId,jid))));
+    setChestRewards(u=>u.filter(c=>!admMids.some(id=>sameId(c.seekId,id))&&!admJids.some(jid=>sameId(c.jrId,jid))));
+    setChestPending(u=>u.filter(c=>!admMids.some(id=>sameId(c.seekId,id))&&!admJids.some(jid=>sameId(c.jrId,jid))));
+    setLevelNotifs(u=>u.filter(n=>!admMids.some(id=>sameId(n.memberId,id))));
+    setMinigameScores(u=>u.filter(s=>!admMids.some(id=>sameId(s.seekId,id))&&!admJids.some(jid=>sameId(s.jrId,jid))));
   }
 
   async function updatePin(key,pin){
