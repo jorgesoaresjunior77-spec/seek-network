@@ -8,7 +8,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="icone-app-180.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Oswald:wght@500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -59,7 +59,7 @@ html,body{font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;backgrou
 .icon-btn:active{box-shadow:var(--nm-press);}
 .pill{display:inline-flex;align-items:center;gap:5px;border-radius:50px;padding:5px 12px;font-size:.72rem;font-weight:700;box-shadow:var(--nm-out);cursor:pointer;transition:all var(--t);border:none;background:var(--bg);}
 .pill:active{box-shadow:var(--nm-press);}
-.seek-logo{font-size:3.4rem;font-weight:900;letter-spacing:.12em;color:var(--black);text-shadow:0 1px 0 rgba(255,255,255,.7),2px 4px 8px rgba(0,0,0,.3);line-height:1;}
+.seek-logo{font-family:'Oswald',sans-serif;font-size:3.4rem;font-weight:600;letter-spacing:.05em;color:var(--black);text-shadow:0 3px 14px rgba(0,0,0,.14);line-height:1;}
 .login-inp{width:100%;background:var(--bg);border:none;border-radius:50px;box-shadow:var(--nm-in);padding:15px 26px;font-family:inherit;font-size:.82rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--black);outline:none;text-align:center;transition:box-shadow var(--t);}
 .login-inp::placeholder{color:var(--muted);}
 .login-inp:focus{box-shadow:inset 6px 6px 14px rgba(0,0,0,.2),inset -6px -6px 14px rgba(255,255,255,.9);}
@@ -333,6 +333,51 @@ function maskPhone(raw){
   return`(${d.slice(0,2)})${d.slice(2,7)}-${d.slice(7)}`;
 }
 
+/* Copia texto pro clipboard com fallback pra iOS/Android antigos onde
+   navigator.clipboard não existe ou o contexto não é seguro (http). */
+async function copyToClipboard(text){
+  if(navigator.clipboard&&window.isSecureContext){
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  ta.style.position='fixed';ta.style.opacity='0';ta.style.left='-9999px';
+  document.body.appendChild(ta);
+  ta.focus();ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+}
+
+/* Card discreto de chave Pix — usado no cabeçalho da tela "A Pagar" do
+   Vendedor, pra ele ter a própria chave à mão sem precisar abrir cadastro. */
+function PixKeyCard({pixKey}){
+  const [copied,setCopied]=useState(false);
+  async function handleCopy(){
+    try{
+      await copyToClipboard(pixKey);
+      setCopied(true);
+      setTimeout(()=>setCopied(false),2500);
+    }catch(e){console.error('[PixKeyCard] erro ao copiar:',e);}
+  }
+  return(
+    <div className="nm" style={{padding:'14px 16px'}}>
+      <div className="label" style={{marginBottom:6}}>Chave Pix</div>
+      {pixKey?(
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:10}}>
+          <span style={{fontWeight:700,fontSize:'.86rem',wordBreak:'break-all'}}>{pixKey}</span>
+          <button className="icon-btn" style={{flexShrink:0}} onClick={handleCopy} title="Copiar chave Pix">
+            <IcCopy s={16} c="var(--muted)"/>
+          </button>
+        </div>
+      ):(
+        <div style={{fontSize:'.8rem',color:'var(--muted)',fontWeight:600}}>Nenhuma chave Pix cadastrada.</div>
+      )}
+      {copied&&<div style={{marginTop:8,fontSize:'.72rem',fontWeight:800,color:'var(--green)',display:'flex',alignItems:'center',gap:5}}><IcCheck s={12}/>Chave Pix copiada com sucesso.</div>}
+    </div>
+  );
+}
+
 function calcPoints(total){return Math.floor(total/100000);}
 function getSeekLevel(pts){return SEEK_LEVELS.find(l=>pts>=l.min&&pts<=l.max)||SEEK_LEVELS[0];}
 function getJrLevel(vol){return JR_LEVELS.find(l=>vol>=l.min&&vol<l.max)||JR_LEVELS[0];}
@@ -369,6 +414,7 @@ const IcEyeOff=p=><Ic {...p} d={<><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c
 const IcKey  =p=><Ic {...p} d={<><circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L22 7l-3-3"/></>}/>;
 const IcSrch =p=><Ic {...p} d={<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>}/>;
 const IcPhone=p=><Ic {...p} d={<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>}/>;
+const IcCopy =p=><Ic {...p} d={<><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>}/>;
 const IcShare=p=><Ic {...p} d={<><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></>}/>;
 const IcBell =p=><Ic {...p} d={<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>}/>;
 const IcWA   =({s=20,fill='currentColor',...p})=><svg width={s} height={s} viewBox="0 0 24 24" fill={fill} {...p}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/></svg>;
@@ -376,11 +422,11 @@ const IcWA   =({s=20,fill='currentColor',...p})=><svg width={s} height={s} viewB
 /* ── SEEK NETWORK LOGO — ícone (icone-app.png) + texto ── */
 function SeekNetworkLogo(){
   return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
-      <img src="icone-app.png" alt="" style={{width:82,height:82,objectFit:'contain',display:'block',filter:'drop-shadow(0 0 12px rgba(0,0,0,.16)) drop-shadow(0 6px 14px rgba(0,0,0,.18))'}}/>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
+      <img src="icone-app.png" alt="" style={{width:160,height:160,objectFit:'contain',display:'block',margin:'0 auto',filter:'drop-shadow(0 0 20px rgba(0,0,0,.10)) drop-shadow(0 6px 16px rgba(0,0,0,.12))'}}/>
       <div style={{textAlign:'center'}}>
-        <div className="seek-logo" style={{fontSize:'2.2rem'}}>SEEK</div>
-        <div style={{fontSize:'.78rem',fontWeight:700,letterSpacing:'.18em',textTransform:'uppercase',color:'var(--muted)',marginTop:3}}>INDICAÇÕES INTELIGENTES</div>
+        <div className="seek-logo" style={{fontSize:'2.5rem'}}>SEEK</div>
+        <div style={{fontSize:'.64rem',fontWeight:600,letterSpacing:'.18em',textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>INDICAÇÕES INTELIGENTES</div>
       </div>
     </div>
   );
@@ -4299,12 +4345,13 @@ function LedgerEntries({members,seekJrs,referrals,jrReferrals,spinRewards,chestR
 /* ══════════════════════════════════════════════════════════════════
    LEDGER POR SEEK — tela de A Pagar / Pagas organizados por SEEK/JR
 ══════════════════════════════════════════════════════════════════ */
-function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],challengeConfigs=[],paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear}){
+function LedgerPorSeek({members,seekJrs,referrals,jrReferrals,spinRewards,chestRewards=[],challengeConfigs=[],paid,onBack,onPayAllForSeek,onPayAllForJr,readOnly=false,filterMonth,filterYear,admPixKey}){
   const title=filterMonth?`${MONTHS[filterMonth-1]} — ${paid?'Pagas':'A Pagar'}`:paid?'Comissões Pagas':'A Pagar';
   return(
     <>
       <TopBar title={title} left={<button className="icon-btn" onClick={onBack}><IcLeft s={18}/></button>}/>
       <div className="page">
+        {!paid&&admPixKey!==undefined&&<PixKeyCard pixKey={admPixKey}/>}
         <LedgerEntries members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={paid} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} readOnly={readOnly} filterMonth={filterMonth} filterYear={filterYear}/>
       </div>
     </>
@@ -4510,7 +4557,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} showPaymentReminder={true}/>}
       {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={d=>onAddMember(d,adm.id)} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid} challengeConfigs={challengeConfigs}/>}
-      {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={sm} filterYear={sy}/>}
+      {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={sm} filterYear={sy} admPixKey={adm.pixKey||null}/>}
       {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={true} onBack={()=>setView('dashboard')} filterMonth={sm} filterYear={sy}/>}
       {view==='prevPending'&&<MesAnteriorPanel adm={adm} members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} onBack={()=>setView('dashboard')}/>}
       {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid} challengeConfigs={challengeConfigs}/>;})()}
