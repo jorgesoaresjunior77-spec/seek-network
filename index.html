@@ -59,7 +59,7 @@ html,body{font-family:'Inter',-apple-system,'SF Pro Display',sans-serif;backgrou
 .icon-btn:active{box-shadow:var(--nm-press);}
 .pill{display:inline-flex;align-items:center;gap:5px;border-radius:50px;padding:5px 12px;font-size:.72rem;font-weight:700;box-shadow:var(--nm-out);cursor:pointer;transition:all var(--t);border:none;background:var(--bg);}
 .pill:active{box-shadow:var(--nm-press);}
-.seek-logo{font-family:'Oswald',sans-serif;font-size:3.4rem;font-weight:600;letter-spacing:.05em;color:var(--black);text-shadow:0 3px 14px rgba(0,0,0,.14);line-height:1;}
+.seek-logo{font-family:'Oswald',sans-serif;font-size:3.4rem;font-weight:500;letter-spacing:.04em;color:var(--black);text-shadow:0 4px 18px rgba(0,0,0,.15);line-height:1;}
 .login-inp{width:100%;background:var(--bg);border:none;border-radius:50px;box-shadow:var(--nm-in);padding:15px 26px;font-family:inherit;font-size:.82rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--black);outline:none;text-align:center;transition:box-shadow var(--t);}
 .login-inp::placeholder{color:var(--muted);}
 .login-inp:focus{box-shadow:inset 6px 6px 14px rgba(0,0,0,.2),inset -6px -6px 14px rgba(255,255,255,.9);}
@@ -422,11 +422,11 @@ const IcWA   =({s=20,fill='currentColor',...p})=><svg width={s} height={s} viewB
 /* ── SEEK NETWORK LOGO — ícone (icone-app.png) + texto ── */
 function SeekNetworkLogo(){
   return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:8}}>
-      <img src="icone-app.png" alt="" style={{width:160,height:160,objectFit:'contain',display:'block',margin:'0 auto',filter:'drop-shadow(0 0 20px rgba(0,0,0,.10)) drop-shadow(0 6px 16px rgba(0,0,0,.12))'}}/>
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10}}>
+      <img src="icone-app.png" alt="" style={{width:320,height:320,objectFit:'contain',display:'block',margin:'0 auto',filter:'drop-shadow(0 0 30px rgba(0,0,0,.09)) drop-shadow(0 10px 26px rgba(0,0,0,.12))'}}/>
       <div style={{textAlign:'center'}}>
-        <div className="seek-logo" style={{fontSize:'2.5rem'}}>SEEK</div>
-        <div style={{fontSize:'.64rem',fontWeight:600,letterSpacing:'.18em',textTransform:'uppercase',color:'var(--muted)',marginTop:2}}>INDICAÇÕES INTELIGENTES</div>
+        <div className="seek-logo" style={{fontSize:'3.1rem'}}>SEEK</div>
+        <div style={{fontSize:'.56rem',fontWeight:500,letterSpacing:'.18em',textTransform:'uppercase',color:'var(--muted)',marginTop:3}}>INDICAÇÕES INTELIGENTES</div>
       </div>
     </div>
   );
@@ -701,7 +701,7 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
 
   return(
     <div style={{minHeight:'100vh',background:'var(--bg)',display:'flex',alignItems:'center',justifyContent:'center',padding:'32px 22px'}}>
-      <div style={{width:'100%',maxWidth:480,display:'flex',flexDirection:'column',alignItems:'center',gap:38,marginTop:-60}}>
+      <div style={{width:'100%',maxWidth:480,display:'flex',flexDirection:'column',alignItems:'center',gap:48,marginTop:-60}}>
 
         <SeekNetworkLogo/>
 
@@ -717,7 +717,7 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
             <input className="login-inp" type={showPass?'text':'password'}
               value={pass} onChange={e=>setPass(e.target.value.replace(/\D/g,'').slice(0,4))}
               placeholder="SENHA (4 DÍGITOS)" inputMode="numeric" maxLength={4}
-              style={{paddingRight:52}}/>
+              style={{paddingLeft:52,paddingRight:52}}/>
             <button type="button" onClick={()=>setShowPass(!showPass)}
               style={{position:'absolute',right:18,top:'50%',transform:'translateY(-50%)',
                       background:'none',border:'none',cursor:'pointer',color:'var(--muted)'}}>
@@ -1307,12 +1307,12 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
           </div>
           <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
-        {chestPendente>0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowCofres(true)}>
+        {chestTotalJr>0&&<button className="nm-in" style={{padding:'12px 14px',marginBottom:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowCofres(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{fontSize:'.72rem',fontWeight:800,color:'#B8860B'}}>{'🎁 Cofre Misterioso ▸'}</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{'+ '+fBRL(chestPendente)}</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:chestPendente>0?'var(--red)':'var(--green)'}}>{chestPendente>0?'+ '+fBRL(chestPendente):fBRL(chestTotalJr)}</div>
           </div>
-          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{chestPendente>0?'Pendente · Incluído no total A Receber':'Pago'}</div>
         </button>}
 
         {/* Graduation bar */}
@@ -1576,12 +1576,12 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
           </div>
           <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
         </button>}
-        {chestPendente>0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowCofres(true)}>
+        {chestTotalM>0&&<button className="nm-in" style={{padding:'12px 14px',marginTop:4,width:'100%',textAlign:'left',border:'none',cursor:'pointer',background:'var(--bg)'}} onClick={()=>setShowCofres(true)}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
             <div style={{fontSize:'.72rem',fontWeight:800,color:'#B8860B'}}>{'🎁 Cofre Misterioso ▸'}</div>
-            <div style={{fontWeight:900,fontSize:'.92rem',color:'var(--red)'}}>{'+ '+fBRL(chestPendente)}</div>
+            <div style={{fontWeight:900,fontSize:'.92rem',color:chestPendente>0?'var(--red)':'var(--green)'}}>{chestPendente>0?'+ '+fBRL(chestPendente):fBRL(chestTotalM)}</div>
           </div>
-          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{'Pendente · Incluído no total A Receber'}</div>
+          <div style={{fontSize:'.6rem',color:'var(--muted)',fontWeight:600,marginTop:4}}>{chestPendente>0?'Pendente · Incluído no total A Receber':'Pago'}</div>
         </button>}
       </div>
 
@@ -3786,7 +3786,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
 
       {showBell&&<BellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} adms={adms} onClose={()=>setShowBell(false)} passReqs={passReqs} onMarkRead={onMarkRead}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={true} onAddOffer={onAddOffer} onDeleteOffer={onDeleteOffer}/>}
-      {showExtrato&&<ExtratoModal role="master" data={{adms,members,referrals,jrReferrals,seekJrs,spinRewards}} onClose={()=>setShowExtrato(false)}/>}
+      {showExtrato&&<ExtratoModal role="master" data={{adms,members,referrals,jrReferrals,seekJrs,spinRewards,chestRewards}} onClose={()=>setShowExtrato(false)}/>}
     </div>
   );
 }
@@ -4595,11 +4595,16 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
 
   function buildText(){
     if(role==='master'){
-      const {adms,members,referrals,jrReferrals,seekJrs,spinRewards=[]}=data;
+      const {adms,members,referrals,jrReferrals,seekJrs,spinRewards=[],chestRewards=[]}=data;
       const allRefs=[...referrals,...jrReferrals];
       const totVol=allRefs.reduce((s,r)=>s+r.productValue,0);
       const totCom=allRefs.reduce((s,r)=>s+r.commission,0);
       const pago=allRefs.filter(r=>r.paid).reduce((s,r)=>s+r.commission,0);
+      const spinPaid=spinRewards.filter(s=>s.paid).reduce((s,r)=>s+r.value,0);
+      const spinUnpaid=spinRewards.filter(s=>!s.paid).reduce((s,r)=>s+r.value,0);
+      const chestTotal=chestRewards.reduce((s,c)=>s+c.valor,0);
+      const chestPaid=chestRewards.filter(c=>c.paid).reduce((s,c)=>s+c.valor,0);
+      const chestUnpaid=chestRewards.filter(c=>!c.paid).reduce((s,c)=>s+c.valor,0);
       const admRank=adms.map(adm=>{
         const mids=members.filter(m=>sameId(m.admId,adm.id)).map(m=>String(m.id));
         const jids=seekJrs.filter(j=>mids.some(id=>sameId(j.seekId,id))).map(j=>String(j.id));
@@ -4615,11 +4620,11 @@ function ExtratoModal({role,data,onClose,isAdm,onTogglePaid}){
         `💰 COMISSÕES`,
         `Volume Total: ${fBRL(totVol)}`,
         `Comissão Total: ${fBRL(totCom)}`,
-        `Pago: ${fBRL(pago)}`,
-        (()=>{const{bonusSum,debitSum}=splitSpins(spinRewards);return[
-          bonusSum>0?`🎰 Bônus Roleta Total - ${fBRL(bonusSum)}`:'',
-          debitSum<0?`🎲 Débito Roleta Total - ${fBRL(debitSum)}`:'',
-        ].filter(Boolean).join('\n');})(),``,
+        `Pago: ${fBRL(pago)}  |  A Pagar: ${fBRL(totCom-pago)}`,``,
+        `🎰 ROLETA DA SORTE`,
+        `Pago: ${fBRL(spinPaid)}  |  A Pagar: ${fBRL(spinUnpaid)}`,``,
+        `🎁 COFRE MISTERIOSO`,
+        `Total: ${fBRL(chestTotal)}  |  Pago: ${fBRL(chestPaid)}  |  A Pagar: ${fBRL(chestUnpaid)}`,``,
         `🏆 RANKING VENDEDORES`,
         ...admRank.map((a,i)=>`${i+1}. ${a.name} — ${fBRL(a.vol)} (${a.seeks} SEEK${a.seeks!==1?'s':''})`),
       ].join('\n');
@@ -6087,7 +6092,7 @@ function App(){
     setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:newPaid,status:newStatus,paidAt}:r));
     setSpinRewards(u=>u.map(s=>sameId(s.referralId,rid)?{...s,paid:newPaid}:s));
     const {error:spinErr}=await db.from('spin_rewards').update({paid:newPaid}).eq('referral_id',String(rid));
-    if(spinErr)console.error('[togglePaid] spin_rewards erro:',spinErr);
+    if(spinErr){console.error('[togglePaid] spin_rewards erro:',spinErr);setDbError('Comissão atualizada, mas o bônus de Roleta não pôde ser marcado como pago. Peça ao administrador para rodar migration-spin-rewards-paid.sql no Supabase. Detalhe: '+spinErr.message);}
     let {error}=await db.from('referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
     if(error&&error.code==='42703')({error}=await db.from('referrals').update({paid:newPaid}).eq('id',rid));
     if(error){console.error('[togglePaid]',error);setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:ref.paid,status:ref.status,paidAt:ref.paidAt}:r));}
@@ -6324,7 +6329,11 @@ function App(){
     const newPaid=!spin.paid;
     setSpinRewards(u=>u.map(s=>sameId(s.id,spinId)?{...s,paid:newPaid}:s));
     const{error}=await db.from('spin_rewards').update({paid:newPaid}).eq('id',String(spinId));
-    if(error){console.error('[toggleSpinPaid]',error);setSpinRewards(u=>u.map(s=>sameId(s.id,spinId)?{...s,paid:spin.paid}:s));}
+    if(error){
+      console.error('[toggleSpinPaid]',error);
+      setSpinRewards(u=>u.map(s=>sameId(s.id,spinId)?{...s,paid:spin.paid}:s));
+      setDbError('Não foi possível marcar o bônus de Roleta como pago. Peça ao administrador para rodar migration-spin-rewards-paid.sql no Supabase. Detalhe: '+error.message);
+    }
   }
 
   async function payAllForSeek(seekId){
@@ -6347,6 +6356,9 @@ function App(){
     const {error:chestErr}=await db.from('chest_rewards').update({paid:true}).eq('seek_id',seekIdStr);
     if(chestErr)console.error('[payAllForSeek] ERRO chest_rewards Supabase:',chestErr);
     else console.log('[payAllForSeek] chest_rewards Supabase OK');
+    if(spinErr||chestErr){
+      setDbError('Comissões pagas, mas '+[spinErr&&'a Roleta',chestErr&&'o Cofre'].filter(Boolean).join(' e ')+' não pôde(ram) ser marcado(s) como pago(s). Peça ao administrador para rodar migration-spin-rewards-paid.sql no Supabase.');
+    }
   }
 
   async function payAllForJr(jrId){
@@ -6369,6 +6381,9 @@ function App(){
     const {error:chestErr}=await db.from('chest_rewards').update({paid:true}).eq('jr_id',jrIdStr);
     if(chestErr)console.error('[payAllForJr] ERRO chest_rewards Supabase:',chestErr);
     else console.log('[payAllForJr] chest_rewards Supabase OK');
+    if(spinErr||chestErr){
+      setDbError('Comissões pagas, mas '+[spinErr&&'a Roleta',chestErr&&'o Cofre'].filter(Boolean).join(' e ')+' não pôde(ram) ser marcado(s) como pago(s). Peça ao administrador para rodar migration-spin-rewards-paid.sql no Supabase.');
+    }
   }
 
   async function toggleJrPaid(rid){
