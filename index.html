@@ -942,15 +942,16 @@ function RemuneracaoPanel({isMaster,onBack,isAdm=false}){
             {'Clique no cofre para abri-lo e descobrir seu prêmio surpresa!'}<br/>
             {'O valor ganho é adicionado ao seu saldo a receber.'}
           </div>
-          {isMaster&&<>
-            <div style={{fontWeight:700,fontSize:'.78rem',marginBottom:8,color:'var(--black)'}}>{'Valores e probabilidades:'}</div>
-            {CHEST_PRIZES.map(p=>(
-              <div key={p.value} className="rem-row" style={{padding:'8px 0'}}>
+          <div style={{fontWeight:700,fontSize:'.78rem',marginBottom:8,color:'var(--black)'}}>{isMaster?'Premiação (resultado ponderado por software):':'Prêmios disponíveis:'}</div>
+          {CHEST_PRIZES.map(p=>(
+            <div key={p.value} className="rem-row" style={{padding:'8px 0'}}>
+              <div style={{display:'flex',alignItems:'center',gap:10}}>
+                <div style={{width:16,height:16,borderRadius:'50%',background:'#B8860B',flexShrink:0}}/>
                 <span style={{fontWeight:700,fontSize:'.84rem'}}>{fBRL(p.value)}</span>
-                <span style={{fontWeight:800,fontSize:'.84rem',color:'#B8860B'}}>{(p.prob*100).toFixed(1)}{'% de chance'}</span>
               </div>
-            ))}
-          </>}
+              {isMaster&&<span style={{fontWeight:800,fontSize:'.84rem',color:'#B8860B'}}>{(p.prob*100).toFixed(1)}{'% de chance'}</span>}
+            </div>
+          ))}
           <div style={{marginTop:12,padding:'10px 12px',borderRadius:12,background:'var(--bg)',boxShadow:'var(--nm-in)',fontSize:'.73rem',color:'var(--muted)',lineHeight:1.7}}>
             {'💡 O valor ganho é somado ao total A Receber do SEEK/JR e aparece no extrato. É pago junto com as comissões via PAGAR TUDO.'}
           </div>
