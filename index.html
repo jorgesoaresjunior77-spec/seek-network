@@ -1511,7 +1511,8 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
               ?<div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6,fontWeight:700}}>❌ Não fechou negócio</div>
               :<div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name} · {fBRL(r.productValue)}</div>
             }
-            {r.stageNote&&(r.stage==='standby'||r.status==='nao_fechou')&&<div style={{fontSize:'.7rem',color:'var(--muted)',fontStyle:'italic',marginBottom:6}}>💬 {r.stageNote}</div>}
+            {r.stageNote&&(r.stage==='standby'||r.status==='nao_fechou')&&<div style={{fontSize:'.7rem',color:'var(--muted)',fontStyle:'italic',marginBottom:2}}>💬 {r.stageNote}</div>}
+            {r.stageUpdatedAt&&(r.stage==='standby'||r.status==='nao_fechou')&&<div style={{fontSize:'.62rem',color:'var(--muted)',marginBottom:6}}>Atualizado em {new Date(r.stageUpdatedAt).toLocaleDateString('pt-BR')} às {new Date(r.stageUpdatedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>}
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               {r.status!=='aguardando'&&r.status!=='nao_fechou'&&<div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>}
               <span style={{fontSize:'.7rem',fontWeight:700,padding:'4px 10px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:r.status==='aguardando'?'var(--yellow)':r.status==='nao_fechou'?'var(--muted)':r.status==='pago'||r.paid?'var(--green)':'var(--red)',marginLeft:'auto'}}>
@@ -1808,7 +1809,8 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
               ?<div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6,fontWeight:700}}>❌ Não fechou negócio</div>
               :<div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:6}}>{PRODUCT_TYPES.find(p=>p.id===r.productType)?.icon} {PRODUCT_TYPES.find(p=>p.id===r.productType)?.name} · {fBRL(r.productValue)}</div>
             }
-            {r.stageNote&&(r.stage==='standby'||r.status==='nao_fechou')&&<div style={{fontSize:'.7rem',color:'var(--muted)',fontStyle:'italic',marginBottom:6}}>💬 {r.stageNote}</div>}
+            {r.stageNote&&(r.stage==='standby'||r.status==='nao_fechou')&&<div style={{fontSize:'.7rem',color:'var(--muted)',fontStyle:'italic',marginBottom:2}}>💬 {r.stageNote}</div>}
+            {r.stageUpdatedAt&&(r.stage==='standby'||r.status==='nao_fechou')&&<div style={{fontSize:'.62rem',color:'var(--muted)',marginBottom:6}}>Atualizado em {new Date(r.stageUpdatedAt).toLocaleDateString('pt-BR')} às {new Date(r.stageUpdatedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>}
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
               {r.status!=='aguardando'&&r.status!=='nao_fechou'&&<div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>}
               <span style={{fontSize:'.7rem',fontWeight:700,padding:'4px 10px',borderRadius:50,background:'var(--bg)',boxShadow:'var(--nm-out)',color:r.status==='aguardando'?'var(--yellow)':r.status==='nao_fechou'?'var(--muted)':r.status==='pago'||r.paid?'var(--green)':'var(--red)',marginLeft:'auto'}}>
@@ -2708,6 +2710,7 @@ function ReferralQuickView({r,onClose}){
       <div className="nm-in" style={{padding:'12px 14px'}}>
         <div className="section-title" style={{marginBottom:6}}>Status atual</div>
         <div style={{fontWeight:800,fontSize:'.86rem',color:isLost?'var(--muted)':stageDef.color}}>{isLost?'❌ Não fechou negócio':`${stageDef.icon} ${stageDef.label}`}</div>
+        {r.stageUpdatedAt&&<div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:4}}>Atualizado em {new Date(r.stageUpdatedAt).toLocaleDateString('pt-BR')} às {new Date(r.stageUpdatedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>}
       </div>
       {r.stageNote&&<div className="nm-in" style={{padding:'12px 14px'}}>
         <div className="section-title" style={{marginBottom:6}}>Observação do vendedor</div>
@@ -4379,7 +4382,7 @@ function VendedorNotifScreen({members,referrals,jrReferrals,seekJrs,passReqs,onB
 /* ══════════════════════════════════════════════════════════════════
    VENDEDOR — PAINEL FLUTUANTE DO SINO
 ══════════════════════════════════════════════════════════════════ */
-function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClose,onMarkRead,onMarkSold,onUpdateRef,onTogglePaid,onToggleJrPaid,onCloseNotSold}){
+function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClose,onMarkRead,onMarkSold,onUpdateRef,onTogglePaid,onToggleJrPaid,onCloseNotSold,onUpdateReferralStage}){
   const [editItem,setEditItem]=useState(null);
   const [tab,setTab]=useState('new');
   const allCombined=[
@@ -4399,12 +4402,12 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
   const total=tab==='new'?unread:readCombined.length;
   const shownCombined=tab==='new'?allCombined:readCombined;
 
-  function SaleForm({r,isJr,onCancel,onSave,onNotSold}){
+  function SaleForm({r,isJr,onCancel,onSave,onNotSold,onStandby}){
     const [prodType,setProdType]=useState('auto');
     const [val,setVal]=useState(0);
     const [date,setDate]=useState(todayISO());
     const [obs,setObs]=useState(r.observacoes||'');
-    const [showNotSold,setShowNotSold]=useState(false);
+    const [pickedStage,setPickedStage]=useState(null);
     const commission=val>0?(val*(PRODUCT_TYPES.find(p=>p.id===prodType)||PRODUCT_TYPES[0]).rate):0;
     function submit(e){
       e.preventDefault();if(val<=0)return;
@@ -4412,8 +4415,8 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
       const parts=date.split('-').map(Number);
       onSave({productType:prodType,productValue:val,commission:val*pt.rate,year:parts[0],month:parts[1],day:parts[2],observacoes:obs.trim()?obs.trim().toUpperCase():null});
     }
-    if(showNotSold){
-      return<StageReasonForm def={getStageDef('nao_comprou')} clientName={r.clientName} onCancel={()=>setShowNotSold(false)} onConfirm={extra=>onNotSold(extra)}/>;
+    if(pickedStage){
+      return<StageReasonForm def={getStageDef(pickedStage)} clientName={r.clientName} onCancel={()=>setPickedStage(null)} onConfirm={extra=>pickedStage==='nao_comprou'?onNotSold(extra):onStandby(extra)}/>;
     }
     return<form onSubmit={submit} style={{display:'flex',flexDirection:'column',gap:16}}>
       <div className="nm-in" style={{padding:'12px 14px',marginBottom:4}}>
@@ -4434,7 +4437,10 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
         <button type="button" className="btn btn-full" onClick={onCancel}>Cancelar</button>
         <button type="submit" disabled={val<=0} style={{flex:1,padding:'14px 20px',borderRadius:'var(--rb)',border:'none',cursor:val>0?'pointer':'not-allowed',opacity:val>0?1:0.5,background:val>0?'linear-gradient(145deg,#1D7A3A,#22AA44)':'var(--bg)',color:val>0?'#fff':'var(--muted)',fontFamily:'inherit',fontWeight:900,fontSize:'.84rem',letterSpacing:'.04em',boxShadow:val>0?'4px 4px 14px rgba(29,122,58,.4),-2px -2px 8px rgba(255,255,255,.15)':'var(--nm-out)',transition:'all .3s',display:'flex',flexDirection:'column',alignItems:'center',gap:3}}><span>✅ INDICADO</span><span style={{fontSize:'.6rem',fontWeight:600,letterSpacing:'0',opacity:.85}}>Confirmar indicação como venda</span></button>
       </div>
-      <button type="button" onClick={()=>setShowNotSold(true)} style={{padding:'12px 20px',borderRadius:'var(--rb)',border:'none',cursor:'pointer',background:'var(--bg)',boxShadow:'var(--nm-out)',color:'var(--red)',fontFamily:'inherit',fontWeight:800,fontSize:'.78rem',letterSpacing:'.02em'}}>❌ NÃO FECHOU NEGÓCIO</button>
+      <div style={{display:'flex',gap:12}}>
+        {onStandby&&<button type="button" onClick={()=>setPickedStage('standby')} style={{flex:1,padding:'12px 20px',borderRadius:'var(--rb)',border:'none',cursor:'pointer',background:'var(--bg)',boxShadow:'var(--nm-out)',color:'#B8860B',fontFamily:'inherit',fontWeight:800,fontSize:'.78rem',letterSpacing:'.02em'}}>🕓 STANDBY</button>}
+        <button type="button" onClick={()=>setPickedStage('nao_comprou')} style={{flex:1,padding:'12px 20px',borderRadius:'var(--rb)',border:'none',cursor:'pointer',background:'var(--bg)',boxShadow:'var(--nm-out)',color:'var(--red)',fontFamily:'inherit',fontWeight:800,fontSize:'.78rem',letterSpacing:'.02em'}}>❌ NÃO FECHOU NEGÓCIO</button>
+      </div>
     </form>;
   }
 
@@ -4553,7 +4559,7 @@ function VendedorBellPanel({members,referrals,jrReferrals,seekJrs,passReqs,onClo
         </div>}
         {editItem&&<Sheet title={getStatus(editItem.ref)==='aguardando'?'Confirmar Venda':'Editar Indicação'} onClose={()=>setEditItem(null)}>
           {getStatus(editItem.ref)==='aguardando'
-            ?<SaleForm r={editItem.ref} isJr={editItem.isJr} onCancel={()=>setEditItem(null)} onSave={data=>{setEditItem(null);onMarkSold(editItem.ref.id,data,editItem.isJr);}} onNotSold={extra=>{setEditItem(null);onCloseNotSold(editItem.ref.id,editItem.isJr,extra);}}/>
+            ?<SaleForm r={editItem.ref} isJr={editItem.isJr} onCancel={()=>setEditItem(null)} onSave={data=>{setEditItem(null);onMarkSold(editItem.ref.id,data,editItem.isJr);}} onNotSold={extra=>{setEditItem(null);onCloseNotSold(editItem.ref.id,editItem.isJr,extra);}} onStandby={onUpdateReferralStage?extra=>{setEditItem(null);onUpdateReferralStage(editItem.ref.id,editItem.isJr,'standby',extra);}:null}/>
             :<EditRefForm r={editItem.ref} isJr={editItem.isJr} onCancel={()=>setEditItem(null)} onSave={data=>{setEditItem(null);onUpdateRef(editItem.ref.id,data,editItem.isJr);}}/>
           }
         </Sheet>}
@@ -4937,7 +4943,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {view==='dashboard'&&<div className="page" style={{paddingTop:0,paddingBottom:0}}><CalendarioAniversarios referrals={referrals} jrReferrals={jrReferrals} members={members} seekJrs={seekJrs} autoOpenDay={calAutoDay}/></div>}
 
       {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)} onChallenge={()=>setShowChallenge(true)}/>}
-      {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onMarkSold={onMarkSold} onUpdateRef={updateRef} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} onCloseNotSold={onCloseNotSold}/>}
+      {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onMarkSold={onMarkSold} onUpdateRef={updateRef} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} onCloseNotSold={onCloseNotSold} onUpdateReferralStage={onUpdateReferralStage}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
       {showChallenge&&<ChallengeConfigPanel configs={challengeConfigs} onSave={onSaveChallengeConfig} onPublish={onPublishChallengeCampaign} onClose={()=>setShowChallenge(false)}/>}
       {showPush&&<PushSettingsPanel ownerType="adm" ownerId={adm.id} subscriptions={pushSubscriptions} pushNotifications={pushNotifications} onRegisterDevice={()=>onRegisterPushDevice('adm',adm.id)} onSendTest={()=>onSendTestPush('adm',adm.id,{title:'🔔 Push de Teste',body:'Se você recebeu isso, a arquitetura de push está funcionando!'})} onClose={()=>setShowPush(false)}/>}
