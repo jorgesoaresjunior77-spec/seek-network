@@ -155,11 +155,6 @@ const mTimelineEntry=r=>({id:r.id,referralId:String(r.referral_id),referralType:
 /* Central de Notificações (notifications) — genérica, qualquer módulo pode
    inserir aqui (type/linkType livres, sem CHECK no banco). */
 const mNotification=r=>({id:r.id,ownerType:r.owner_type,ownerId:String(r.owner_id),type:r.type,icon:r.icon||null,color:r.color||null,title:r.title,body:r.body||null,linkType:r.link_type||null,linkId:r.link_id?String(r.link_id):null,read:!!r.read,createdAt:r.created_at});
-/* Push Notifications — arquitetura preparada, envio real ainda não
-   implantado (ver dispatchPush em App). */
-const mPushSubscription=r=>({id:r.id,ownerType:r.owner_type,ownerId:String(r.owner_id),endpoint:r.endpoint,p256dh:r.p256dh,auth:r.auth,userAgent:r.user_agent||null,createdAt:r.created_at});
-const mPushCampaign=r=>({id:r.id,type:r.type,title:r.title,body:r.body||null,target:r.target,status:r.status,createdAt:r.created_at,sentAt:r.sent_at||null});
-const mPushNotification=r=>({id:r.id,campaignId:r.campaign_id?String(r.campaign_id):null,subscriptionId:String(r.subscription_id),title:r.title,body:r.body||null,status:r.status,error:r.error||null,createdAt:r.created_at,sentAt:r.sent_at||null});
 const CHEST_PRIZES=[
   {value:2,  prob:.30},{value:5,  prob:.25},{value:10, prob:.18},
   {value:15, prob:.12},{value:20, prob:.07},{value:25, prob:.04},
@@ -233,21 +228,6 @@ const JR_LEVELS=[
 const JR_GRADUATION=2000000;
 const ADM_PHONE='51996509660';
 const ADM_PIN='0000';
-
-/* ── PUSH NOTIFICATIONS (arquitetura preparada, envio real ainda não
-   implantado — ver dispatchPush() em App) ──
-   Chave PÚBLICA VAPID: é seguro embutir no cliente (é assim que o Web Push
-   funciona — só a chave PRIVADA precisa ficar secreta, guardada só na Edge
-   Function futura). Gerada localmente com `npx web-push generate-vapid-keys`. */
-const VAPID_PUBLIC_KEY='BLClWdC1ftkrynb0ieDgGEqEvGpg0xGo6ZpvlvnCEJoINIMLcHf4iIgrRA5KTXrCFryArqAEAxIB6jL9z_cOM4I';
-function urlBase64ToUint8Array(base64String){
-  const padding='='.repeat((4-base64String.length%4)%4);
-  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
-  const rawData=window.atob(base64);
-  const outputArray=new Uint8Array(rawData.length);
-  for(let i=0;i<rawData.length;++i)outputArray[i]=rawData.charCodeAt(i);
-  return outputArray;
-}
 
 /* ── HELPERS ── */
 function sg(k){try{const r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}
@@ -2722,53 +2702,6 @@ function ReferralQuickView({r,onClose}){
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   PUSH NOTIFICATIONS — arquitetura preparada, envio real ainda não
-   implantado (ver dispatchPush em App). Registra o dispositivo do dono
-   (hoje só usado pelo Vendedor/ADM) e permite disparar um push de teste
-   só pra esse dispositivo — a mesma fila (push_notifications) e as
-   campanhas (push_campaigns) já servem pro Desafio do Mês quando o envio
-   real for ativado pra todos os SEEKs.
-══════════════════════════════════════════════════════════════════ */
-function PushSettingsPanel({ownerType,ownerId,subscriptions,pushNotifications,onRegisterDevice,onSendTest,onClose}){
-  const mySubs=(subscriptions||[]).filter(s=>s.ownerType===ownerType&&sameId(s.ownerId,ownerId));
-  const mySubIds=mySubs.map(s=>String(s.id));
-  const myPushLog=(pushNotifications||[]).filter(p=>mySubIds.includes(p.subscriptionId)).sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
-  const registered=mySubs.length>0;
-  return<Sheet title="📲 Notificações Push" onClose={onClose}>
-    <div style={{display:'flex',flexDirection:'column',gap:16}}>
-      <div className="nm-in" style={{padding:'12px 14px',fontSize:'.72rem',color:'var(--muted)',fontWeight:600,lineHeight:1.5}}>
-        Envio real (que chega mesmo com o app fechado) só é ativado depois que a Edge Function de envio for implantada no Supabase. Por enquanto, este painel já registra o dispositivo e a fila de push — pronto pra quando o envio for ligado.
-      </div>
-      <div className="nm-in" style={{padding:'12px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-        <div>
-          <div className="section-title" style={{marginBottom:2}}>Este dispositivo</div>
-          <div style={{fontSize:'.8rem',fontWeight:700,color:registered?'var(--green)':'var(--muted)'}}>{registered?`✓ Registrado (${mySubs.length})`:'Não registrado'}</div>
-        </div>
-        <button type="button" className="btn" style={{padding:'10px 14px'}} onClick={onRegisterDevice}>{registered?'Registrar novamente':'Registrar'}</button>
-      </div>
-      <button type="button" disabled={!registered} className="btn btn-dark btn-full" style={{padding:14,opacity:registered?1:.5,cursor:registered?'pointer':'not-allowed'}} onClick={onSendTest}>🔔 Enviar Push de Teste</button>
-      {myPushLog.length>0&&<div>
-        <div style={{fontSize:'.68rem',fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Histórico de envios</div>
-        <div className="nm" style={{padding:'0 14px'}}>
-          {myPushLog.map((p,i)=>(
-            <div key={p.id}>
-              <div style={{padding:'11px 0'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                  <span style={{fontWeight:700,fontSize:'.8rem'}}>{p.title}</span>
-                  <span style={{fontSize:'.66rem',fontWeight:800,color:p.status==='sent'?'var(--green)':p.status==='failed'?'var(--red)':'var(--yellow)'}}>{p.status==='sent'?'Enviado':p.status==='failed'?'Falhou':'Pendente'}</span>
-                </div>
-                {p.body&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginTop:3}}>{p.body}</div>}
-              </div>
-              {i<myPushLog.length-1&&<Div/>}
-            </div>
-          ))}
-        </div>
-      </div>}
-    </div>
-  </Sheet>;
-}
-
-/* ══════════════════════════════════════════════════════════════════
    OFFERS PANEL (shared between ADM, SEEK, JR)
 ══════════════════════════════════════════════════════════════════ */
 function OffersPanel({offers,onClose,isAdm,onAddOffer,onDeleteOffer}){
@@ -3685,7 +3618,7 @@ function CalendarioAniversarios({referrals,jrReferrals,members,seekJrs,autoOpenD
 /* ══════════════════════════════════════════════════════════════════
    DESAFIO DO MÊS — configuração (Vendedor) + histórico
 ══════════════════════════════════════════════════════════════════ */
-function ChallengeConfigPanel({configs,onSave,onPublish,onClose}){
+function ChallengeConfigPanel({configs,onSave,onClose}){
   const now=new Date();
   const year=now.getFullYear(),month=now.getMonth()+1;
   const current=getChallengeConfig(configs,year,month);
@@ -3695,7 +3628,6 @@ function ChallengeConfigPanel({configs,onSave,onPublish,onClose}){
   const [pct3,setPct3]=useState(current?current.pct3:10);
   const [active,setActive]=useState(current?current.active:true);
   const [saved,setSaved]=useState(false);
-  const [published,setPublished]=useState(false);
 
   const history=(configs||[])
     .filter(c=>!(c.year===year&&c.month===month))
@@ -3742,15 +3674,6 @@ function ChallengeConfigPanel({configs,onSave,onPublish,onClose}){
 
           <button type="submit" className="btn btn-dark btn-full" style={{padding:14}}>{saved?'✓ Salvo!':'Salvar configuração'}</button>
         </form>
-
-        {onPublish&&<div className="nm-in" style={{padding:'12px 14px',display:'flex',flexDirection:'column',gap:8}}>
-          <div style={{fontSize:'.7rem',color:'var(--muted)',fontWeight:600,lineHeight:1.5}}>
-            Publica esta configuração como uma campanha de push para todos os SEEKs (fica registrada, pronta pra envio real assim que a Edge Function de push for implantada).
-          </div>
-          <button type="button" className="btn btn-full" onClick={()=>{onPublish({targetN:Math.max(1,Math.round(Number(targetN)||1)),pct1:Number(pct1)||0,pct2:Number(pct2)||0,pct3:Number(pct3)||0});setPublished(true);setTimeout(()=>setPublished(false),2200);}}>
-            {published?'✓ Publicado!':'📣 Publicar Desafio do Mês'}
-          </button>
-        </div>}
 
         {history.length>0&&<div>
           <div style={{fontSize:'.68rem',fontWeight:800,letterSpacing:'.06em',textTransform:'uppercase',color:'var(--muted)',marginBottom:8}}>Histórico (somente consulta)</div>
@@ -4873,13 +4796,12 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
 /* ══════════════════════════════════════════════════════════════════
    VENDEDOR PANEL (ADM role — dados filtrados por adm_id)
 ══════════════════════════════════════════════════════════════════ */
-function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onMarkSold,onUpdateJrReferral,onToggleSpinPaid,onPayAllForSeek,onPayAllForJr,challengeConfigs,onSaveChallengeConfig,onCloseNotSold,onUpdateReferralStage,referralTimeline,pushSubscriptions,pushNotifications,onRegisterPushDevice,onSendTestPush,onPublishChallengeCampaign}){
+function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onMarkSold,onUpdateJrReferral,onToggleSpinPaid,onPayAllForSeek,onPayAllForJr,challengeConfigs,onSaveChallengeConfig,onCloseNotSold,onUpdateReferralStage,referralTimeline}){
   const [view,setView]=useState('dashboard');
   const [selMember,setSelMember]=useState(null);
   const [editRefDirect,setEditRefDirect]=useState(null);
   const [showOffers,setShowOffers]=useState(false);
   const [showChallenge,setShowChallenge]=useState(false);
-  const [showPush,setShowPush]=useState(false);
   const [showBell,setShowBell]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
   const now=new Date();
@@ -4909,7 +4831,6 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
               {badge>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{badge}</span>}
               <IcBell s={18} c="var(--muted)"/>
             </button>
-            <button className="icon-btn" style={{fontSize:'.9rem'}} onClick={()=>setShowPush(true)}>📲</button>
             <button className="icon-btn" style={{fontSize:'.9rem'}} onClick={()=>setShowHelp(true)}>❓</button>
             <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
           </div>
@@ -4945,8 +4866,7 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)} onChallenge={()=>setShowChallenge(true)}/>}
       {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onMarkSold={onMarkSold} onUpdateRef={updateRef} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} onCloseNotSold={onCloseNotSold} onUpdateReferralStage={onUpdateReferralStage}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
-      {showChallenge&&<ChallengeConfigPanel configs={challengeConfigs} onSave={onSaveChallengeConfig} onPublish={onPublishChallengeCampaign} onClose={()=>setShowChallenge(false)}/>}
-      {showPush&&<PushSettingsPanel ownerType="adm" ownerId={adm.id} subscriptions={pushSubscriptions} pushNotifications={pushNotifications} onRegisterDevice={()=>onRegisterPushDevice('adm',adm.id)} onSendTest={()=>onSendTestPush('adm',adm.id,{title:'🔔 Push de Teste',body:'Se você recebeu isso, a arquitetura de push está funcionando!'})} onClose={()=>setShowPush(false)}/>}
+      {showChallenge&&<ChallengeConfigPanel configs={challengeConfigs} onSave={onSaveChallengeConfig} onClose={()=>setShowChallenge(false)}/>}
       {showHelp&&<HelpModal role="adm" onClose={()=>setShowHelp(false)}/>}
     </div>
   );
@@ -6206,9 +6126,6 @@ function App(){
   const [challengeConfigs,setChallengeConfigs]=useState([]);
   const [referralTimeline,setReferralTimeline]=useState([]);
   const [notifications,setNotifications]=useState([]);
-  const [pushSubscriptions,setPushSubscriptions]=useState([]);
-  const [pushCampaigns,setPushCampaigns]=useState([]);
-  const [pushNotifications,setPushNotifications]=useState([]);
   const [dbError,setDbError]=useState(null);
 
   useEffect(()=>{
@@ -6236,7 +6153,6 @@ function App(){
         {data:notifRows},{data:offerRows},{data:spinRows},{data:spinPendingRows},
         {data:chestPendingRows},{data:chestRewardRows},{data:mgRows,error:mgErr},
         {data:ccRows,error:ccErr},{data:tlRows,error:tlErr},{data:notifRows2,error:notifErr},
-        {data:pushSubRows,error:pushSubErr},{data:pushCampRows,error:pushCampErr},{data:pushNotifRows,error:pushNotifErr},
       ]=await Promise.all([
         db.from('referrals').select('*'),
         db.from('pass_requests').select('*'),
@@ -6251,19 +6167,10 @@ function App(){
         db.from('monthly_challenge_config').select('*'),
         db.from('referral_timeline').select('*'),
         db.from('notifications').select('*'),
-        db.from('push_subscriptions').select('*'),
-        db.from('push_campaigns').select('*'),
-        db.from('push_notifications').select('*'),
       ]);
       if(mgErr)console.warn('[SEEK boot] tabela minigame_scores indisponível (migration-minigame-scores.sql ainda não executada?):',mgErr.message);
       if(tlErr)console.warn('[SEEK boot] tabela referral_timeline indisponível (migration-notification-center.sql ainda não executada?):',tlErr.message);
       if(notifErr)console.warn('[SEEK boot] tabela notifications indisponível (migration-notification-center.sql ainda não executada?):',notifErr.message);
-      if(pushSubErr)console.warn('[SEEK boot] tabela push_subscriptions indisponível (migration-push-notifications.sql ainda não executada?):',pushSubErr.message);
-      if(pushCampErr)console.warn('[SEEK boot] tabela push_campaigns indisponível (migration-push-notifications.sql ainda não executada?):',pushCampErr.message);
-      if(pushNotifErr)console.warn('[SEEK boot] tabela push_notifications indisponível (migration-push-notifications.sql ainda não executada?):',pushNotifErr.message);
-      setPushSubscriptions((pushSubRows||[]).map(mPushSubscription));
-      setPushCampaigns((pushCampRows||[]).map(mPushCampaign));
-      setPushNotifications((pushNotifRows||[]).map(mPushNotification));
       setReferrals((rRows||[]).map(mRef));
       setPassReqs((reqRows||[]).map(mPassReq));
       setJrReferrals((jrRefRows||[]).map(mJrRef));
@@ -6651,62 +6558,6 @@ function App(){
     if(error)console.error('[markNotificationRead]',error);
   }
 
-  /* ─── PUSH NOTIFICATIONS — arquitetura preparada, envio ainda não ativado ───
-     registerPushDevice/sendTestPush/publishChallengeCampaign já gravam tudo
-     normalmente no Supabase (dispositivo, fila de envio, campanha). O único
-     pedaço que falta é dispatchPush realmente chamar a Edge Function 'send-push'
-     — proposital, para não travar o desenvolvimento até ela ser implantada. */
-
-  async function registerPushDevice(ownerType,ownerId){
-    if(!('serviceWorker'in navigator)||!('PushManager'in window)){
-      setDbError('Este navegador não suporta notificações push.');
-      return;
-    }
-    try{
-      const perm=await Notification.requestPermission();
-      if(perm!=='granted'){setDbError('Permissão de notificação negada.');return;}
-      const reg=await navigator.serviceWorker.register('sw.js');
-      const existing=await reg.pushManager.getSubscription();
-      const sub=existing||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
-      const json=sub.toJSON();
-      const{data,error}=await db.from('push_subscriptions')
-        .upsert({owner_type:ownerType,owner_id:String(ownerId),endpoint:json.endpoint,p256dh:json.keys.p256dh,auth:json.keys.auth,user_agent:navigator.userAgent},{onConflict:'endpoint'})
-        .select().single();
-      if(error){console.error('[registerPushDevice]',error);setDbError('Não foi possível registrar o dispositivo para push (migration-push-notifications.sql pendente?): '+error.message);return;}
-      if(data)setPushSubscriptions(u=>[...u.filter(s=>s.endpoint!==data.endpoint),mPushSubscription(data)]);
-    }catch(err){
-      console.error('[registerPushDevice]',err);
-      setDbError('Não foi possível registrar push: '+err.message);
-    }
-  }
-
-  /* STUB — troque o corpo desta função por
-     `const{error}=await db.functions.invoke('send-push',{body:{...}});`
-     quando a Edge Function estiver implantada. Até lá, ela só documenta onde
-     o envio real vai entrar; o registro em push_notifications/push_campaigns
-     já acontece de qualquer forma (fila pronta pra ser processada depois). */
-  async function dispatchPush(label){
-    console.warn(`[dispatchPush] Edge Function "send-push" ainda não implantada — ${label} ficou registrado como 'pending', não foi enviado de verdade a nenhum dispositivo.`);
-  }
-
-  async function sendTestPush(ownerType,ownerId,{title,body}){
-    const subs=pushSubscriptions.filter(s=>s.ownerType===ownerType&&sameId(s.ownerId,ownerId));
-    if(subs.length===0){setDbError('Nenhum dispositivo registrado para push ainda.');return;}
-    for(const sub of subs){
-      const{data,error}=await db.from('push_notifications').insert({subscription_id:sub.id,campaign_id:null,title,body,status:'pending'}).select().single();
-      if(error){console.error('[sendTestPush]',error);continue;}
-      if(data){setPushNotifications(u=>[...u,mPushNotification(data)]);dispatchPush(`push de teste #${data.id}`);}
-    }
-  }
-
-  async function publishChallengeCampaign(config){
-    const title='🏆 Desafio do Mês';
-    const body=`Meta: ${config.targetN} indicações vendidas. Bônus de ${config.pct1}% / ${config.pct2}% / ${config.pct3}% sobre a comissão!`;
-    const{data,error}=await db.from('push_campaigns').insert({type:'desafio_mes',title,body,target:'all_seeks',status:'queued'}).select().single();
-    if(error){console.error('[publishChallengeCampaign]',error);setDbError('Não foi possível publicar a campanha (migration-push-notifications.sql pendente?): '+error.message);return;}
-    if(data){setPushCampaigns(u=>[...u,mPushCampaign(data)]);dispatchPush(`campanha #${data.id} (${data.type})`);}
-  }
-
   async function updateJrReferral(rid,data){
     setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,...data}:r));
     const upd={client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType,product_value:data.productValue,commission:data.commission,year:data.year,month:data.month,day:data.day,birthday_day:data.birthdayDay??null,birthday_month:data.birthdayMonth??null,birthday_year:data.birthdayYear??null};
@@ -7040,7 +6891,7 @@ function App(){
       const mySeekJrs=seekJrs.filter(j=>myMembers.some(m=>sameId(m.id,j.seekId)));
       const myReferrals=referrals.filter(r=>myMembers.some(m=>sameId(m.id,r.memberId)));
       const myJrReferrals=jrReferrals.filter(r=>mySeekJrs.some(j=>sameId(j.id,r.jrId)));
-      return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral} onToggleSpinPaid={toggleSpinPaid} onPayAllForSeek={payAllForSeek} onPayAllForJr={payAllForJr} challengeConfigs={challengeConfigs} onSaveChallengeConfig={saveChallengeConfig} onCloseNotSold={closeReferralNotSold} onUpdateReferralStage={updateReferralStage} referralTimeline={referralTimeline} pushSubscriptions={pushSubscriptions} pushNotifications={pushNotifications} onRegisterPushDevice={registerPushDevice} onSendTestPush={sendTestPush} onPublishChallengeCampaign={publishChallengeCampaign}/>;
+      return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral} onToggleSpinPaid={toggleSpinPaid} onPayAllForSeek={payAllForSeek} onPayAllForJr={payAllForJr} challengeConfigs={challengeConfigs} onSaveChallengeConfig={saveChallengeConfig} onCloseNotSold={closeReferralNotSold} onUpdateReferralStage={updateReferralStage} referralTimeline={referralTimeline}/>;
     }
     return null;
   }
