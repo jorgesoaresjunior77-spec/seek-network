@@ -136,8 +136,8 @@ const db=window.supabase.createClient(
 );
 /* DB (snake_case) → app (camelCase) row mappers */
 const mMember  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,pixKey:r.pix_key,notes:r.notes,admId:r.adm_id?String(r.adm_id):null});
-const mRef     =r=>({id:r.id,memberId:String(r.member_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null,birthdayDay:r.birthday_day||null,birthdayMonth:r.birthday_month||null,birthdayYear:r.birthday_year||null,closedNoticeRead:r.closed_notice_read!==false,stage:r.stage||'nova',stageNote:r.stage_note||null,stageReason:r.stage_reason||null,stageReasonOther:r.stage_reason_other||null,stageUpdatedAt:r.stage_updated_at||null});
-const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whatsapp:r.whatsapp,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null,birthdayDay:r.birthday_day||null,birthdayMonth:r.birthday_month||null,birthdayYear:r.birthday_year||null,closedNoticeRead:r.closed_notice_read!==false,stage:r.stage||'nova',stageNote:r.stage_note||null,stageReason:r.stage_reason||null,stageReasonOther:r.stage_reason_other||null,stageUpdatedAt:r.stage_updated_at||null});
+const mRef     =r=>({id:r.id,memberId:String(r.member_id),clientName:r.client_name,whatsapp:r.whatsapp,city:r.city||null,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null,birthdayDay:r.birthday_day||null,birthdayMonth:r.birthday_month||null,birthdayYear:r.birthday_year||null,closedNoticeRead:r.closed_notice_read!==false,stage:r.stage||'nova',stageNote:r.stage_note||null,stageReason:r.stage_reason||null,stageReasonOther:r.stage_reason_other||null,stageUpdatedAt:r.stage_updated_at||null});
+const mJrRef   =r=>({id:r.id,jrId:String(r.jr_id),clientName:r.client_name,whatsapp:r.whatsapp,city:r.city||null,productType:r.product_type||'auto',productValue:Number(r.product_value||0),commission:Number(r.commission||0),year:r.year,month:r.month,day:r.day,paid:r.paid,isNew:r.is_new,status:r.status||(r.paid?'pago':(Number(r.product_value||0)>0?'a_pagar':'aguardando')),observacoes:r.observacoes||null,paidAt:r.paid_at||null,createdAt:r.created_at||null,birthdayDay:r.birthday_day||null,birthdayMonth:r.birthday_month||null,birthdayYear:r.birthday_year||null,closedNoticeRead:r.closed_notice_read!==false,stage:r.stage||'nova',stageNote:r.stage_note||null,stageReason:r.stage_reason||null,stageReasonOther:r.stage_reason_other||null,stageUpdatedAt:r.stage_updated_at||null});
 const mSeekJr  =r=>({id:r.id,name:r.name,whatsapp:r.whatsapp,seekId:String(r.seek_id),pin:r.pin,isNew:r.is_new,pixKey:r.pix_key||null});
 const mPassReq =r=>({id:r.id,phone:r.phone,type:r.type,resolved:r.resolved});
 const mNotif   =r=>({id:r.id,memberId:String(r.member_id),levelId:r.level_id,dismissed:r.dismissed});
@@ -147,7 +147,6 @@ const mSpin          =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:
 const mSpinPending   =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,referralId:r.referral_id?String(r.referral_id):null,createdAt:r.created_at});
 const mChestPending  =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,used:r.used||false,createdAt:r.created_at});
 const mChestReward   =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,valor:Number(r.valor),paid:r.paid||false,createdAt:r.created_at});
-const mMinigameScore =r=>({id:r.id,seekId:r.seek_id?String(r.seek_id):null,jrId:r.jr_id?String(r.jr_id):null,highScore:Number(r.high_score)||0,totalXp:Number(r.total_xp)||0,playsCount:Number(r.plays_count)||0});
 const mChallengeConfig=r=>({id:r.id,year:Number(r.year),month:Number(r.month),targetN:Number(r.target_n),pct1:Number(r.pct1),pct2:Number(r.pct2),pct3:Number(r.pct3),active:r.active!==false,createdAt:r.created_at});
 /* Linha do tempo (referral_timeline) — imutável, uma linha por mudança de
    estágio de UMA indicação (member ou jr). */
@@ -155,6 +154,9 @@ const mTimelineEntry=r=>({id:r.id,referralId:String(r.referral_id),referralType:
 /* Central de Notificações (notifications) — genérica, qualquer módulo pode
    inserir aqui (type/linkType livres, sem CHECK no banco). */
 const mNotification=r=>({id:r.id,ownerType:r.owner_type,ownerId:String(r.owner_id),type:r.type,icon:r.icon||null,color:r.color||null,title:r.title,body:r.body||null,linkType:r.link_type||null,linkId:r.link_id?String(r.link_id):null,read:!!r.read,createdAt:r.created_at});
+/* Conversa livre (referral_messages) — várias mensagens por indicação, sem
+   estar presa a mudança de estágio. Nada é apagável. */
+const mReferralMessage=r=>({id:r.id,referralId:String(r.referral_id),referralType:r.referral_type,senderRole:r.sender_role,senderName:r.sender_name||null,body:r.body,createdAt:r.created_at});
 const CHEST_PRIZES=[
   {value:2,  prob:.30},{value:5,  prob:.25},{value:10, prob:.18},
   {value:15, prob:.12},{value:20, prob:.07},{value:25, prob:.04},
@@ -284,6 +286,17 @@ function challengeTierPct(cfg,convertedCount){
 /* 'nao_fechou' é estado terminal: mesmo que productValue/paid mudem depois (edição manual),
    uma indicação encerrada como "não fechou negócio" nunca conta como venda. */
 function isReferralConverted(r){return r.status!=='nao_fechou'&&!!(r.paid||r.status==='a_pagar'||r.productValue>0);}
+/* Resolve o Seek e o Vendedor responsáveis por uma indicação (member ou jr),
+   subindo a cadeia jr→seek pai→vendedor quando necessário. Mesma lógica já
+   usada em RefCard (BellPanel), extraída aqui para reaproveitar em qualquer
+   lugar que precise das mesmas duas informações (ex: Prospecção, mensageria). */
+function resolveReferralOwners(r,isJr,members,seekJrs,adms){
+  const seek=isJr?(seekJrs||[]).find(j=>sameId(j.id,r.jrId)):(members||[]).find(m=>sameId(m.id,r.memberId));
+  const seekParent=isJr&&seek?(members||[]).find(m=>sameId(m.id,seek.seekId)):null;
+  const admMember=isJr?seekParent:seek;
+  const adm=(adms||[]).find(a=>admMember&&sameId(a.id,admMember.admId));
+  return{seek,seekParent,admMember,adm,seekName:seek?seek.name:null,admName:adm?adm.name:null};
+}
 /* As N primeiras indicações do mês de vigência da config (por data de
    criação) — indicações extras além da meta não entram no desafio. */
 function challengeGroup(ownerRefs,cfg){
@@ -584,6 +597,7 @@ function BirthdayInput({day,month,year,onDay,onMonth,onYear}){
 function LeadForm({onCancel,onSave}){
   const [cn,setCn]=useState('');
   const [wa,setWa]=useState('');
+  const [city,setCity]=useState('');
   const [obs,setObs]=useState('');
   const [bdDay,setBdDay]=useState('');
   const [bdMonth,setBdMonth]=useState('');
@@ -592,11 +606,12 @@ function LeadForm({onCancel,onSave}){
     e.preventDefault();if(!cn.trim())return;
     const today=todayISO();
     const parts=today.split('-').map(Number);
-    onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,observacoes:obs.trim()?obs.trim().toUpperCase():null,birthdayDay:bdDay?parseInt(bdDay):null,birthdayMonth:bdMonth?parseInt(bdMonth):null,birthdayYear:bdYear?parseInt(bdYear):null});
+    onSave({clientName:cn.trim().toUpperCase(),whatsapp:wa,city:city.trim()?city.trim().toUpperCase():null,productType:'auto',productValue:0,commission:0,year:parts[0],month:parts[1],day:parts[2],isNew:true,observacoes:obs.trim()?obs.trim().toUpperCase():null,birthdayDay:bdDay?parseInt(bdDay):null,birthdayMonth:bdMonth?parseInt(bdMonth):null,birthdayYear:bdYear?parseInt(bdYear):null});
   }
   return<form onSubmit={save} style={{display:'flex',flexDirection:'column',gap:16}}>
     <Fld label="Nome do Cliente"><input className="inp" value={cn} onChange={e=>setCn(e.target.value.toUpperCase())} placeholder="Nome completo" autoFocus autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
     <Fld label="WhatsApp do Cliente"><PhoneInput value={wa} onChange={setWa}/></Fld>
+    <Fld label="Cidade (opcional)"><input className="inp" value={city} onChange={e=>setCity(e.target.value.toUpperCase())} placeholder="Cidade do cliente" autoCapitalize="characters" style={{textTransform:'uppercase'}}/></Fld>
     <Fld label="🎂 Data de Aniversário (opcional)"><BirthdayInput day={bdDay} month={bdMonth} year={bdYear} onDay={setBdDay} onMonth={setBdMonth} onYear={setBdYear}/></Fld>
     <Fld label="Observações (opcional)"><textarea className="inp" rows={2} value={obs} onChange={e=>setObs(e.target.value.toUpperCase())} placeholder="Informações adicionais para o vendedor..." autoCapitalize="characters" style={{resize:'vertical',textTransform:'uppercase'}}/></Fld>
     <div className="nm-in" style={{padding:'12px 14px',fontSize:'.76rem',color:'var(--muted)',lineHeight:1.6,fontWeight:600}}>
@@ -680,6 +695,45 @@ function ReferralTimelineView({referralId,referralType,timeline}){
         </div>
       </div>;
     })}
+  </div>;
+}
+/* Conversa livre dentro da indicação — genérico, reaproveitado pelo Vendedor
+   (AdmMemberDetail/VendedorBellPanel) e pelo Seek/JR (MemberPanel/
+   SeekJrPanel) via ReferralQuickView. Cada mensagem mostra nome de quem
+   escreveu + data + hora; nada é apagável. `locked` desabilita só o envio de
+   mensagem nova (histórico continua visível) — aplicado quando a indicação
+   já foi vendida ou encerrada como "não fechou negócio". */
+function ReferralChatView({referralId,referralType,messages,onSend,locked,myRole}){
+  const [text,setText]=useState('');
+  const list=(messages||[])
+    .filter(m=>sameId(m.referralId,referralId)&&m.referralType===referralType)
+    .sort((a,b)=>new Date(a.createdAt||0)-new Date(b.createdAt||0));
+  function submit(e){
+    e.preventDefault();
+    const v=text.trim();
+    if(!v)return;
+    onSend(v);
+    setText('');
+  }
+  return<div style={{display:'flex',flexDirection:'column',gap:10}}>
+    {list.length===0?<div style={{fontSize:'.72rem',color:'var(--muted)',padding:'8px 4px'}}>Nenhuma mensagem ainda.</div>:
+      <div style={{display:'flex',flexDirection:'column',gap:8,maxHeight:280,overflowY:'auto',padding:'2px 2px'}}>
+        {list.map(m=>{
+          const dt=m.createdAt?new Date(m.createdAt):null;
+          const mine=m.senderRole===myRole;
+          return<div key={m.id} className="nm-in" style={{padding:'8px 12px',alignSelf:mine?'flex-end':'flex-start',maxWidth:'88%',background:mine?'var(--black)':undefined,color:mine?'#fff':undefined}}>
+            <div style={{fontSize:'.68rem',fontWeight:800,opacity:.8}}>{m.senderName||(m.senderRole==='adm'?'Vendedor':'Seek')}</div>
+            <div style={{fontSize:'.82rem',lineHeight:1.5,marginTop:2,whiteSpace:'pre-wrap'}}>{m.body}</div>
+            <div style={{fontSize:'.6rem',opacity:.65,marginTop:4}}>{dt?`${dt.toLocaleDateString('pt-BR')} ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`:''}</div>
+          </div>;
+        })}
+      </div>}
+    {locked?
+      <div style={{fontSize:'.7rem',color:'var(--muted)',textAlign:'center',padding:'6px 4px'}}>Conversa encerrada — indicação já concluída.</div>:
+      <form onSubmit={submit} style={{display:'flex',gap:8}}>
+        <input className="inp" style={{flex:1}} value={text} onChange={e=>setText(e.target.value)} placeholder="Escreva uma mensagem..."/>
+        <button type="submit" className="btn btn-dark" style={{padding:'0 16px'}} disabled={!text.trim()}>Enviar</button>
+      </form>}
   </div>;
 }
 function LevelBadge({points,small}){
@@ -1308,7 +1362,7 @@ function ChallengeBanner({ownerRefs,configs}){
 /* ══════════════════════════════════════════════════════════════════
    SEEK JR PANEL
 ══════════════════════════════════════════════════════════════════ */
-function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral,onChangePin,offers,spinRewards,chestRewards=[],minigameScores,onSaveMinigameScore,challengeConfigs,notifications,onMarkNotificationRead,referralTimeline=[]}){
+function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral,onChangePin,offers,spinRewards,chestRewards=[],challengeConfigs,notifications,onMarkNotificationRead,referralTimeline=[],referralMessages=[],onSendMessage}){
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -1321,7 +1375,6 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const [showAPagar,setShowAPagar]=useState(false);
   const [showBonusRoleta,setShowBonusRoleta]=useState(false);
   const [showCofres,setShowCofres]=useState(false);
-  const [showMinigame,setShowMinigame]=useState(false);
   const [showClosedNotifs,setShowClosedNotifs]=useState(false);
   const [historyOpenId,setHistoryOpenId]=useState(null);
   const [quickViewRef,setQuickViewRef]=useState(null);
@@ -1340,7 +1393,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
   const unreadNotifs=myNotifs.filter(n=>!n.read).length;
   function openNotification(n){
     onMarkNotificationRead(n.id);
-    if(n.linkType==='referral'){
+    if(n.linkType==='referral_jr'){
       const found=myRefs.find(r=>sameId(r.id,n.linkId));
       if(found)setQuickViewRef(found);
     }
@@ -1382,7 +1435,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
 
   return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
     <TopBar logo="SEEK NETWORK" right={<div style={{display:'flex',gap:6,alignItems:'center'}}><button style={{position:'relative'}} className="icon-btn" onClick={()=>setShowClosedNotifs(true)}>{unreadNotifs>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{unreadNotifs}</span>}<IcBell s={18} c="var(--muted)"/></button><button className="icon-btn" style={{fontSize:'.9rem'}} onClick={()=>setShowHelp(true)}>❓</button><button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button></div>}/>
-    <div style={{padding:'4px 16px 8px',textAlign:'center'}}><span style={{fontSize:'0.55rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>SEEK JR</span></div>
+    <div style={{padding:'4px 16px 8px',textAlign:'center'}}><span style={{fontSize:'0.55rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>SEEK JR</span>{unreadNotifs>0&&<span style={{display:'inline-block',width:7,height:7,borderRadius:99,background:'var(--red)',marginLeft:6,verticalAlign:'middle'}}/>}</div>
     <div className="page" style={{paddingBottom:30}}>
 
       <NotificationBanner notifications={myNotifs} onMarkRead={onMarkNotificationRead} onOpen={openNotification}/>
@@ -1471,13 +1524,12 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowJrOffers(true)}>🏷️ Ofertas</button>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMinigame(true)}>🫧 Minigame</button>
 
       {/* Referrals */}
       <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
       <div className="nm" style={{padding:'6px 16px'}}>
         {sorted.length===0?<Empty text="Nenhuma indicação no período"/>:sorted.map((r,i,arr)=>(
-          <div key={r.id}><div style={{padding:'13px 0'}}>
+          <div key={r.id}><div style={{padding:'13px 0',cursor:'pointer'}} onClick={()=>setQuickViewRef(r)}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
               <div style={{fontWeight:700,fontSize:'.87rem'}}>{r.clientName}</div>
               <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
@@ -1500,7 +1552,7 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
               </span>
             </div>
             <div style={{marginTop:6}}>
-              <button type="button" className="btn" style={{padding:'5px 10px',fontSize:'.68rem',color:'var(--muted)'}} onClick={()=>setHistoryOpenId(historyOpenId===r.id?null:r.id)}>{historyOpenId===r.id?'▴':'▾'} Histórico</button>
+              <button type="button" className="btn" style={{padding:'5px 10px',fontSize:'.68rem',color:'var(--muted)'}} onClick={e=>{e.stopPropagation();setHistoryOpenId(historyOpenId===r.id?null:r.id);}}>{historyOpenId===r.id?'▴':'▾'} Histórico</button>
               {historyOpenId===r.id&&<ReferralTimelineView referralId={r.id} referralType="jr" timeline={referralTimeline}/>}
             </div>
           </div>{i<arr.length-1&&<Div/>}</div>
@@ -1514,7 +1566,6 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.jrId,jr.id)&&!r.paid&&isReferralConverted(r))} spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} challengeItems={challengeItemsUnpaid} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowAPagar(false)}/>}
     {showCofres&&<CofresModal chestItems={myChests} onClose={()=>setShowCofres(false)}/>}
     {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.jrId,jr.id))} allRefs={referrals.filter(r=>sameId(r.jrId,jr.id))} onClose={()=>setShowBonusRoleta(false)}/>}
-    {showMinigame&&<MinigameModal seekId={null} jrId={jr.id} scoreRow={(minigameScores||[]).find(s=>sameId(s.jrId,jr.id))} onSaveScore={onSaveMinigameScore} onClose={()=>setShowMinigame(false)}/>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
       <form onSubmit={changePin} style={{display:'flex',flexDirection:'column',gap:18}}>
         <Fld label="Senha Atual"><PinInput value={oldPin} onChange={setOldPin} autoFocus/></Fld>
@@ -1527,14 +1578,14 @@ function SeekJrPanel({jr,referrals,seekMember,credentials,onLogout,onAddReferral
     {showRegras&&<div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',overflowY:'auto'}}><RemuneracaoPanel onBack={()=>setShowRegras(false)}/></div>}
     {showHelp&&<HelpModal role="jr" onClose={()=>setShowHelp(false)}/>}
     {showClosedNotifs&&<NotificationCenterPanel notifications={myNotifs} onClose={()=>setShowClosedNotifs(false)} onMarkRead={onMarkNotificationRead} onOpen={openNotification}/>}
-    {quickViewRef&&<ReferralQuickView r={quickViewRef} onClose={()=>setQuickViewRef(null)}/>}
+    {quickViewRef&&<ReferralQuickView r={quickViewRef} referralType="jr" onClose={()=>setQuickViewRef(null)} messages={referralMessages} onSendMessage={onSendMessage} myRole="jr"/>}
   </div>;
 }
 
 /* ══════════════════════════════════════════════════════════════════
    SEEK MEMBER PANEL
 ══════════════════════════════════════════════════════════════════ */
-function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,onAddReferral,onAddJr,onChangePin,levelNotifs,onDismissNotif,offers,spinRewards,chestRewards=[],minigameScores,onSaveMinigameScore,challengeConfigs,notifications,onMarkNotificationRead,referralTimeline=[]}){
+function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,onAddReferral,onAddJr,onChangePin,levelNotifs,onDismissNotif,offers,spinRewards,chestRewards=[],challengeConfigs,notifications,onMarkNotificationRead,referralTimeline=[],referralMessages=[],onSendMessage}){
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -1549,7 +1600,6 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const [showAPagar,setShowAPagar]=useState(false);
   const [showBonusRoleta,setShowBonusRoleta]=useState(false);
   const [showCofres,setShowCofres]=useState(false);
-  const [showMinigame,setShowMinigame]=useState(false);
   const [showClosedNotifs,setShowClosedNotifs]=useState(false);
   const [historyOpenId,setHistoryOpenId]=useState(null);
   const [quickViewRef,setQuickViewRef]=useState(null);
@@ -1566,7 +1616,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   const unreadNotifs=myNotifs.filter(n=>!n.read).length;
   function openNotification(n){
     onMarkNotificationRead(n.id);
-    if(n.linkType==='referral'){
+    if(n.linkType==='referral_member'){
       const found=myRefs.find(r=>sameId(r.id,n.linkId));
       if(found)setQuickViewRef(found);
     }
@@ -1650,7 +1700,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
   return<div style={{maxWidth:640,margin:'0 auto',minHeight:'100vh'}}>
     {myLevelNotif&&<LevelUpModal level={getSeekLevel(points)} onClose={()=>onDismissNotif(myLevelNotif.id)}/>}
     <TopBar logo="SEEK NETWORK" right={<div style={{display:'flex',gap:6,alignItems:'center'}}><button style={{position:'relative'}} className="icon-btn" onClick={()=>setShowClosedNotifs(true)}>{unreadNotifs>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{unreadNotifs}</span>}<IcBell s={18} c="var(--muted)"/></button><button className="icon-btn" style={{fontSize:'.9rem'}} onClick={()=>setShowHelp(true)}>❓</button><button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button></div>}/>
-    <div style={{padding:'4px 16px 8px',textAlign:'center'}}><span style={{fontSize:'0.55rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>SEEK</span></div>
+    <div style={{padding:'4px 16px 8px',textAlign:'center'}}><span style={{fontSize:'0.55rem',fontWeight:900,color:'var(--black)',letterSpacing:'.06em'}}>SEEK</span>{unreadNotifs>0&&<span style={{display:'inline-block',width:7,height:7,borderRadius:99,background:'var(--red)',marginLeft:6,verticalAlign:'middle'}}/>}</div>
     <div className="page" style={{paddingBottom:30}}>
 
       <NotificationBanner notifications={myNotifs} onMarkRead={onMarkNotificationRead} onOpen={openNotification}/>
@@ -1743,7 +1793,6 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
         <button className="btn" style={{padding:12}} onClick={()=>setShowRegras(true)}>📋 Regras</button>
       </div>
       <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMemberOffers(true)}>🏷️ Ofertas</button>
-      <button className="btn btn-full" style={{padding:12}} onClick={()=>setShowMinigame(true)}>🫧 Minigame</button>
 
       {/* My JRs */}
       {myJrs.length>0&&<div>
@@ -1775,7 +1824,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
       <div style={{fontSize:'.62rem',fontWeight:800,letterSpacing:'.14em',textTransform:'uppercase',color:'var(--muted)',paddingLeft:4}}>{MONTHS[sm-1]} {sy} — Indicações</div>
       <div className="nm" style={{padding:'6px 16px'}}>
         {sorted.length===0?<Empty text="Nenhuma indicação no período"/>:sorted.map((r,i,arr)=>(
-          <div key={r.id}><div style={{padding:'13px 0'}}>
+          <div key={r.id}><div style={{padding:'13px 0',cursor:'pointer'}} onClick={()=>setQuickViewRef(r)}>
             <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
               <div style={{fontWeight:700,fontSize:'.87rem'}}>{r.clientName}</div>
               <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
@@ -1798,7 +1847,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
               </span>
             </div>
             <div style={{marginTop:6}}>
-              <button type="button" className="btn" style={{padding:'5px 10px',fontSize:'.68rem',color:'var(--muted)'}} onClick={()=>setHistoryOpenId(historyOpenId===r.id?null:r.id)}>{historyOpenId===r.id?'▴':'▾'} Histórico</button>
+              <button type="button" className="btn" style={{padding:'5px 10px',fontSize:'.68rem',color:'var(--muted)'}} onClick={e=>{e.stopPropagation();setHistoryOpenId(historyOpenId===r.id?null:r.id);}}>{historyOpenId===r.id?'▴':'▾'} Histórico</button>
               {historyOpenId===r.id&&<ReferralTimelineView referralId={r.id} referralType="member" timeline={referralTimeline}/>}
             </div>
           </div>{i<arr.length-1&&<Div/>}</div>
@@ -1812,7 +1861,6 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     {showAPagar&&<APagarModal commissions={referrals.filter(r=>sameId(r.memberId,member.id)&&!r.paid&&isReferralConverted(r))} spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id)&&!s.paid)} chestItems={myChests.filter(c=>!c.paid)} challengeItems={challengeItemsUnpaid} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowAPagar(false)}/>}
     {showCofres&&<CofresModal chestItems={myChests} onClose={()=>setShowCofres(false)}/>}
     {showBonusRoleta&&<BonusRoletaModal spinItems={(spinRewards||[]).filter(s=>sameId(s.seekId,member.id))} allRefs={referrals.filter(r=>sameId(r.memberId,member.id))} onClose={()=>setShowBonusRoleta(false)}/>}
-    {showMinigame&&<MinigameModal seekId={member.id} jrId={null} scoreRow={(minigameScores||[]).find(s=>sameId(s.seekId,member.id))} onSaveScore={onSaveMinigameScore} onClose={()=>setShowMinigame(false)}/>}
     {showAdd&&<Sheet title="Encontrei uma Oportunidade" onClose={()=>setShowAdd(false)}><LeadForm onCancel={()=>setShowAdd(false)} onSave={d=>{onAddReferral(d);setShowAdd(false);}}/></Sheet>}
     {showAddJr&&<Sheet title="Cadastrar SEEK JR" onClose={()=>setShowAddJr(false)}><JrForm onClose={()=>setShowAddJr(false)} onSave={onAddJr}/></Sheet>}
     {showPin&&<Sheet title="Alterar Senha" onClose={()=>setShowPin(false)}>
@@ -1827,7 +1875,7 @@ function MemberPanel({member,referrals,jrReferrals,seekJrs,credentials,onLogout,
     {showRegras&&<div style={{position:'fixed',inset:0,zIndex:200,background:'var(--bg)',overflowY:'auto'}}><RemuneracaoPanel onBack={()=>setShowRegras(false)}/></div>}
     {showHelp&&<HelpModal role="member" onClose={()=>setShowHelp(false)}/>}
     {showClosedNotifs&&<NotificationCenterPanel notifications={myNotifs} onClose={()=>setShowClosedNotifs(false)} onMarkRead={onMarkNotificationRead} onOpen={openNotification}/>}
-    {quickViewRef&&<ReferralQuickView r={quickViewRef} onClose={()=>setQuickViewRef(null)}/>}
+    {quickViewRef&&<ReferralQuickView r={quickViewRef} referralType="member" onClose={()=>setQuickViewRef(null)} messages={referralMessages} onSendMessage={onSendMessage} myRole="member"/>}
   </div>;
 }
 
@@ -2158,7 +2206,7 @@ function MemberMesAnteriorModal({member,seekJrs,referrals,jrReferrals,spinReward
   );
 }
 
-function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBack,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onDeleteMember,onUpdateMember,onUpdatePin,spinRewards,chestRewards=[],onToggleSpinPaid,challengeConfigs=[],onMarkSold,onCloseNotSold,onUpdateReferralStage,referralTimeline=[]}){
+function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBack,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onDeleteMember,onUpdateMember,onUpdatePin,spinRewards,chestRewards=[],onToggleSpinPaid,challengeConfigs=[],onMarkSold,onCloseNotSold,onUpdateReferralStage,referralTimeline=[],referralMessages=[],onSendMessage}){
   const [showAdd,setShowAdd]=useState(false);
   const [editRef,setEditRef]=useState(null);
   const [showEdit,setShowEdit]=useState(false);
@@ -2170,6 +2218,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
   const [pinErr,setPinErr]=useState('');
   const [statusRef,setStatusRef]=useState(null);
   const [historyOpenId,setHistoryOpenId]=useState(null);
+  const [quickViewRef,setQuickViewRef]=useState(null);
 
   const myRefs=[...referrals].filter(r=>sameId(r.memberId,member.id)).sort((a,b)=>new Date(b.year,(b.month||1)-1,b.day||1)-new Date(a.year,(a.month||1)-1,a.day||1));
   const totalSales=myRefs.reduce((s,r)=>s+r.productValue,0);
@@ -2347,13 +2396,13 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                 const pt=PRODUCT_TYPES.find(p=>p.id===r.productType)||PRODUCT_TYPES[0];
                 const{bonusSum:linkedBonus,debitSum:linkedDebit}=splitSpins((spinRewards||[]).filter(s=>sameId(s.referralId,r.id)));
                 const linkedChallenge=challengeItems.find(c=>sameId(c.ref.id,r.id));
-                return<div key={r.id}><div style={{padding:'12px 0'}}>
+                return<div key={r.id}><div style={{padding:'12px 0',cursor:'pointer'}} onClick={()=>setQuickViewRef(r)}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
                     <div style={{fontWeight:700,fontSize:'.86rem'}}>{r.clientName}</div>
                     <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
                   </div>
                   {r.whatsapp&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:4,display:'flex',alignItems:'center',gap:6}}>
-                    {phone?<a href={`https://wa.me/${phone}`} target="_blank" style={{display:'flex',alignItems:'center',gap:5,color:'#25D366',textDecoration:'none'}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</a>:<span style={{display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</span>}
+                    {phone?<a href={`https://wa.me/${phone}`} target="_blank" onClick={e=>e.stopPropagation()} style={{display:'flex',alignItems:'center',gap:5,color:'#25D366',textDecoration:'none'}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</a>:<span style={{display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</span>}
                   </div>}
                   <div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:4}}>{pt.icon} {pt.name} · {fBRL(r.productValue)}</div>
                   {linkedBonus>0&&<div style={{fontSize:'.7rem',fontWeight:700,color:'#8833BB',marginBottom:4}}>🎰 Bônus roleta: {fBRL(linkedBonus)}</div>}
@@ -2361,13 +2410,13 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                   {linkedChallenge&&<div style={{fontSize:'.7rem',fontWeight:700,color:'#B8860B',marginBottom:4}}>{`🏆 Bônus Desafio (+${linkedChallenge.pct}%): `}{fBRL(linkedChallenge.amount)}</div>}
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <div style={{fontWeight:800,color:r.paid?'var(--green)':'var(--red)'}}>{fBRL(r.commission)}</div>
-                    <div style={{display:'flex',gap:7,alignItems:'center'}}>
+                    <div style={{display:'flex',gap:7,alignItems:'center'}} onClick={e=>e.stopPropagation()}>
                       {(r.status==='pago'||r.paid)?<span style={{fontSize:'.72rem',fontWeight:800,color:'var(--green)',display:'inline-flex',alignItems:'center',gap:4}}><IcCheck s={11}/>Pago</span>:onTogglePaid?<button className="pill" style={{background:'linear-gradient(135deg,#1D7A3A,#22AA44)',color:'#fff',border:'none',boxShadow:'2px 2px 8px rgba(29,122,58,.3)'}} onClick={()=>onTogglePaid(r.id)}>PAGAR</button>:<span style={{fontSize:'.72rem',fontWeight:800,color:'var(--muted)'}}>A Pagar</span>}
                       {onUpdateReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>}
                       {onDeleteReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>}
                     </div>
                   </div>
-                  {referralTimeline&&<HistoryToggle r={r}/>}
+                  {referralTimeline&&<div onClick={e=>e.stopPropagation()}><HistoryToggle r={r}/></div>}
                 </div>{i<confirmedRefs.length-1&&<Div/>}</div>;
               })}
             </div>
@@ -2379,24 +2428,24 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
                 const digits=(r.whatsapp||'').replace(/\D/g,'');
                 const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
                 const stageDef=getStageDef(r.stage);
-                return<div key={r.id}><div style={{padding:'12px 0'}}>
+                return<div key={r.id}><div style={{padding:'12px 0',cursor:'pointer'}} onClick={()=>setQuickViewRef(r)}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
                     <div style={{fontWeight:700,fontSize:'.86rem'}}>{r.clientName}</div>
                     <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
                   </div>
                   {r.whatsapp&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
-                    {phone?<a href={`https://wa.me/${phone}`} target="_blank" style={{display:'flex',alignItems:'center',gap:5,color:'#25D366',textDecoration:'none'}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</a>:<span style={{display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</span>}
+                    {phone?<a href={`https://wa.me/${phone}`} target="_blank" onClick={e=>e.stopPropagation()} style={{display:'flex',alignItems:'center',gap:5,color:'#25D366',textDecoration:'none'}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</a>:<span style={{display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</span>}
                   </div>}
                   {r.stageNote&&<div style={{fontSize:'.68rem',color:'var(--muted)',fontStyle:'italic',marginBottom:6}}>💬 {r.stageNote}</div>}
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <span style={{fontSize:'.72rem',fontWeight:700,color:stageDef.color,display:'inline-flex',alignItems:'center',gap:4}}>{stageDef.icon} {stageDef.label}</span>
-                    <div style={{display:'flex',gap:7,alignItems:'center'}}>
+                    <div style={{display:'flex',gap:7,alignItems:'center'}} onClick={e=>e.stopPropagation()}>
                       {(onMarkSold||onCloseNotSold||onUpdateReferralStage)&&<button className="btn" style={{padding:'5px 10px',fontSize:'.7rem',fontWeight:800}} onClick={()=>setStatusRef(r)}>🔄 Atualizar Status</button>}
                       {onUpdateReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>setEditRef(r)}><IcEdit s={12}/></button>}
                       {onDeleteReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>}
                     </div>
                   </div>
-                  {referralTimeline&&<HistoryToggle r={r}/>}
+                  {referralTimeline&&<div onClick={e=>e.stopPropagation()}><HistoryToggle r={r}/></div>}
                 </div>{i<pipelineRefs.length-1&&<Div/>}</div>;
               })}
             </div>
@@ -2407,20 +2456,20 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
               {closedRefs.map((r,i)=>{
                 const digits=(r.whatsapp||'').replace(/\D/g,'');
                 const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
-                return<div key={r.id}><div style={{padding:'12px 0',opacity:.7}}>
+                return<div key={r.id}><div style={{padding:'12px 0',opacity:.7,cursor:'pointer'}} onClick={()=>setQuickViewRef(r)}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
                     <div style={{fontWeight:700,fontSize:'.86rem'}}>{r.clientName}</div>
                     <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
                   </div>
                   {r.whatsapp&&<div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:6,display:'flex',alignItems:'center',gap:6}}>
-                    {phone?<a href={`https://wa.me/${phone}`} target="_blank" style={{display:'flex',alignItems:'center',gap:5,color:'#25D366',textDecoration:'none'}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</a>:<span style={{display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</span>}
+                    {phone?<a href={`https://wa.me/${phone}`} target="_blank" onClick={e=>e.stopPropagation()} style={{display:'flex',alignItems:'center',gap:5,color:'#25D366',textDecoration:'none'}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</a>:<span style={{display:'flex',alignItems:'center',gap:5}}><IcWA s={14} fill="#25D366"/>{maskPhone(r.whatsapp)}</span>}
                   </div>}
                   {r.stageNote&&<div style={{fontSize:'.68rem',color:'var(--muted)',fontStyle:'italic',marginBottom:6}}>💬 {r.stageNote}</div>}
                   <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
                     <span style={{fontSize:'.72rem',fontWeight:700,color:'var(--muted)',display:'inline-flex',alignItems:'center',gap:4}}>❌ Não Fechou</span>
-                    {onDeleteReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={()=>{if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>}
+                    {onDeleteReferral&&<button className="icon-btn" style={{width:28,height:28,borderRadius:9}} onClick={e=>{e.stopPropagation();if(window.confirm(`Apagar "${r.clientName}"?`))onDeleteReferral(r.id);}}><IcTrash s={12} c="var(--red)"/></button>}
                   </div>
-                  {referralTimeline&&<HistoryToggle r={r}/>}
+                  {referralTimeline&&<div onClick={e=>e.stopPropagation()}><HistoryToggle r={r}/></div>}
                 </div>{i<closedRefs.length-1&&<Div/>}</div>;
               })}
             </div>
@@ -2453,6 +2502,7 @@ function AdmMemberDetail({member,referrals,jrReferrals,seekJrs,credentials,onBac
     })()}
     {delMember&&<Confirm title="Excluir" msg={`Excluir "${member.name}" e todas as indicações?`} onCancel={()=>setDelMember(false)} onOk={()=>{onDeleteMember(member.id);setDelMember(false);}}/>}
     {statusRef&&(onMarkSold||onCloseNotSold||onUpdateReferralStage)&&<StatusUpdateSheet r={statusRef} onClose={()=>setStatusRef(null)}/>}
+    {quickViewRef&&<ReferralQuickView r={quickViewRef} referralType="member" onClose={()=>setQuickViewRef(null)} messages={referralMessages} onSendMessage={onSendMessage} myRole="adm" onUpdateStatus={(onMarkSold||onCloseNotSold||onUpdateReferralStage)?()=>{setQuickViewRef(null);setStatusRef(quickViewRef);}:undefined}/>}
   </>;
 }
 
@@ -2668,33 +2718,44 @@ function NotificationBanner({notifications,onMarkRead,onOpen}){
   </div>;
 }
 
-/* Sheet aberto ao clicar numa notificação de indicação — visão rápida sem
-   navegar pra fora do painel do Seek/JR (que não tem tela de detalhe).
-   Mostra o essencial pra agir na hora: contato do cliente e status/observação
-   que o vendedor registrou. */
-function ReferralQuickView({r,onClose}){
+/* Tela de detalhe de UMA indicação — nome/telefone/WhatsApp/Ligar no topo,
+   status atual, observação do vendedor e a conversa (item 2 do pedido do
+   usuário). Aberta ao clicar em qualquer card de indicação, em qualquer
+   painel (Seek, SEEK JR, Vendedor) — não só pela notificação. `onUpdateStatus`
+   é opcional (só passado pelo lado do Vendedor, onde StatusUpdateSheet já
+   existe) e abre o fluxo de mudança de estágio por cima desta tela. */
+function ReferralQuickView({r,referralType,onClose,messages=[],onSendMessage,myRole,onUpdateStatus}){
   const digits=(r.whatsapp||'').replace(/\D/g,'');
   const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
   const isLost=r.status==='nao_fechou';
   const stageDef=getStageDef(r.stage);
+  const locked=isReferralConverted(r)||isLost;
   return<Sheet title="Indicação" onClose={onClose}>
     <div style={{display:'flex',flexDirection:'column',gap:14}}>
       <div className="nm-in" style={{padding:'14px 16px'}}>
         <div style={{fontWeight:800,fontSize:'1rem',marginBottom:4}}>{r.clientName}</div>
         {r.whatsapp&&<div style={{fontSize:'.8rem',color:'var(--muted)',fontWeight:600}}>{maskPhone(r.whatsapp)}</div>}
+        {r.city&&<div style={{fontSize:'.72rem',color:'var(--muted)',marginTop:2}}>📍 {r.city}</div>}
       </div>
       {r.whatsapp&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
         <a href={`https://wa.me/${phone}`} target="_blank" className="btn btn-green" style={{padding:12,gap:6,textDecoration:'none'}}><IcWA s={15} fill="#fff"/>WhatsApp</a>
         <a href={`tel:${digits}`} className="btn btn-dark" style={{padding:12,gap:6,textDecoration:'none'}}>📞 Ligar</a>
       </div>}
       <div className="nm-in" style={{padding:'12px 14px'}}>
-        <div className="section-title" style={{marginBottom:6}}>Status atual</div>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+          <div className="section-title">Status atual</div>
+          {onUpdateStatus&&!locked&&<button type="button" className="btn" style={{padding:'4px 10px',fontSize:'.66rem'}} onClick={onUpdateStatus}>🔄 Atualizar</button>}
+        </div>
         <div style={{fontWeight:800,fontSize:'.86rem',color:isLost?'var(--muted)':stageDef.color}}>{isLost?'❌ Não fechou negócio':`${stageDef.icon} ${stageDef.label}`}</div>
         {r.stageUpdatedAt&&<div style={{fontSize:'.68rem',color:'var(--muted)',marginTop:4}}>Atualizado em {new Date(r.stageUpdatedAt).toLocaleDateString('pt-BR')} às {new Date(r.stageUpdatedAt).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>}
       </div>
       {r.stageNote&&<div className="nm-in" style={{padding:'12px 14px'}}>
         <div className="section-title" style={{marginBottom:6}}>Observação do vendedor</div>
         <div style={{fontSize:'.82rem',lineHeight:1.5}}>{r.stageNote}</div>
+      </div>}
+      {onSendMessage&&<div className="nm-in" style={{padding:'12px 14px'}}>
+        <div className="section-title" style={{marginBottom:6}}>Conversa</div>
+        <ReferralChatView referralId={r.id} referralType={referralType} messages={messages} onSend={body=>onSendMessage(r.id,body)} locked={locked} myRole={myRole}/>
       </div>}
       <button type="button" className="btn btn-full" onClick={onClose}>Fechar</button>
     </div>
@@ -3702,7 +3763,7 @@ function ChallengeConfigPanel({configs,onSave,onClose}){
 /* ══════════════════════════════════════════════════════════════════
    ADM TAB BAR
 ══════════════════════════════════════════════════════════════════ */
-function AdmTabBar({view,setView,onOffers,onChallenge}){
+function AdmTabBar({view,setView,onOffers,onChallenge,dot}){
   const tabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'members',l:'SEEK',I:IcUsers},{id:'remuneracao',l:'Regras',I:IcBook}];
   const active=view==='memberDetail'?'members':['pending','paid','prevPending'].includes(view)?'dashboard':view;
   return(
@@ -3712,6 +3773,7 @@ function AdmTabBar({view,setView,onOffers,onChallenge}){
           <button key={id} className={`tab${active===id?' on':''}`} onClick={()=>setView(id)}>
             <div style={{position:'relative'}}>
               <I s={20} c={active===id?'var(--black)':'var(--muted)'}/>
+              {id==='members'&&dot&&<span style={{position:'absolute',top:-2,right:-4,width:8,height:8,borderRadius:99,background:'var(--red)'}}/>}
             </div>
             <span>{l}</span>
           </button>
@@ -3976,6 +4038,80 @@ function MasterVendedores({adms,members,referrals,jrReferrals,seekJrs,credential
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   PROSPECÇÃO (MASTER) — banco permanente de clientes indicados
+   Combina referrals+jr_referrals sem nenhum filtro por status/venda; nada é
+   removido automaticamente daqui (só se a indicação for excluída em outro
+   lugar do app, ação explícita do Vendedor). Somente leitura, mesmo padrão
+   já aplicado ao resto das telas de indicação vistas pelo MASTER.
+══════════════════════════════════════════════════════════════════ */
+function MasterProspeccao({members,seekJrs,adms,referrals,jrReferrals}){
+  const [search,setSearch]=useState('');
+  const rows=[
+    ...referrals.map(r=>({...r,_isJr:false})),
+    ...jrReferrals.map(r=>({...r,_isJr:true})),
+  ].sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0));
+  const enriched=rows.map(r=>{
+    const{seekName,admName}=resolveReferralOwners(r,r._isJr,members,seekJrs,adms);
+    return{...r,seekName,admName};
+  });
+  const q=search.trim().toLowerCase();
+  const filtered=q?enriched.filter(r=>
+    (r.clientName||'').toLowerCase().includes(q)||
+    (r.seekName||'').toLowerCase().includes(q)||
+    (r.admName||'').toLowerCase().includes(q)||
+    (r.city||'').toLowerCase().includes(q)
+  ):enriched;
+
+  function shareRow(r){
+    const msg=encodeURIComponent(`Cliente: ${r.clientName}\nTelefone: ${r.whatsapp?maskPhone(r.whatsapp):'-'}\n${r.city?`Cidade: ${r.city}\n`:''}Seek responsável: ${r.seekName||'-'}\nVendedor responsável: ${r.admName||'-'}\nStatus: ${r.status==='nao_fechou'?'Não fechou negócio':getStageDef(r.stage).label}\nData da indicação: ${fDate(r)}`);
+    window.open(`https://wa.me/?text=${msg}`,'_blank');
+  }
+  function printRow(r){
+    const text=`PROSPECÇÃO — ${r.clientName}\n\nTelefone: ${r.whatsapp?maskPhone(r.whatsapp):'-'}\n${r.city?`Cidade: ${r.city}\n`:''}Seek responsável: ${r.seekName||'-'}\nVendedor responsável: ${r.admName||'-'}\nStatus atual: ${r.status==='nao_fechou'?'Não fechou negócio':getStageDef(r.stage).label}\nData da indicação: ${fDate(r)}`;
+    const div=document.createElement('div');div.className='print-only';
+    div.style.cssText='font-family:monospace;white-space:pre-wrap;font-size:13px;padding:28px;color:#111;line-height:1.8;';
+    div.textContent=text;document.body.appendChild(div);window.print();document.body.removeChild(div);
+  }
+
+  return<>
+    <TopBar title="Prospecção"/>
+    <div className="page" style={{paddingBottom:110}}>
+      <div style={{position:'relative'}}>
+        <span style={{position:'absolute',left:14,top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}><IcSrch s={16}/></span>
+        <input className="inp" style={{paddingLeft:42,textTransform:'uppercase'}} placeholder="Buscar cliente, Seek, vendedor ou cidade" value={search} onChange={e=>setSearch(e.target.value.toUpperCase())} autoCapitalize="characters"/>
+      </div>
+      {filtered.length===0?<Empty text="Nenhum cliente indicado ainda"/>:
+        <div className="nm" style={{padding:'4px 16px',marginTop:12}}>
+          {filtered.map((r,i)=>{
+            const digits=(r.whatsapp||'').replace(/\D/g,'');
+            const phone=digits?(digits.startsWith('55')&&digits.length>=12?digits:`55${digits}`):'';
+            const isLost=r.status==='nao_fechou';
+            const stageDef=getStageDef(r.stage);
+            return<div key={`${r._isJr?'jr':'m'}_${r.id}`}><div style={{padding:'12px 0'}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:4}}>
+                <div style={{fontWeight:700,fontSize:'.86rem'}}>{r.clientName}</div>
+                <div style={{fontSize:'.68rem',color:'var(--muted)',fontWeight:600}}>{fDate(r)}</div>
+              </div>
+              {r.whatsapp&&<div style={{fontSize:'.72rem',color:'var(--muted)',marginBottom:2}}>{maskPhone(r.whatsapp)}</div>}
+              <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:2}}>📍 {r.city||'—'}</div>
+              <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:2}}>Seek: {r.seekName||'—'}{r._isJr?' (JR)':''}</div>
+              <div style={{fontSize:'.7rem',color:'var(--muted)',marginBottom:6}}>Vendedor: {r.admName||'—'}</div>
+              <div style={{fontSize:'.72rem',fontWeight:700,marginBottom:8,color:isLost?'var(--muted)':stageDef.color}}>
+                {isLost?'❌ Não fechou negócio':`${stageDef.icon} ${stageDef.label}`}
+              </div>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                {phone&&<a href={`https://wa.me/${phone}`} target="_blank" className="btn" style={{padding:'6px 10px',fontSize:'.68rem',gap:5,textDecoration:'none',color:'#25D366'}}><IcWA s={13} fill="#25D366"/>WhatsApp</a>}
+                <button type="button" className="btn" style={{padding:'6px 10px',fontSize:'.68rem',gap:5}} onClick={()=>shareRow(r)}><IcShare s={13}/>Compartilhar</button>
+                <button type="button" className="btn" style={{padding:'6px 10px',fontSize:'.68rem',gap:5}} onClick={()=>printRow(r)}>🖨️ Imprimir</button>
+              </div>
+            </div>{i<filtered.length-1&&<Div/>}</div>;
+          })}
+        </div>}
+    </div>
+  </>;
+}
+
+/* ══════════════════════════════════════════════════════════════════
    MASTER PANEL
 ══════════════════════════════════════════════════════════════════ */
 function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddAdm,onDeleteAdm,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],challengeConfigs=[],onRefresh,refreshing=false,referralTimeline=[]}){
@@ -4005,7 +4141,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
   function nav(dest){setView(dest);}
   function goAdm(adm){setSelAdm(adm);setView('vendedorDetail');}
 
-  const masterTabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'vendedores',l:'Vendedores',I:IcUsers},{id:'membros',l:'SEEK',I:IcBook},{id:'remuneracao',l:'Regras',I:IcStar}];
+  const masterTabs=[{id:'dashboard',l:'Painel',I:IcGrid},{id:'vendedores',l:'Vendedores',I:IcUsers},{id:'membros',l:'SEEK',I:IcBook},{id:'prospeccao',l:'Prospecção',I:IcSrch},{id:'remuneracao',l:'Regras',I:IcStar}];
   const activeTab=view==='memberDetail'?'membros':view==='vendedorDetail'?'vendedores':['pending','paid'].includes(view)?'dashboard':view;
   const inSubView=['memberDetail','pending','paid','vendedorDetail','prevPending'].includes(view);
 
@@ -4038,6 +4174,7 @@ function MasterPanel({adms,members,referrals,jrReferrals,seekJrs,credentials,off
       {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={scopeRefs} jrReferrals={scopeJrRefs} seekJrs={scopeJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView(selAdm?'vendedorDetail':'membros');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} referralTimeline={referralTimeline}/>}
       {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={false} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
       {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={true} onBack={()=>setView('dashboard')} readOnly={true} filterMonth={sm} filterYear={sy}/>}
+      {view==='prospeccao'&&<MasterProspeccao members={members} seekJrs={seekJrs} adms={adms} referrals={referrals} jrReferrals={jrReferrals}/>}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={true}/>}
       {view==='dashboard'&&<div className="page" style={{paddingTop:0,paddingBottom:0}}><CalendarioAniversarios referrals={referrals} jrReferrals={jrReferrals} members={members} seekJrs={seekJrs}/></div>}
 
@@ -4796,7 +4933,7 @@ function MesAnteriorPanel({adm,members,seekJrs,referrals,jrReferrals,spinRewards
 /* ══════════════════════════════════════════════════════════════════
    VENDEDOR PANEL (ADM role — dados filtrados por adm_id)
 ══════════════════════════════════════════════════════════════════ */
-function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onMarkSold,onUpdateJrReferral,onToggleSpinPaid,onPayAllForSeek,onPayAllForJr,challengeConfigs,onSaveChallengeConfig,onCloseNotSold,onUpdateReferralStage,referralTimeline}){
+function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,offers,passReqs,levelNotifs,onLogout,onAddMember,onUpdateMember,onDeleteMember,onUpdatePin,onAddReferral,onUpdateReferral,onTogglePaid,onDeleteReferral,onAddSeekJr,onDeleteSeekJr,onAddJrReferral,onToggleJrPaid,onDeleteJrReferral,onAddOffer,onDeleteOffer,onMarkRead,spinRewards,chestRewards=[],onMarkSold,onUpdateJrReferral,onToggleSpinPaid,onPayAllForSeek,onPayAllForJr,challengeConfigs,onSaveChallengeConfig,onCloseNotSold,onUpdateReferralStage,referralTimeline,referralMessages=[],onSendMessage,notifications,onMarkNotificationRead}){
   const [view,setView]=useState('dashboard');
   const [selMember,setSelMember]=useState(null);
   const [editRefDirect,setEditRefDirect]=useState(null);
@@ -4804,6 +4941,8 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
   const [showChallenge,setShowChallenge]=useState(false);
   const [showBell,setShowBell]=useState(false);
   const [showHelp,setShowHelp]=useState(false);
+  const [showNotifCenter,setShowNotifCenter]=useState(false);
+  const [notifQuickView,setNotifQuickView]=useState(null);
   const now=new Date();
   const [sm,setSm]=useState(now.getMonth()+1);
   const [sy,setSy]=useState(now.getFullYear());
@@ -4813,6 +4952,26 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
   const newJrs=seekJrs.filter(j=>j.isNew);
   const badge=pendReqs.length+newRefs.length+newJrs.length;
   const allRefs=[...referrals,...jrReferrals];
+  /* Central de Notificações genérica (item 3/4 do pedido) — hoje alimentada
+     principalmente por mensagens do Seek/JR (ver sendReferralMessage, App).
+     Paralela e sem tocar no sino antigo acima (badge/isNew/passReqs). */
+  const myVendorNotifs=(notifications||[]).filter(n=>n.ownerType==='adm'&&sameId(n.ownerId,adm.id));
+  const unreadVendorNotifs=myVendorNotifs.filter(n=>!n.read).length;
+  function openVendorNotification(n){
+    onMarkNotificationRead&&onMarkNotificationRead(n.id);
+    /* referrals e jr_referrals são tabelas com sequências de id
+       independentes — um id pode existir nas duas ao mesmo tempo. Por isso
+       linkType precisa dizer explicitamente qual tabela buscar
+       (referral_member/referral_jr), nunca as duas em sequência (bug real
+       pego por um agente de revisão nesta sessão, antes de commitar). */
+    if(n.linkType==='referral_jr'){
+      const found=jrReferrals.find(r=>sameId(r.id,n.linkId));
+      if(found)setNotifQuickView({r:found,isJr:true});
+    }else if(n.linkType==='referral_member'){
+      const found=referrals.find(r=>sameId(r.id,n.linkId));
+      if(found)setNotifQuickView({r:found,isJr:false});
+    }
+  }
   const curMember=selMember?members.find(m=>sameId(m.id,selMember.id))??selMember:null;
   const inSubView=['memberDetail','pending','paid','editRef','prevPending'].includes(view);
   const [calAutoDay,setCalAutoDay]=useState(null);
@@ -4831,6 +4990,10 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
               {badge>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{badge}</span>}
               <IcBell s={18} c="var(--muted)"/>
             </button>
+            {notifications&&<button style={{position:'relative'}} className="icon-btn" onClick={()=>setShowNotifCenter(true)}>
+              {unreadVendorNotifs>0&&<span style={{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',fontSize:'.5rem',fontWeight:900,borderRadius:99,padding:'1px 4px'}}>{unreadVendorNotifs}</span>}
+              💬
+            </button>}
             <button className="icon-btn" style={{fontSize:'.9rem'}} onClick={()=>setShowHelp(true)}>❓</button>
             <button className="icon-btn" onClick={onLogout}><IcOut s={17} c="var(--muted)"/></button>
           </div>
@@ -4838,15 +5001,16 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
         <div style={{padding:'4px 16px 8px',textAlign:'center'}}>
           <span style={{fontSize:'0.55rem',fontWeight:900,color:'var(--black)',letterSpacing:'.02em'}}>{adm.name}</span>
         </div>
+        {notifications&&<div style={{padding:'0 16px'}}><NotificationBanner notifications={myVendorNotifs} onMarkRead={onMarkNotificationRead} onOpen={openVendorNotification}/></div>}
       </>
 
       {view==='dashboard'&&<AdmDashboard members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} sm={sm} setSm={setSm} sy={sy} setSy={setSy} onNav={nav} passReqs={passReqs} credentials={credentials} onDeleteRef={onDeleteReferral} onDeleteJrRef={onDeleteJrReferral} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} showPaymentReminder={true}/>}
       {view==='members'&&<AdmMembers members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onSelect={m=>{setSelMember(m);setView('memberDetail');}} onAdd={d=>onAddMember(d,adm.id)} onDelete={onDeleteMember} onUpdatePin={onUpdatePin} onDeleteJr={onDeleteSeekJr}/>}
-      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid} challengeConfigs={challengeConfigs} onMarkSold={onMarkSold} onCloseNotSold={onCloseNotSold} onUpdateReferralStage={onUpdateReferralStage} referralTimeline={referralTimeline}/>}
+      {view==='memberDetail'&&curMember&&<AdmMemberDetail member={curMember} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setSelMember(null);setView('members');}} onAddReferral={d=>onAddReferral(d,curMember.id)} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={id=>{onDeleteMember(id);setSelMember(null);setView('members');}} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid} challengeConfigs={challengeConfigs} onMarkSold={onMarkSold} onCloseNotSold={onCloseNotSold} onUpdateReferralStage={onUpdateReferralStage} referralTimeline={referralTimeline} referralMessages={referralMessages} onSendMessage={onSendMessage?(rid,body)=>onSendMessage(rid,false,body):undefined}/>}
       {view==='pending'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={false} onBack={()=>setView('dashboard')} onPayAllForSeek={onPayAllForSeek} onPayAllForJr={onPayAllForJr} filterMonth={sm} filterYear={sy} admPixKey={adm.pixKey||null}/>}
       {view==='paid'&&<LedgerPorSeek members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} paid={true} onBack={()=>setView('dashboard')} filterMonth={sm} filterYear={sy}/>}
       {view==='prevPending'&&<MesAnteriorPanel adm={adm} members={members} seekJrs={seekJrs} referrals={referrals} jrReferrals={jrReferrals} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} onBack={()=>setView('dashboard')}/>}
-      {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid} challengeConfigs={challengeConfigs} onMarkSold={onMarkSold} onCloseNotSold={onCloseNotSold} onUpdateReferralStage={onUpdateReferralStage} referralTimeline={referralTimeline}/>;})()}
+      {view==='editRef'&&editRefDirect&&(()=>{const _jr=editRefDirect.jrId?seekJrs.find(j=>sameId(j.id,editRefDirect.jrId)):null;const _m=(editRefDirect.memberId?members.find(m=>sameId(m.id,editRefDirect.memberId)):_jr?members.find(m=>sameId(m.id,_jr.seekId)):null)||{id:0,name:'?'};return<AdmMemberDetail member={_m} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onBack={()=>{setEditRefDirect(null);setView('dashboard');}} onUpdateReferral={onUpdateReferral} onTogglePaid={onTogglePaid} onDeleteReferral={onDeleteReferral} onDeleteMember={onDeleteMember} onUpdateMember={onUpdateMember} onUpdatePin={onUpdatePin} spinRewards={spinRewards} chestRewards={chestRewards} onToggleSpinPaid={onToggleSpinPaid} challengeConfigs={challengeConfigs} onMarkSold={onMarkSold} onCloseNotSold={onCloseNotSold} onUpdateReferralStage={onUpdateReferralStage} referralTimeline={referralTimeline} referralMessages={referralMessages} onSendMessage={onSendMessage?(rid,body)=>onSendMessage(rid,false,body):undefined}/>;})()}
       {view==='remuneracao'&&<RemuneracaoPanel isMaster={false} isAdm={true}/>}
       {view==='fipe'&&<FipeConsulta/>}
       {view==='financiamento'&&<SimuladorFinanciamento/>}
@@ -4863,11 +5027,13 @@ function VendedorPanel({adm,members,referrals,jrReferrals,seekJrs,credentials,of
       )}
       {view==='dashboard'&&<div className="page" style={{paddingTop:0,paddingBottom:0}}><CalendarioAniversarios referrals={referrals} jrReferrals={jrReferrals} members={members} seekJrs={seekJrs} autoOpenDay={calAutoDay}/></div>}
 
-      {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)} onChallenge={()=>setShowChallenge(true)}/>}
+      {!inSubView&&<AdmTabBar view={view} setView={v=>{setView(v);setSelMember(null);}} onOffers={()=>setShowOffers(true)} onChallenge={()=>setShowChallenge(true)} dot={unreadVendorNotifs>0}/>}
       {showBell&&<VendedorBellPanel members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} passReqs={passReqs} onClose={()=>setShowBell(false)} onMarkRead={onMarkRead} onMarkSold={onMarkSold} onUpdateRef={updateRef} onTogglePaid={onTogglePaid} onToggleJrPaid={onToggleJrPaid} onCloseNotSold={onCloseNotSold} onUpdateReferralStage={onUpdateReferralStage}/>}
       {showOffers&&<OffersPanel offers={offers} onClose={()=>setShowOffers(false)} isAdm={false} onAddOffer={()=>{}} onDeleteOffer={()=>{}}/>}
       {showChallenge&&<ChallengeConfigPanel configs={challengeConfigs} onSave={onSaveChallengeConfig} onClose={()=>setShowChallenge(false)}/>}
       {showHelp&&<HelpModal role="adm" onClose={()=>setShowHelp(false)}/>}
+      {showNotifCenter&&<NotificationCenterPanel notifications={myVendorNotifs} onClose={()=>setShowNotifCenter(false)} onMarkRead={onMarkNotificationRead} onOpen={openVendorNotification}/>}
+      {notifQuickView&&<ReferralQuickView r={notifQuickView.r} referralType={notifQuickView.isJr?'jr':'member'} onClose={()=>setNotifQuickView(null)} messages={referralMessages} onSendMessage={onSendMessage?(rid,body)=>onSendMessage(rid,notifQuickView.isJr,body):undefined} myRole="adm"/>}
     </div>
   );
 }
@@ -5632,470 +5798,6 @@ function SpinModal({seekerName,spinIndex=1,spinTotal=1,onClose,onResult}){
   );
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   MINIGAME — ESTOURA OPORTUNIDADE
-   Bubble-shooter original do SEEK Network: atira peças hexagonais
-   coloridas (uma por categoria de produto) contra um aglomerado fixo
-   no topo da tela. 3+ peças da mesma categoria em contato formam um
-   "Negócio Fechado!" e somem (peças que ficam desconectadas do topo
-   caem junto, como bônus). 5 fases fixas com formatos diferentes —
-   sem geração aleatória de fase; só a cor de cada peça sorteada é
-   aleatória, sempre dentre as cores ainda presentes no tabuleiro.
-══════════════════════════════════════════════════════════════════ */
-const EO_CATEGORIES=[
-  {id:'auto',    name:'Automóveis',         color:'#3A86FF', dark:'#1948A3'},
-  {id:'cons',    name:'Consórcios',         color:'#1D7A3A', dark:'#0F4A22'},
-  {id:'corp',    name:'Empresariais',       color:'#8833BB', dark:'#551F79'},
-  {id:'premiada',name:'Indicação Premiada', color:'#FFD700', dark:'#B8860B', bonus:true},
-];
-const EO_LEVELS=[
-  {name:'Triângulo',mask:['111111111','.1111111.','..11111..','...111...','....1....']},
-  {name:'Losango',  mask:['....1....','...111...','..11111..','.1111111.','..11111..','...111...','....1....']},
-  {name:'Coração',  mask:['.11...11.','111.1.111','111111111','.1111111.','..11111..','...111...','....1....']},
-  {name:'Hexágono', mask:['..11111..','.1111111.','111111111','111111111','.1111111.','..11111..']},
-  {name:'Seta',     mask:['....1....','...111...','..11111..','.1111111.','....1....','....1....','....1....']},
-];
-const EO_COLS=9, EO_ROWS=11, EO_DANGER_ROW=9;
-
-function eoNeighbors(row,col){
-  const odd=row%2===1;
-  return odd
-    ?[[row,col-1],[row,col+1],[row-1,col],[row-1,col+1],[row+1,col],[row+1,col+1]]
-    :[[row,col-1],[row,col+1],[row-1,col-1],[row-1,col],[row+1,col-1],[row+1,col]];
-}
-function eoBuildBoard(levelIdx){
-  const{mask}=EO_LEVELS[levelIdx];
-  const board=Array.from({length:EO_ROWS},()=>Array(EO_COLS).fill(null));
-  const normalIds=EO_CATEGORIES.filter(c=>!c.bonus).map(c=>c.id);
-  mask.forEach((rowStr,r)=>{
-    for(let c=0;c<EO_COLS;c++){
-      if(rowStr[c]==='1'){
-        const colorId=Math.random()<0.12?'premiada':normalIds[Math.floor(Math.random()*normalIds.length)];
-        board[r][c]={colorId};
-      }
-    }
-  });
-  return board;
-}
-function eoFilledCount(board){
-  let n=0;
-  for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++)if(board[r][c])n++;
-  return n;
-}
-function eoDistinctColors(board){
-  const set=new Set();
-  for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++)if(board[r][c])set.add(board[r][c].colorId);
-  return[...set];
-}
-function eoFloodMatch(board,row,col){
-  const target=board[row][col].colorId;
-  const seen=new Set([row+','+col]);
-  const stack=[[row,col]], group=[[row,col]];
-  while(stack.length){
-    const[r,c]=stack.pop();
-    eoNeighbors(r,c).forEach(([nr,nc])=>{
-      if(nr<0||nr>=EO_ROWS||nc<0||nc>=EO_COLS)return;
-      const key=nr+','+nc;
-      if(seen.has(key))return;
-      const cell=board[nr][nc];
-      if(cell&&cell.colorId===target){seen.add(key);stack.push([nr,nc]);group.push([nr,nc]);}
-    });
-  }
-  return group;
-}
-function eoRemoveFloating(board){
-  const reachable=new Set();
-  const stack=[];
-  for(let c=0;c<EO_COLS;c++)if(board[0][c]){reachable.add('0,'+c);stack.push([0,c]);}
-  while(stack.length){
-    const[r,c]=stack.pop();
-    eoNeighbors(r,c).forEach(([nr,nc])=>{
-      if(nr<0||nr>=EO_ROWS||nc<0||nc>=EO_COLS)return;
-      const key=nr+','+nc;
-      if(reachable.has(key))return;
-      if(board[nr][nc]){reachable.add(key);stack.push([nr,nc]);}
-    });
-  }
-  let floatCount=0;
-  for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++){
-    if(board[r][c]&&!reachable.has(r+','+c)){board[r][c]=null;floatCount++;}
-  }
-  return floatCount;
-}
-function eoHexPath(ctx,cx,cy,r){
-  ctx.beginPath();
-  for(let i=0;i<6;i++){
-    const a=Math.PI/180*(60*i-90);
-    const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
-    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
-  }
-  ctx.closePath();
-}
-function eoDrawPiece(ctx,cx,cy,r,cat){
-  eoHexPath(ctx,cx,cy,r*0.94);
-  const grad=ctx.createRadialGradient(cx-r*0.25,cy-r*0.3,r*0.1,cx,cy,r);
-  grad.addColorStop(0,cat.bonus?'#FFF6C0':'rgba(255,255,255,.55)');
-  grad.addColorStop(1,cat.color);
-  ctx.fillStyle=grad;ctx.fill();
-  ctx.lineWidth=Math.max(1.5,r*0.1);ctx.strokeStyle=cat.dark;ctx.stroke();
-  if(cat.bonus){
-    ctx.fillStyle='rgba(255,255,255,.9)';
-    ctx.font=`${Math.round(r*0.85)}px sans-serif`;
-    ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('★',cx,cy+r*0.05);
-  }
-}
-
-function EstouraOportunidadeGame({levelIdx,onLevelResult,onExit}){
-  const canvasRef=React.useRef(null);
-  const wrapRef=React.useRef(null);
-  const layoutRef=React.useRef(null);
-  const boardRef=React.useRef(null);
-  const movingRef=React.useRef(null);
-  const aimRef=React.useRef({angle:0,active:false});
-  const rafRef=React.useRef(null);
-  const toastRef=React.useRef({text:'',until:0});
-  const currentRef=React.useRef(null);
-  const nextRef=React.useRef(null);
-  const shotsUsedRef=React.useRef(0);
-  const shotBudgetRef=React.useRef(0);
-  const scoreRef=React.useRef(0);
-  const doneRef=React.useRef(false);
-  const [score,setScore]=useState(0);
-  const [shotsLeft,setShotsLeft]=useState(0);
-  const [next,setNext]=useState(null);
-  const level=EO_LEVELS[levelIdx];
-
-  function computeLayout(width){
-    const R=Math.max(12,width/((EO_COLS+1)*1.75));
-    const hexW=R*Math.sqrt(3), rowH=R*1.5;
-    const originX=width/2-((EO_COLS-1)/2)*hexW;
-    const originY=R+10;
-    const gridBottom=originY+(EO_ROWS-1)*rowH+R;
-    const cannonY=gridBottom+R+18;
-    const height=cannonY+R+26;
-    return{R,hexW,rowH,originX,originY,width,height,cannonX:width/2,cannonY};
-  }
-  function cellCenter(L,row,col){
-    return{x:L.originX+col*L.hexW+(row%2?L.hexW/2:0),y:L.originY+row*L.rowH};
-  }
-  function pickColor(){
-    const colors=eoDistinctColors(boardRef.current);
-    return colors.length?colors[Math.floor(Math.random()*colors.length)]:EO_CATEGORIES[0].id;
-  }
-
-  useEffect(()=>{
-    function resize(){
-      const w=Math.min(wrapRef.current?wrapRef.current.clientWidth:340,380);
-      const L=computeLayout(w);
-      layoutRef.current=L;
-      if(canvasRef.current){canvasRef.current.width=L.width;canvasRef.current.height=L.height;}
-    }
-    resize();
-    window.addEventListener('resize',resize);
-    return()=>window.removeEventListener('resize',resize);
-  },[]);
-
-  useEffect(()=>{
-    const board=eoBuildBoard(levelIdx);
-    boardRef.current=board;
-    const filled=eoFilledCount(board);
-    shotBudgetRef.current=filled+Math.ceil(filled*0.5)+6;
-    shotsUsedRef.current=0;
-    scoreRef.current=0;
-    doneRef.current=false;
-    movingRef.current=null;
-    currentRef.current=pickColor();
-    nextRef.current=pickColor();
-    setScore(0);
-    setShotsLeft(shotBudgetRef.current);
-    setNext(nextRef.current);
-
-    let lastT=performance.now();
-    function frame(now){
-      const dt=Math.min(0.05,(now-lastT)/1000);
-      lastT=now;
-      step(dt);
-      draw(now);
-      if(!doneRef.current)rafRef.current=requestAnimationFrame(frame);
-    }
-    rafRef.current=requestAnimationFrame(frame);
-    return()=>{if(rafRef.current)cancelAnimationFrame(rafRef.current);};
-  },[levelIdx]);
-
-  function finish(cleared){
-    if(doneRef.current)return;
-    doneRef.current=true;
-    let stars=0;
-    if(cleared){
-      const eff=shotsUsedRef.current/shotBudgetRef.current;
-      stars=eff<=0.6?3:eff<=0.85?2:1;
-    }
-    onLevelResult({cleared,score:scoreRef.current,stars,levelName:level.name});
-  }
-
-  function resolveShot(snapRow,snapCol){
-    const board=boardRef.current;
-    const group=eoFloodMatch(board,snapRow,snapCol);
-    if(group.length>=3){
-      const isBonus=board[snapRow][snapCol].colorId==='premiada';
-      let gained=group.length*10+Math.max(0,group.length-3)*15;
-      if(isBonus)gained*=2;
-      group.forEach(([r,c])=>{board[r][c]=null;});
-      gained+=eoRemoveFloating(board)*20;
-      scoreRef.current+=gained;
-      setScore(scoreRef.current);
-      toastRef.current={text:'Negócio Fechado!',until:performance.now()+900};
-    }
-    if(eoFilledCount(board)===0){finish(true);return;}
-    let danger=false;
-    for(let r=EO_DANGER_ROW;r<EO_ROWS&&!danger;r++){
-      for(let c=0;c<EO_COLS;c++){if(board[r][c]){danger=true;break;}}
-    }
-    if(danger){finish(false);return;}
-    if(shotsUsedRef.current>=shotBudgetRef.current){finish(false);return;}
-    currentRef.current=nextRef.current;
-    nextRef.current=pickColor();
-    setNext(nextRef.current);
-    setShotsLeft(shotBudgetRef.current-shotsUsedRef.current);
-  }
-
-  function step(dt){
-    const m=movingRef.current;
-    if(!m)return;
-    const L=layoutRef.current;
-    m.x+=m.vx*dt;m.y+=m.vy*dt;
-    if(m.x<L.R){m.x=L.R;m.vx=-m.vx;}
-    if(m.x>L.width-L.R){m.x=L.width-L.R;m.vx=-m.vx;}
-    const board=boardRef.current;
-    let hit=null,hitDist=Infinity;
-    for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++){
-      if(!board[r][c])continue;
-      const p=cellCenter(L,r,c);
-      const d=Math.hypot(p.x-m.x,p.y-m.y);
-      if(d<L.R*1.9&&d<hitDist){hit=[r,c];hitDist=d;}
-    }
-    let snapRow=null,snapCol=null;
-    if(hit){
-      let best=null,bestD=Infinity;
-      eoNeighbors(hit[0],hit[1]).forEach(([nr,nc])=>{
-        if(nr<0||nr>=EO_ROWS||nc<0||nc>=EO_COLS||board[nr][nc])return;
-        const p=cellCenter(L,nr,nc);
-        const d=Math.hypot(p.x-m.x,p.y-m.y);
-        if(d<bestD){bestD=d;best=[nr,nc];}
-      });
-      if(best){snapRow=best[0];snapCol=best[1];}
-    }else if(m.y<=L.originY){
-      let best=null,bestD=Infinity;
-      for(let c=0;c<EO_COLS;c++){
-        if(board[0][c])continue;
-        const d=Math.abs(cellCenter(L,0,c).x-m.x);
-        if(d<bestD){bestD=d;best=[0,c];}
-      }
-      if(best){snapRow=best[0];snapCol=best[1];}
-    }
-    if(snapRow==null){
-      if(!hit&&m.y>L.originY)return; // ainda em voo, nada para snapar
-      // fallback de segurança: nenhum vizinho vazio perto o bastante — usa a célula vazia mais próxima do tabuleiro
-      let best=null,bestD=Infinity;
-      for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++){
-        if(board[r][c])continue;
-        const p=cellCenter(L,r,c);
-        const d=Math.hypot(p.x-m.x,p.y-m.y);
-        if(d<bestD){bestD=d;best=[r,c];}
-      }
-      if(!best){movingRef.current=null;return;}
-      snapRow=best[0];snapCol=best[1];
-    }
-    board[snapRow][snapCol]={colorId:m.colorId};
-    shotsUsedRef.current+=1;
-    movingRef.current=null;
-    resolveShot(snapRow,snapCol);
-  }
-
-  function draw(now){
-    const canvas=canvasRef.current,L=layoutRef.current;
-    if(!canvas||!L)return;
-    const ctx=canvas.getContext('2d');
-    ctx.clearRect(0,0,L.width,L.height);
-    const dangerY=L.originY+(EO_DANGER_ROW-0.5)*L.rowH;
-    ctx.setLineDash([6,6]);ctx.strokeStyle='rgba(255,60,60,.35)';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(0,dangerY);ctx.lineTo(L.width,dangerY);ctx.stroke();
-    ctx.setLineDash([]);
-    const board=boardRef.current;
-    for(let r=0;r<EO_ROWS;r++)for(let c=0;c<EO_COLS;c++){
-      if(!board[r][c])continue;
-      const p=cellCenter(L,r,c);
-      eoDrawPiece(ctx,p.x,p.y,L.R,EO_CATEGORIES.find(x=>x.id===board[r][c].colorId));
-    }
-    const aim=aimRef.current;
-    if(aim.active&&!movingRef.current){
-      let x=L.cannonX,y=L.cannonY,dx=Math.sin(aim.angle),dy=-Math.cos(aim.angle),bounced=false;
-      ctx.setLineDash([5,7]);ctx.strokeStyle='rgba(255,255,255,.5)';ctx.lineWidth=2;
-      ctx.beginPath();ctx.moveTo(x,y);
-      for(let i=0;i<300;i++){
-        x+=dx*5;y+=dy*5;
-        if(x<=L.R||x>=L.width-L.R){if(bounced)break;dx=-dx;bounced=true;}
-        if(y<=L.originY)break;
-        ctx.lineTo(x,y);
-      }
-      ctx.stroke();ctx.setLineDash([]);
-    }
-    ctx.fillStyle='#111';
-    ctx.beginPath();ctx.arc(L.cannonX,L.cannonY,L.R*1.15,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#FFD700';ctx.lineWidth=2;ctx.stroke();
-    if(currentRef.current)eoDrawPiece(ctx,L.cannonX,L.cannonY,L.R*0.85,EO_CATEGORIES.find(x=>x.id===currentRef.current));
-    if(movingRef.current){
-      const m=movingRef.current;
-      eoDrawPiece(ctx,m.x,m.y,L.R,EO_CATEGORIES.find(x=>x.id===m.colorId));
-    }
-    if(toastRef.current.until>now){
-      const alpha=Math.min(1,(toastRef.current.until-now)/900);
-      ctx.fillStyle=`rgba(255,215,0,${alpha})`;
-      ctx.font='900 16px Inter,sans-serif';ctx.textAlign='center';
-      ctx.fillText(toastRef.current.text,L.width/2,L.height*0.42);
-    }
-  }
-
-  function fire(){
-    if(movingRef.current||doneRef.current)return;
-    const L=layoutRef.current;
-    const angle=Math.max(-1.3,Math.min(1.3,aimRef.current.angle));
-    const speed=620;
-    movingRef.current={x:L.cannonX,y:L.cannonY-L.R*1.2,vx:speed*Math.sin(angle),vy:-speed*Math.cos(angle),colorId:currentRef.current};
-    aimRef.current.active=false;
-  }
-  function updateAim(clientX,clientY){
-    const canvas=canvasRef.current,L=layoutRef.current;
-    if(!canvas||!L)return;
-    const rect=canvas.getBoundingClientRect();
-    const scale=L.width/rect.width;
-    const x=(clientX-rect.left)*scale, y=(clientY-rect.top)*scale;
-    let angle=Math.atan2(x-L.cannonX,L.cannonY-y);
-    angle=Math.max(-1.3,Math.min(1.3,angle));
-    aimRef.current={angle,active:true};
-  }
-  function onMouseMove(e){updateAim(e.clientX,e.clientY);}
-  function onMouseDown(e){updateAim(e.clientX,e.clientY);fire();}
-  function onTouchStart(e){const t=e.touches[0];updateAim(t.clientX,t.clientY);}
-  function onTouchMove(e){e.preventDefault();const t=e.touches[0];updateAim(t.clientX,t.clientY);}
-  function onTouchEnd(e){e.preventDefault();fire();}
-
-  return(
-    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:10,width:'100%'}}>
-      <div style={{display:'flex',gap:16,fontSize:'.76rem',fontWeight:800,color:'#fff'}}>
-        <span>🏆 {score}</span>
-        <span>🎯 {shotsLeft}</span>
-        <span>Fase {levelIdx+1}/{EO_LEVELS.length} · {level.name}</span>
-      </div>
-      <div ref={wrapRef} style={{width:'100%',maxWidth:380,touchAction:'none'}}
-        onMouseMove={onMouseMove} onMouseDown={onMouseDown}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
-        <canvas ref={canvasRef} style={{width:'100%',display:'block',borderRadius:12,boxShadow:'0 4px 24px rgba(0,0,0,.5)'}}/>
-      </div>
-      <div style={{display:'flex',alignItems:'center',gap:8,fontSize:'.68rem',color:'rgba(255,255,255,.6)',fontWeight:700}}>
-        <span>Próxima:</span>
-        {next&&<span style={{width:16,height:16,borderRadius:4,background:EO_CATEGORIES.find(x=>x.id===next).color,display:'inline-block'}}/>}
-      </div>
-      <button className="btn" style={{padding:'8px 20px',fontSize:'.74rem'}} onClick={onExit}>Sair</button>
-    </div>
-  );
-}
-
-function MinigameModal({seekId,jrId,scoreRow,onSaveScore,onClose}){
-  const [phase,setPhase]=useState('intro'); // intro | playing | levelResult | sessionOver
-  const [levelIdx,setLevelIdx]=useState(0);
-  const [sessionScore,setSessionScore]=useState(0);
-  const [lastResult,setLastResult]=useState(null);
-  const [finalResult,setFinalResult]=useState(null);
-  const [saving,setSaving]=useState(false);
-  const highScore=scoreRow?scoreRow.highScore:0;
-  const totalXp=scoreRow?scoreRow.totalXp:0;
-  const isLastLevel=levelIdx===EO_LEVELS.length-1;
-
-  function startSession(){setLevelIdx(0);setSessionScore(0);setPhase('playing');}
-  function handleLevelResult(result){
-    setSessionScore(s=>s+result.score);
-    setLastResult(result);
-    setPhase('levelResult');
-  }
-  async function finalizeSession(total){
-    setSaving(true);
-    await onSaveScore(seekId,jrId,total,total);
-    setSaving(false);
-    setFinalResult({total,xp:total,isNewHigh:total>highScore});
-    setPhase('sessionOver');
-  }
-  function nextLevel(){setLevelIdx(i=>i+1);setPhase('playing');}
-  function retryLevel(){setPhase('playing');}
-
-  return(
-    <div className="spin-overlay" style={{flexDirection:'column',overflowY:'auto',padding:'20px 16px',background:'radial-gradient(ellipse at center,#2A1E00 0%,#140F00 60%,#0A0700 100%)'}} onClick={phase!=='playing'?onClose:undefined}>
-      <div onClick={e=>e.stopPropagation()} style={{width:'100%',maxWidth:420,display:'flex',flexDirection:'column',alignItems:'center',gap:14}}>
-        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',width:'100%'}}>
-          <span style={{fontWeight:900,fontSize:'1rem',color:'#fff'}}>🫧 Estoura Oportunidade</span>
-          <button className="icon-btn" style={{background:'rgba(255,255,255,.1)'}} onClick={onClose}><IcX s={17} c="#fff"/></button>
-        </div>
-
-        {phase==='intro'&&(
-          <div style={{display:'flex',flexDirection:'column',gap:16,alignItems:'center',textAlign:'center',padding:'6px 6px 10px'}}>
-            <div style={{fontSize:'.82rem',color:'rgba(255,255,255,.75)',lineHeight:1.7}}>
-              Mire e atire as peças no aglomerado. Junte <b style={{color:'#fff'}}>3 ou mais</b> da mesma categoria para fechar negócio e estourar as peças.<br/>
-              Fique de olho na <b style={{color:'#FFD700'}}>Indicação Premiada</b> — vale o dobro dos pontos!
-            </div>
-            <div style={{display:'flex',gap:28}}>
-              <div style={{textAlign:'center'}}><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Recorde</div><div style={{fontWeight:900,fontSize:'1.2rem',color:'#fff'}}>{highScore}</div></div>
-              <div style={{textAlign:'center'}}><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>XP Total</div><div style={{fontWeight:900,fontSize:'1.2rem',color:'#FFD700'}}>{totalXp}</div></div>
-            </div>
-            <button className="btn btn-dark btn-full" style={{padding:14}} onClick={startSession}>🎮 Jogar</button>
-          </div>
-        )}
-
-        {phase==='playing'&&<EstouraOportunidadeGame key={levelIdx} levelIdx={levelIdx} onLevelResult={handleLevelResult} onExit={onClose}/>}
-
-        {phase==='levelResult'&&lastResult&&(
-          <div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center',textAlign:'center',padding:'6px 6px 10px'}}>
-            <div style={{fontSize:'2.6rem'}}>{lastResult.cleared?'🏆':'💫'}</div>
-            <div style={{fontWeight:900,fontSize:'1.1rem',color:'#fff'}}>{lastResult.cleared?'Fase Completa!':'Fase não concluída'}</div>
-            {lastResult.cleared&&<div style={{fontSize:'1.6rem'}}>{'⭐'.repeat(lastResult.stars)}{'☆'.repeat(3-lastResult.stars)}</div>}
-            <div style={{display:'flex',gap:28,marginTop:4}}>
-              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Pontos da Fase</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#fff'}}>{lastResult.score}</div></div>
-              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Total da Sessão</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#FFD700'}}>{sessionScore}</div></div>
-            </div>
-            <div style={{display:'flex',gap:10,width:'100%',marginTop:8}}>
-              {lastResult.cleared&&isLastLevel?(
-                <button className="btn btn-dark btn-full" onClick={()=>finalizeSession(sessionScore)}>Ver Resultado Final</button>
-              ):(<>
-                <button className="btn btn-full" onClick={()=>finalizeSession(sessionScore)}>Encerrar e Salvar</button>
-                {lastResult.cleared
-                  ?<button className="btn btn-dark btn-full" onClick={nextLevel}>Próxima Fase</button>
-                  :<button className="btn btn-dark btn-full" onClick={retryLevel}>🔄 Tentar de Novo</button>}
-              </>)}
-            </div>
-          </div>
-        )}
-
-        {phase==='sessionOver'&&finalResult&&(
-          <div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center',textAlign:'center',padding:'6px 6px 10px'}}>
-            <div style={{fontSize:'2.6rem'}}>🎉</div>
-            <div style={{fontWeight:900,fontSize:'1.1rem',color:'#fff'}}>Sessão Encerrada</div>
-            {finalResult.isNewHigh&&<div style={{fontSize:'.74rem',fontWeight:800,color:'#FFD700'}}>🌟 Novo recorde!</div>}
-            <div style={{display:'flex',gap:28,marginTop:4}}>
-              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>Pontos</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#fff'}}>{finalResult.total}</div></div>
-              <div><div style={{fontSize:'.6rem',color:'rgba(255,255,255,.5)',fontWeight:800,textTransform:'uppercase',letterSpacing:'.06em'}}>XP Ganho</div><div style={{fontWeight:900,fontSize:'1.3rem',color:'#FFD700'}}>+{finalResult.xp}</div></div>
-            </div>
-            {saving&&<div style={{fontSize:'.7rem',color:'rgba(255,255,255,.6)'}}>Salvando...</div>}
-            <div style={{display:'flex',gap:10,width:'100%',marginTop:8}}>
-              <button className="btn btn-full" onClick={onClose}>Fechar</button>
-              <button className="btn btn-dark btn-full" onClick={startSession}>🔄 Jogar de novo</button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function App(){
   const [loading,setLoading]=useState(true);
   const [session,setSession]=useState(null);
@@ -6122,10 +5824,10 @@ function App(){
   }
   const [chestPending,setChestPending]=useState([]);
   const [chestRewards,setChestRewards]=useState([]);
-  const [minigameScores,setMinigameScores]=useState([]);
   const [challengeConfigs,setChallengeConfigs]=useState([]);
   const [referralTimeline,setReferralTimeline]=useState([]);
   const [notifications,setNotifications]=useState([]);
+  const [referralMessages,setReferralMessages]=useState([]);
   const [dbError,setDbError]=useState(null);
 
   useEffect(()=>{
@@ -6151,8 +5853,9 @@ function App(){
       const [
         {data:rRows},{data:reqRows},{data:jrRefRows},
         {data:notifRows},{data:offerRows},{data:spinRows},{data:spinPendingRows},
-        {data:chestPendingRows},{data:chestRewardRows},{data:mgRows,error:mgErr},
+        {data:chestPendingRows},{data:chestRewardRows},
         {data:ccRows,error:ccErr},{data:tlRows,error:tlErr},{data:notifRows2,error:notifErr},
+        {data:msgRows,error:msgErr},
       ]=await Promise.all([
         db.from('referrals').select('*'),
         db.from('pass_requests').select('*'),
@@ -6163,14 +5866,14 @@ function App(){
         db.from('spin_pending').select('*'),
         db.from('chest_pending').select('*').eq('used',false),
         db.from('chest_rewards').select('*'),
-        db.from('minigame_scores').select('*'),
         db.from('monthly_challenge_config').select('*'),
         db.from('referral_timeline').select('*'),
         db.from('notifications').select('*'),
+        db.from('referral_messages').select('*'),
       ]);
-      if(mgErr)console.warn('[SEEK boot] tabela minigame_scores indisponível (migration-minigame-scores.sql ainda não executada?):',mgErr.message);
       if(tlErr)console.warn('[SEEK boot] tabela referral_timeline indisponível (migration-notification-center.sql ainda não executada?):',tlErr.message);
       if(notifErr)console.warn('[SEEK boot] tabela notifications indisponível (migration-notification-center.sql ainda não executada?):',notifErr.message);
+      if(msgErr)console.warn('[SEEK boot] tabela referral_messages indisponível (supabase/migrations/20260731_comunicacao_seek_vendedor.sql ainda não executada?):',msgErr.message);
       setReferrals((rRows||[]).map(mRef));
       setPassReqs((reqRows||[]).map(mPassReq));
       setJrReferrals((jrRefRows||[]).map(mJrRef));
@@ -6180,11 +5883,11 @@ function App(){
       setPendingSpins((spinPendingRows||[]).map(mSpinPending));
       setChestPending((chestPendingRows||[]).map(mChestPending));
       setChestRewards((chestRewardRows||[]).map(mChestReward));
-      setMinigameScores((mgRows||[]).map(mMinigameScore));
       if(ccErr)console.warn('[SEEK boot] tabela monthly_challenge_config indisponível (migration-monthly-challenge.sql ainda não executada?):',ccErr.message);
       setChallengeConfigs((ccRows||[]).map(mChallengeConfig));
       setReferralTimeline((tlRows||[]).map(mTimelineEntry));
       setNotifications((notifRows2||[]).map(mNotification));
+      setReferralMessages((msgRows||[]).map(mReferralMessage));
     }
     boot();
   },[]);
@@ -6267,8 +5970,6 @@ function App(){
       db.from('chest_pending').delete().eq('seek_id',midStr),
       jrIds.length?db.from('chest_pending').delete().in('jr_id',jrIds):Promise.resolve(),
       db.from('level_notifs').delete().eq('member_id',midStr),
-      db.from('minigame_scores').delete().eq('seek_id',midStr),
-      jrIds.length?db.from('minigame_scores').delete().in('jr_id',jrIds):Promise.resolve(),
     ]);
     setMembers(u=>u.filter(m=>!sameId(m.id,mid)));
     setSeekJrs(u=>u.filter(j=>!sameId(j.seekId,mid)));
@@ -6280,7 +5981,6 @@ function App(){
     setChestRewards(u=>u.filter(c=>!sameId(c.seekId,mid)&&!jrIds.some(jid=>sameId(c.jrId,jid))));
     setChestPending(u=>u.filter(c=>!sameId(c.seekId,mid)&&!jrIds.some(jid=>sameId(c.jrId,jid))));
     setLevelNotifs(u=>u.filter(n=>!sameId(n.memberId,mid)));
-    setMinigameScores(u=>u.filter(s=>!sameId(s.seekId,mid)&&!jrIds.some(jid=>sameId(s.jrId,jid))));
   }
 
   async function deleteSeekJr(jid){
@@ -6293,7 +5993,6 @@ function App(){
       db.from('spin_pending').delete().eq('jr_id',jidStr),
       db.from('chest_rewards').delete().eq('jr_id',jidStr),
       db.from('chest_pending').delete().eq('jr_id',jidStr),
-      db.from('minigame_scores').delete().eq('jr_id',jidStr),
     ]);
     setSeekJrs(u=>u.filter(j=>!sameId(j.id,jid)));
     setJrReferrals(u=>u.filter(r=>!sameId(r.jrId,jid)));
@@ -6302,7 +6001,6 @@ function App(){
     setPendingSpins(u=>u.filter(s=>!sameId(s.jrId,jid)));
     setChestRewards(u=>u.filter(c=>!sameId(c.jrId,jid)));
     setChestPending(u=>u.filter(c=>!sameId(c.jrId,jid)));
-    setMinigameScores(u=>u.filter(s=>!sameId(s.jrId,jid)));
   }
 
   async function addAdm(data){
@@ -6346,8 +6044,6 @@ function App(){
       admMids.length?db.from('chest_pending').delete().in('seek_id',admMids):Promise.resolve(),
       admJids.length?db.from('chest_pending').delete().in('jr_id',admJids):Promise.resolve(),
       admMids.length?db.from('level_notifs').delete().in('member_id',admMids):Promise.resolve(),
-      admMids.length?db.from('minigame_scores').delete().in('seek_id',admMids):Promise.resolve(),
-      admJids.length?db.from('minigame_scores').delete().in('jr_id',admJids):Promise.resolve(),
     ]);
     setAdms(u=>u.filter(a=>!sameId(a.id,admId)));
     setMembers(u=>u.filter(m=>!sameId(m.admId,admId)));
@@ -6360,7 +6056,6 @@ function App(){
     setChestRewards(u=>u.filter(c=>!admMids.some(id=>sameId(c.seekId,id))&&!admJids.some(jid=>sameId(c.jrId,jid))));
     setChestPending(u=>u.filter(c=>!admMids.some(id=>sameId(c.seekId,id))&&!admJids.some(jid=>sameId(c.jrId,jid))));
     setLevelNotifs(u=>u.filter(n=>!admMids.some(id=>sameId(n.memberId,id))));
-    setMinigameScores(u=>u.filter(s=>!admMids.some(id=>sameId(s.seekId,id))&&!admJids.some(jid=>sameId(s.jrId,jid))));
   }
 
   async function updatePin(key,pin){
@@ -6375,11 +6070,15 @@ function App(){
     const refStatus=hasProduct?'a_pagar':'aguardando';
     // Otimista: insere na UI antes de esperar o DB
     const tmpId=`__tmp_${Date.now()}`;
-    const tmpRef={id:tmpId,memberId:mid,clientName:data.clientName,whatsapp:data.whatsapp||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null,birthdayYear:data.birthdayYear||null};
+    const tmpRef={id:tmpId,memberId:mid,clientName:data.clientName,whatsapp:data.whatsapp||null,city:data.city||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null,birthdayYear:data.birthdayYear||null};
     const withTmp=[...referrals,tmpRef];
     setReferrals(withTmp);
     checkLevelUp(mid,old,withTmp);
-    let {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single();
+    let {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,city:data.city||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single();
+    if(error&&error.code==='42703'){
+      // supabase/migrations/20260731_prospeccao.sql ainda não rodou — tenta de novo sem `city`.
+      ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single());
+    }
     if(error&&error.code==='42703'){
       ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
     }
@@ -6418,11 +6117,13 @@ function App(){
       db.from('referrals').delete().eq('id',rid),
       db.from('spin_rewards').delete().eq('referral_id',String(rid)),
       db.from('spin_pending').delete().eq('referral_id',String(rid)),
+      db.from('referral_messages').delete().eq('referral_id',String(rid)),
     ]);
     setReferrals(u=>u.filter(r=>!sameId(r.id,rid)));
     setPendingSpins(u=>u.filter(s=>!sameId(s.referralId,rid)));
     const remainingSpins=spinRewards.filter(s=>!sameId(s.referralId,rid));
     setSpinRewards(remainingSpins);
+    setReferralMessages(u=>u.filter(m=>!sameId(m.referralId,rid)));
     if(ref)reconcileChestAfterSpinRemoval(ref.memberId,null,remainingSpins);
   }
 
@@ -6445,9 +6146,13 @@ function App(){
     const hasProduct=(data.productValue||0)>0;
     const refStatus=hasProduct?'a_pagar':'aguardando';
     const tmpId=`__tmp_${Date.now()}`;
-    const tmpRef={id:tmpId,jrId:String(data.jrId),clientName:data.clientName,whatsapp:data.whatsapp||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:true,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null,birthdayYear:data.birthdayYear||null};
+    const tmpRef={id:tmpId,jrId:String(data.jrId),clientName:data.clientName,whatsapp:data.whatsapp||null,city:data.city||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:true,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null,birthdayYear:data.birthdayYear||null};
     setJrReferrals(u=>[...u,tmpRef]);
-    let {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single();
+    let {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,city:data.city||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single();
+    if(error&&error.code==='42703'){
+      // supabase/migrations/20260731_prospeccao.sql ainda não rodou — tenta de novo sem `city`.
+      ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single());
+    }
     if(error&&error.code==='42703'){
       ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
     }
@@ -6529,7 +6234,7 @@ function App(){
     if(tlError)console.warn('[applyReferralStage] não gravou referral_timeline (migration-notification-center.sql pendente?):',tlError.message);
 
     const body=extra.note?`Observação: ${extra.note}`:null;
-    const{data:notifRow,error:notifError}=await db.from('notifications').insert({owner_type:ownerType,owner_id:String(ownerId),type:'referral_stage',icon:def.icon,color:def.color,title:`${def.icon} ${ref.clientName}: ${def.label}`,body,link_type:'referral',link_id:String(rid)}).select().single();
+    const{data:notifRow,error:notifError}=await db.from('notifications').insert({owner_type:ownerType,owner_id:String(ownerId),type:'referral_stage',icon:def.icon,color:def.color,title:`${def.icon} ${ref.clientName}: ${def.label}`,body,link_type:isJr?'referral_jr':'referral_member',link_id:String(rid)}).select().single();
     if(notifError)console.warn('[applyReferralStage] não gravou notifications (migration-notification-center.sql pendente?):',notifError.message);
     else if(notifRow)setNotifications(u=>[...u,mNotification(notifRow)]);
   }
@@ -6556,6 +6261,57 @@ function App(){
     setNotifications(u=>u.map(n=>n.id===id?{...n,read:true}:n));
     const{error}=await db.from('notifications').update({read:true}).eq('id',id);
     if(error)console.error('[markNotificationRead]',error);
+  }
+
+  /* Quem está enviando uma mensagem livre dentro da indicação — ao contrário
+     de resolveActorName (só cobre o Vendedor, único que muda estágio hoje),
+     aqui cobre também Seek/JR, que agora podem responder na conversa. */
+  function resolveSenderInfo(){
+    if(session&&session.role==='adm'){
+      const adm=adms.find(a=>sameId(a.id,session.admId));
+      return{role:'adm',name:adm?adm.name:'Vendedor'};
+    }
+    if(session&&session.role==='member'){
+      const m=members.find(m=>sameId(m.id,session.memberId));
+      return{role:'member',name:m?m.name:'Seek'};
+    }
+    if(session&&session.role==='jr'){
+      const jr=seekJrs.find(j=>sameId(j.id,session.jrId));
+      return{role:'jr',name:jr?jr.name:'Seek JR'};
+    }
+    return{role:'adm',name:'Vendedor'};
+  }
+
+  /* Conversa livre dentro da indicação (referral_messages) — várias mensagens
+     de ida e volta, sem exigir mudança de estágio (diferente de
+     referral_timeline, que é 1 linha por mudança de estágio). Notifica
+     sempre o OUTRO lado: Vendedor manda → notifica o Seek/JR dono da
+     indicação; Seek/JR manda → notifica o Vendedor responsável (cadeia
+     resolveReferralOwners). Nenhuma mensagem é editável/apagável. */
+  async function sendReferralMessage(rid,isJr,body){
+    body=(body||'').trim();
+    if(!body)return;
+    const ref=(isJr?jrReferrals:referrals).find(r=>sameId(r.id,rid));
+    if(!ref)return;
+    const referralType=isJr?'jr':'member';
+    const sender=resolveSenderInfo();
+    const{data:saved,error}=await db.from('referral_messages').insert({referral_id:String(rid),referral_type:referralType,sender_role:sender.role,sender_name:sender.name,body}).select().single();
+    if(error){console.error('[sendReferralMessage]',error);setDbError('Não foi possível enviar a mensagem. Peça ao administrador para rodar supabase/migrations/20260731_comunicacao_seek_vendedor.sql no Supabase.');return;}
+    setReferralMessages(u=>[...u,mReferralMessage(saved)]);
+
+    let notifOwnerType,notifOwnerId;
+    if(sender.role==='adm'){
+      notifOwnerType=referralType;
+      notifOwnerId=isJr?ref.jrId:ref.memberId;
+    }else{
+      const{adm}=resolveReferralOwners(ref,isJr,members,seekJrs,adms);
+      if(!adm)return;
+      notifOwnerType='adm';
+      notifOwnerId=adm.id;
+    }
+    const{data:notifRow,error:notifError}=await db.from('notifications').insert({owner_type:notifOwnerType,owner_id:String(notifOwnerId),type:'referral_message',icon:'💬',color:'#3A86FF',title:`💬 ${sender.name}: ${ref.clientName}`,body,link_type:isJr?'referral_jr':'referral_member',link_id:String(rid)}).select().single();
+    if(notifError)console.warn('[sendReferralMessage] não gravou notifications (rodar supabase/migrations/20260731_comunicacao_seek_vendedor.sql — libera notifications.owner_type="adm"?):',notifError.message);
+    else if(notifRow)setNotifications(u=>[...u,mNotification(notifRow)]);
   }
 
   async function updateJrReferral(rid,data){
@@ -6591,25 +6347,6 @@ function App(){
     const{data:saved,error}=await db.from('chest_rewards').insert({seek_id:seekId||null,jr_id:jrId||null,valor,paid:false}).select().single();
     if(error){console.error('[addChestReward]',error);return;}
     setChestRewards(u=>[...u,mChestReward(saved)]);
-  }
-
-  async function saveMinigameScore(seekId,jrId,score,xp){
-    const existing=minigameScores.find(s=>seekId?sameId(s.seekId,seekId):sameId(s.jrId,jrId));
-    if(!existing){
-      const{data:saved,error}=await db.from('minigame_scores').insert({seek_id:seekId||null,jr_id:jrId||null,high_score:score,total_xp:xp,plays_count:1}).select().single();
-      if(error){console.error('[saveMinigameScore] insert',error);setDbError('Não foi possível salvar a pontuação do minigame. Peça ao administrador para rodar migration-minigame-scores.sql no Supabase.');return null;}
-      const row=mMinigameScore(saved);
-      setMinigameScores(u=>[...u,row]);
-      return row;
-    }
-    const newHigh=Math.max(existing.highScore,score);
-    const newXp=existing.totalXp+xp;
-    const newPlays=existing.playsCount+1;
-    const{error}=await db.from('minigame_scores').update({high_score:newHigh,total_xp:newXp,plays_count:newPlays}).eq('id',existing.id);
-    if(error){console.error('[saveMinigameScore] update',error);setDbError('Não foi possível salvar a pontuação do minigame.');return null;}
-    const row={...existing,highScore:newHigh,totalXp:newXp,playsCount:newPlays};
-    setMinigameScores(u=>u.map(s=>sameId(s.id,existing.id)?row:s));
-    return row;
   }
 
   /* Upsert da config do MÊS CORRENTE — meses passados nunca são alterados,
@@ -6765,11 +6502,13 @@ function App(){
       db.from('jr_referrals').delete().eq('id',rid),
       db.from('spin_rewards').delete().eq('referral_id',String(rid)),
       db.from('spin_pending').delete().eq('referral_id',String(rid)),
+      db.from('referral_messages').delete().eq('referral_id',String(rid)),
     ]);
     setJrReferrals(u=>u.filter(r=>r.id!==rid));
     setPendingSpins(u=>u.filter(s=>!sameId(s.referralId,rid)));
     const remainingSpins=spinRewards.filter(s=>!sameId(s.referralId,rid));
     setSpinRewards(remainingSpins);
+    setReferralMessages(u=>u.filter(m=>!sameId(m.referralId,rid)));
     if(ref)reconcileChestAfterSpinRemoval(null,ref.jrId,remainingSpins);
   }
 
@@ -6861,7 +6600,7 @@ function App(){
         const jrLastRef=jrReferrals.filter(r=>sameId(r.jrId,jr.id)).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
         return<ChestModal seekerName={jr.name} onResult={v=>addChestReward(null,String(jr.id),v)} onClose={()=>consumeChestPending(first.id)} onRetrySpin={jrLastRef?()=>{addSpinReward(null,String(jr.id),jrLastRef.id,-5);addSpinPending(null,String(jr.id),jrLastRef.id);}:null}/>;
       }
-      return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} minigameScores={minigameScores} onSaveMinigameScore={saveMinigameScore} challengeConfigs={challengeConfigs} notifications={notifications} onMarkNotificationRead={markNotificationRead} referralTimeline={referralTimeline}/>;
+      return<SeekJrPanel jr={jr} referrals={jrReferrals} seekMember={seekMember} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={addJrReferral} onChangePin={updatePin} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} notifications={notifications} onMarkNotificationRead={markNotificationRead} referralTimeline={referralTimeline} referralMessages={referralMessages} onSendMessage={(rid,body)=>sendReferralMessage(rid,true,body)}/>;
     }
     if(session.role==='member'){
       const member=members.find(m=>sameId(m.id,session.memberId));
@@ -6879,7 +6618,7 @@ function App(){
         const memberLastRef=referrals.filter(r=>sameId(r.memberId,member.id)).slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0))[0];
         return<ChestModal seekerName={member.name} onResult={v=>addChestReward(String(member.id),null,v)} onClose={()=>consumeChestPending(first.id)} onRetrySpin={memberLastRef?()=>{addSpinReward(String(member.id),null,memberLastRef.id,-5);addSpinPending(String(member.id),null,memberLastRef.id);}:null}/>;
       }
-      return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} minigameScores={minigameScores} onSaveMinigameScore={saveMinigameScore} challengeConfigs={challengeConfigs} notifications={notifications} onMarkNotificationRead={markNotificationRead} referralTimeline={referralTimeline}/>;
+      return<MemberPanel member={member} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} onLogout={()=>setSession(null)} onAddReferral={data=>addReferral(data,member.id)} onAddJr={addSeekJr} onChangePin={updatePin} levelNotifs={levelNotifs} onDismissNotif={dismissLevelNotif} offers={offers} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} notifications={notifications} onMarkNotificationRead={markNotificationRead} referralTimeline={referralTimeline} referralMessages={referralMessages} onSendMessage={(rid,body)=>sendReferralMessage(rid,false,body)}/>;
     }
     if(session.role==='master'){
       return<MasterPanel adms={adms} members={members} referrals={referrals} jrReferrals={jrReferrals} seekJrs={seekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddAdm={addAdm} onDeleteAdm={deleteAdm} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} challengeConfigs={challengeConfigs} onRefresh={refreshLedgerData} refreshing={refreshingLedger} referralTimeline={referralTimeline}/>;
@@ -6891,7 +6630,7 @@ function App(){
       const mySeekJrs=seekJrs.filter(j=>myMembers.some(m=>sameId(m.id,j.seekId)));
       const myReferrals=referrals.filter(r=>myMembers.some(m=>sameId(m.id,r.memberId)));
       const myJrReferrals=jrReferrals.filter(r=>mySeekJrs.some(j=>sameId(j.id,r.jrId)));
-      return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral} onToggleSpinPaid={toggleSpinPaid} onPayAllForSeek={payAllForSeek} onPayAllForJr={payAllForJr} challengeConfigs={challengeConfigs} onSaveChallengeConfig={saveChallengeConfig} onCloseNotSold={closeReferralNotSold} onUpdateReferralStage={updateReferralStage} referralTimeline={referralTimeline}/>;
+      return<VendedorPanel adm={adm} members={myMembers} referrals={myReferrals} jrReferrals={myJrReferrals} seekJrs={mySeekJrs} credentials={credentials} offers={offers} passReqs={passReqs} levelNotifs={levelNotifs} onLogout={()=>setSession(null)} onAddMember={addMember} onUpdateMember={updateMember} onDeleteMember={deleteMember} onUpdatePin={updatePin} onAddReferral={addReferral} onUpdateReferral={updateReferral} onTogglePaid={togglePaid} onDeleteReferral={deleteReferral} onAddSeekJr={addSeekJr} onDeleteSeekJr={deleteSeekJr} onAddJrReferral={addJrReferral} onToggleJrPaid={toggleJrPaid} onDeleteJrReferral={deleteJrReferral} onAddOffer={addOffer} onDeleteOffer={deleteOffer} onMarkRead={markRead} spinRewards={spinRewards} chestRewards={chestRewards} onMarkSold={markReferralSold} onUpdateJrReferral={updateJrReferral} onToggleSpinPaid={toggleSpinPaid} onPayAllForSeek={payAllForSeek} onPayAllForJr={payAllForJr} challengeConfigs={challengeConfigs} onSaveChallengeConfig={saveChallengeConfig} onCloseNotSold={closeReferralNotSold} onUpdateReferralStage={updateReferralStage} referralTimeline={referralTimeline} referralMessages={referralMessages} onSendMessage={sendReferralMessage} notifications={notifications} onMarkNotificationRead={markNotificationRead}/>;
     }
     return null;
   }
