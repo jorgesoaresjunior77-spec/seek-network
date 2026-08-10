@@ -245,6 +245,19 @@ function sameId(a,b){
   return String(a)===String(b);
 }
 
+/* Detecta erro de "coluna inexistente" do Supabase/PostgREST, usado pelos
+   fallbacks em cascata de addReferral/addJrReferral/etc (coluna nova sem
+   migração aplicada ainda). O Postgres cru retorna 42703, mas o PostgREST
+   (camada REST do Supabase) intercepta antes disso e retorna PGRST204
+   ("Could not find the '<col>' column ... in the schema cache") sempre que
+   o cache de schema dele não conhece a coluna enviada no insert/update —
+   confirmado em produção em 2026-08-10. Checar só '42703' fazia os
+   fallbacks nunca disparar, e todo cadastro de indicação falhava com o erro
+   cru na tela em vez de cair pra um tier sem a coluna faltante. */
+function isMissingColumnError(error){
+  return !!error&&(error.code==='42703'||error.code==='PGRST204');
+}
+
 function inMonth(iso,month,year){
   if(!iso)return false;
   const d=new Date(iso);
@@ -6075,14 +6088,14 @@ function App(){
     setReferrals(withTmp);
     checkLevelUp(mid,old,withTmp);
     let {data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,city:data.city||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single();
-    if(error&&error.code==='42703'){
+    if(isMissingColumnError(error)){
       // supabase/migrations/20260731_prospeccao.sql ainda não rodou — tenta de novo sem `city`.
       ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single());
     }
-    if(error&&error.code==='42703'){
+    if(isMissingColumnError(error)){
       ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
     }
-    if(error&&error.code==='42703'){
+    if(isMissingColumnError(error)){
       ({data:saved,error}=await db.from('referrals').insert({member_id:mid,client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:data.isNew!==false,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
     }
     if(error){console.error('[addReferral] ERRO:',error);setReferrals(old);setDbError('Erro ao salvar indicação: '+error.message);return;}
@@ -6107,7 +6120,7 @@ function App(){
     const {error:spinErr}=await db.from('spin_rewards').update({paid:newPaid}).eq('referral_id',String(rid));
     if(spinErr){console.error('[togglePaid] spin_rewards erro:',spinErr);setDbError('Comissão atualizada, mas o bônus de Roleta não pôde ser marcado como pago. Peça ao administrador para rodar migration-spin-rewards-paid.sql no Supabase. Detalhe: '+spinErr.message);}
     let {error}=await db.from('referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
-    if(error&&error.code==='42703')({error}=await db.from('referrals').update({paid:newPaid}).eq('id',rid));
+    if(isMissingColumnError(error))({error}=await db.from('referrals').update({paid:newPaid}).eq('id',rid));
     if(error){console.error('[togglePaid]',error);setReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:ref.paid,status:ref.status,paidAt:ref.paidAt}:r));}
   }
 
@@ -6132,7 +6145,7 @@ function App(){
     const jrId=existing===0?`${data.seekId}JR`:`${data.seekId}JR${existing+1}`;
     const rawJL=(data.whatsapp||'').replace(/\D/g,'');
     let {error:je}=await db.from('seek_jrs').insert({id:jrId,name:data.name,whatsapp:rawJL,seek_id:String(data.seekId),pin:data.pin||'0000',is_new:true,pix_key:data.pixKey||null});
-    if(je&&je.code==='42703'){
+    if(isMissingColumnError(je)){
       ({error:je}=await db.from('seek_jrs').insert({id:jrId,name:data.name,whatsapp:rawJL,seek_id:String(data.seekId),pin:data.pin||'0000',is_new:true}));
     }
     if(je){console.error('[addSeekJr]',je);setDbError('Erro ao cadastrar SEEK JR: '+je.message);return;}
@@ -6149,14 +6162,14 @@ function App(){
     const tmpRef={id:tmpId,jrId:String(data.jrId),clientName:data.clientName,whatsapp:data.whatsapp||null,city:data.city||null,productType:data.productType||'auto',productValue:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,isNew:true,status:refStatus,observacoes:data.observacoes||null,paidAt:null,createdAt:new Date().toISOString(),birthdayDay:data.birthdayDay||null,birthdayMonth:data.birthdayMonth||null,birthdayYear:data.birthdayYear||null};
     setJrReferrals(u=>[...u,tmpRef]);
     let {data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,city:data.city||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single();
-    if(error&&error.code==='42703'){
+    if(isMissingColumnError(error)){
       // supabase/migrations/20260731_prospeccao.sql ainda não rodou — tenta de novo sem `city`.
       ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null,birthday_year:data.birthdayYear||null}).select().single());
     }
-    if(error&&error.code==='42703'){
+    if(isMissingColumnError(error)){
       ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,status:refStatus,observacoes:data.observacoes||null,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
     }
-    if(error&&error.code==='42703'){
+    if(isMissingColumnError(error)){
       ({data:saved,error}=await db.from('jr_referrals').insert({jr_id:String(data.jrId),client_name:data.clientName,whatsapp:data.whatsapp||null,product_type:data.productType||'auto',product_value:data.productValue||0,commission:data.commission||0,year:data.year,month:data.month,day:data.day,paid:false,is_new:true,birthday_day:data.birthdayDay||null,birthday_month:data.birthdayMonth||null}).select().single());
     }
     if(error){console.error('[addJrReferral] ERRO:',error);setJrReferrals(u=>u.filter(r=>r.id!==tmpId));setDbError('Erro ao salvar indicação JR: '+error.message);return;}
@@ -6215,7 +6228,7 @@ function App(){
     }
 
     let{error}=await db.from(table).update(dbPatch).eq('id',rid);
-    if(error&&error.code==='42703'){
+    if(isMissingColumnError(error)){
       // migration-notification-center.sql ainda não rodou — tenta de novo só
       // com os campos financeiros/legado (o pipeline de stage fica pendente
       // até a migração ser executada, mas venda/não-fechou continuam salvando).
@@ -6442,7 +6455,7 @@ function App(){
     setSpinRewards(u=>{const next=u.map(s=>sameId(s.seekId,seekId)&&!s.paid?{...s,paid:true}:s);console.log('[payAllForSeek] estado spins atualizado, pagas agora:',next.filter(s=>sameId(s.seekId,seekId)&&s.paid).length);return next;});
     setChestRewards(u=>{const next=u.map(c=>sameId(c.seekId,seekId)&&!c.paid?{...c,paid:true}:c);console.log('[payAllForSeek] estado chests atualizado, pagas agora:',next.filter(c=>sameId(c.seekId,seekId)&&c.paid).length);return next;});
     let {error:er}=await db.from('referrals').update({paid:true,status:'pago',paid_at:now}).eq('member_id',seekIdStr);
-    if(er&&er.code==='42703')({error:er}=await db.from('referrals').update({paid:true}).eq('member_id',seekIdStr));
+    if(isMissingColumnError(er))({error:er}=await db.from('referrals').update({paid:true}).eq('member_id',seekIdStr));
     if(er){console.error('[payAllForSeek] ERRO referrals Supabase:',er);return;}
     else console.log('[payAllForSeek] referrals Supabase OK');
     const {error:spinErr}=await db.from('spin_rewards').update({paid:true}).eq('seek_id',seekIdStr);
@@ -6467,7 +6480,7 @@ function App(){
     setSpinRewards(u=>{const next=u.map(s=>sameId(s.jrId,jrId)&&!s.paid?{...s,paid:true}:s);console.log('[payAllForJr] estado spins atualizado, pagas agora:',next.filter(s=>sameId(s.jrId,jrId)&&s.paid).length);return next;});
     setChestRewards(u=>{const next=u.map(c=>sameId(c.jrId,jrId)&&!c.paid?{...c,paid:true}:c);console.log('[payAllForJr] estado chests atualizado, pagas agora:',next.filter(c=>sameId(c.jrId,jrId)&&c.paid).length);return next;});
     let {error:ej}=await db.from('jr_referrals').update({paid:true,status:'pago',paid_at:now}).eq('jr_id',jrIdStr);
-    if(ej&&ej.code==='42703')({error:ej}=await db.from('jr_referrals').update({paid:true}).eq('jr_id',jrIdStr));
+    if(isMissingColumnError(ej))({error:ej}=await db.from('jr_referrals').update({paid:true}).eq('jr_id',jrIdStr));
     if(ej){console.error('[payAllForJr] ERRO jr_referrals Supabase:',ej);return;}
     else console.log('[payAllForJr] jr_referrals Supabase OK');
     const {error:spinErr}=await db.from('spin_rewards').update({paid:true}).eq('jr_id',jrIdStr);
@@ -6492,7 +6505,7 @@ function App(){
     const {error:spinErr}=await db.from('spin_rewards').update({paid:newPaid}).eq('referral_id',String(rid));
     if(spinErr)console.error('[toggleJrPaid] spin_rewards erro:',spinErr);
     let {error}=await db.from('jr_referrals').update({paid:newPaid,status:newStatus,paid_at:paidAt}).eq('id',rid);
-    if(error&&error.code==='42703')({error}=await db.from('jr_referrals').update({paid:newPaid}).eq('id',rid));
+    if(isMissingColumnError(error))({error}=await db.from('jr_referrals').update({paid:newPaid}).eq('id',rid));
     if(error){console.error('[toggleJrPaid]',error);setJrReferrals(u=>u.map(r=>sameId(r.id,rid)?{...r,paid:ref.paid,status:ref.status,paidAt:ref.paidAt}:r));}
   }
 
