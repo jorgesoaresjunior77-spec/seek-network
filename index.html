@@ -880,12 +880,22 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
         {/* Login form — single unified entry, phone digits only, no mode tabs.
             The system figures out automatically whether the phone+pin belongs
             to the ADM, a SEEK, or a SEEK JR. */}
-        <form onSubmit={handleSubmit} style={{width:'100%',display:'flex',flexDirection:'column',gap:13}}>
-          <input className="login-inp" type="tel" inputMode="numeric"
+        <form onSubmit={handleSubmit} autoComplete="off" style={{width:'100%',display:'flex',flexDirection:'column',gap:13}}>
+          {/* name/autoComplete explícitos: sem eles o navegador não tinha
+              nenhuma pista do que estes campos realmente são (não existe
+              "usuário"/"e-mail" no SEEK, só telefone+PIN), então o Chrome
+              aplicava sua própria heurística de formulário de login (campo
+              de texto logo antes de um type="password" = username+password)
+              e oferecia sugestões da conta Google do usuário/senhas salvas
+              de OUTROS sites. autoComplete="off" no campo de texto evita
+              isso ser lido como username; "new-password" no PIN é a técnica
+              padrão pra impedir o Chrome de sugerir uma senha salva (ele
+              nunca autofila um campo marcado como "senha nova"). */}
+          <input className="login-inp" type="tel" inputMode="numeric" name="seek-login-phone" autoComplete="off"
             value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,'').slice(0,11))}
             placeholder="TELEFONE (SOMENTE NÚMEROS)" autoFocus/>
           <div style={{position:'relative'}}>
-            <input className="login-inp" type={showPass?'text':'password'}
+            <input className="login-inp" type={showPass?'text':'password'} name="seek-login-pin" autoComplete="new-password"
               value={pass} onChange={e=>setPass(e.target.value.replace(/\D/g,'').slice(0,4))}
               placeholder="SENHA (4 DÍGITOS)" inputMode="numeric" maxLength={4}
               style={{paddingLeft:52,paddingRight:52}}/>
@@ -925,7 +935,7 @@ function LoginScreen({onLogin,credentials,members,seekJrs}){
             ):(
               <div style={{display:'flex',flexDirection:'column',gap:14}}>
                 <p style={{fontSize:'.84rem',color:'var(--muted)',lineHeight:1.6}}>Digite seu telefone cadastrado (somente números). O administrador receberá a solicitação e liberará seu novo acesso.</p>
-                <input className="inp" type="tel" inputMode="numeric"
+                <input className="inp" type="tel" inputMode="numeric" name="seek-forgot-phone" autoComplete="off"
                   value={solPhone} onChange={e=>setSolPhone(e.target.value.replace(/\D/g,'').slice(0,11))}
                   placeholder="TELEFONE (SOMENTE NÚMEROS)" autoFocus/>
                 {solErr&&<div style={{color:'var(--red)',fontSize:'.76rem',fontWeight:700}}>{solErr}</div>}
